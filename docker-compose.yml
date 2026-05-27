@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: vitral-db
+    environment:
+      POSTGRES_DB: vitral_db
+      POSTGRES_USER: vitral_user
+      POSTGRES_PASSWORD: vitral_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - vitral_data:/var/lib/postgresql/data
+
+volumes:
+  vitral_data:
