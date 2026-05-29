@@ -1,0 +1,266 @@
+package com.vitral.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.lang.reflect.Field;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+
+import com.vitral.dto.ProdutoRequest;
+import com.vitral.dto.ProdutoResponse;
+import com.vitral.entity.Account;
+import com.vitral.entity.BaseEntity;
+import com.vitral.entity.Produto;
+import com.vitral.entity.Sebo;
+import com.vitral.enumerations.AccountType;
+import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.exception.BusinessException;
+import com.vitral.exception.ResourceNotFoundException;
+import com.vitral.mapper.ProdutoMapper;
+import com.vitral.repository.ProdutoRepository;
+
+@ExtendWith(MockitoExtension.class)
+class ProdutoServiceTest {
+
+    @Mock
+    private ProdutoRepository produtoRepository;
+
+    @Mock
+    private ProdutoMapper produtoMapper;
+
+    @Mock
+    private SeboService seboService;
+
+    @InjectMocks
+    private ProdutoService produtoService;
+
+    @Captor
+    private ArgumentCaptor<Produto> produtoCaptor;
+
+    private Account contaDona;
+    private Account contaOutroSebo;
+    private Sebo seboDono;
+    private Sebo seboOutro;
+    private ProdutoRequest request;
+
+    @BeforeEach
+    void setUp() {
+        contaDona = Account.builder()
+                .name("Sebo Dono")
+                .email("dono@vitral.com")
+                .passwordHash("hash")
+                .type(AccountType.SEBO)
+                .build();
+        setId(contaDona, 100L);
+
+        contaOutroSebo = Account.builder()
+                .name("Outro Sebo")
+                .email("outro@vitral.com")
+                .passwordHash("hash")
+                .type(AccountType.SEBO)
+                .build();
+        setId(contaOutroSebo, 200L);
+
+        seboDono = Sebo.builder().account(contaDona).cidade("Campina Grande").build();
+        setId(seboDono, 1L);
+
+        seboOutro = Sebo.builder().account(contaOutroSebo).cidade("Recife").build();
+        setId(seboOutro, 2L);
+
+        request = new ProdutoRequest(
+                "Dom Casmurro",
+                "Machado de Assis",
+                "Edicao de 1899, capa dura",
+                new BigDecimal("49.90"),
+                CondicaoProduto.USADO,
+                "https://cdn/dom.jpg");
+    }
+
+    @Test
+    @DisplayName("Deve criar produto vinculado ao sebo da conta autenticada com ativo igual a true")
+    void shouldCreateProductLinkedToOwnerSeboWithAtivoTrue() {
+        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, request.titulo(), request.autor(),
+                request.descricao(), request.preco(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
+
+        when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
+        when(produtoRepository.save(produtoCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(produtoMapper.toResponse(produtoCaptor.capture())).thenReturn(responseEsperado);
+
+        ProdutoResponse resultado = produtoService.criar(contaDona, request);
+
+        assertThat(resultado).isEqualTo(responseEsperado);
+        Produto persistido = produtoCaptor.getAllValues().get(0);
+        assertThat(persistido.getSebo()).isSameAs(seboDono);
+        assertThat(persistido.getTitulo()).isEqualTo("Dom Casmurro");
+        assertThat(persistido.getPreco()).isEqualByComparingTo("49.90");
+        assertThat(persistido.getCondicao()).isEqualTo(CondicaoProduto.USADO);
+        assertThat(persistido.getAtivo()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Deve propagar ResourceNotFoundException quando conta autenticada nao possui sebo")
+    void shouldPropagateNotFoundWhenAccountHasNoSebo() {
+        when(seboService.buscarEntidadePorAccount(100L))
+                .thenThrow(new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
+
+        assertThatThrownBy(() -> produtoService.criar(contaDona, request))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(produtoRepository, never()).save(produtoCaptor.capture());
+    }
+
+    @Test
+    @DisplayName("Deve atualizar campos do produto quando o sebo dono e o da conta autenticada")
+    void shouldUpdateProductWhenOwnedByAuthenticatedAccount() {
+        Produto produto = Produto.builder()
+                .sebo(seboDono)
+                .titulo("Antigo")
+                .preco(new BigDecimal("10.00"))
+                .condicao(CondicaoProduto.NOVO)
+                .ativo(Boolean.TRUE)
+                .build();
+        setId(produto, 50L);
+        ProdutoResponse esperado = new ProdutoResponse(50L, 1L, request.titulo(), request.autor(),
+                request.descricao(), request.preco(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
+
+        when(produtoRepository.findById(50L)).thenReturn(Optional.of(produto));
+        when(produtoMapper.toResponse(produto)).thenReturn(esperado);
+
+        ProdutoResponse resultado = produtoService.atualizar(contaDona, 50L, request);
+
+        assertThat(resultado).isEqualTo(esperado);
+        assertThat(produto.getTitulo()).isEqualTo("Dom Casmurro");
+        assertThat(produto.getPreco()).isEqualByComparingTo("49.90");
+        assertThat(produto.getCondicao()).isEqualTo(CondicaoProduto.USADO);
+        assertThat(produto.getFotoUrl()).isEqualTo("https://cdn/dom.jpg");
+    }
+
+    @Test
+    @DisplayName("Deve lancar BusinessException com status 403 ao atualizar produto de outro sebo")
+    void shouldRejectUpdateWhenProductBelongsToAnotherSebo() {
+        Produto produtoDeOutroSebo = Produto.builder().sebo(seboOutro).ativo(Boolean.TRUE).build();
+        setId(produtoDeOutroSebo, 77L);
+
+        when(produtoRepository.findById(77L)).thenReturn(Optional.of(produtoDeOutroSebo));
+
+        assertThatThrownBy(() -> produtoService.atualizar(contaDona, 77L, request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getStatus()).isEqualTo(HttpStatus.FORBIDDEN));
+
+        assertThat(produtoDeOutroSebo.getTitulo()).isNull();
+    }
+
+    @Test
+    @DisplayName("Deve lancar ResourceNotFoundException ao atualizar produto inexistente")
+    void shouldThrowNotFoundWhenUpdatingMissingProduct() {
+        when(produtoRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> produtoService.atualizar(contaDona, 999L, request))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Produto nao encontrado");
+    }
+
+    @Test
+    @DisplayName("Deve marcar produto como inativo no soft delete preservando a entidade")
+    void shouldSoftDeleteProductSettingAtivoFalse() {
+        Produto produto = Produto.builder().sebo(seboDono).ativo(Boolean.TRUE).build();
+        setId(produto, 30L);
+        when(produtoRepository.findById(30L)).thenReturn(Optional.of(produto));
+
+        produtoService.remover(contaDona, 30L);
+
+        assertThat(produto.getAtivo()).isFalse();
+        verify(produtoRepository, never()).delete(produto);
+    }
+
+    @Test
+    @DisplayName("Deve lancar BusinessException com status 403 ao remover produto de outro sebo")
+    void shouldRejectRemoveWhenProductBelongsToAnotherSebo() {
+        Produto produtoDeOutroSebo = Produto.builder().sebo(seboOutro).ativo(Boolean.TRUE).build();
+        setId(produtoDeOutroSebo, 80L);
+        when(produtoRepository.findById(80L)).thenReturn(Optional.of(produtoDeOutroSebo));
+
+        assertThatThrownBy(() -> produtoService.remover(contaDona, 80L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getStatus()).isEqualTo(HttpStatus.FORBIDDEN));
+
+        assertThat(produtoDeOutroSebo.getAtivo()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Deve retornar produto ativo na consulta publica por id")
+    void shouldReturnActiveProductWhenSearchedById() {
+        Produto produto = Produto.builder().sebo(seboDono).ativo(Boolean.TRUE).build();
+        setId(produto, 5L);
+        ProdutoResponse esperado = new ProdutoResponse(5L, 1L, "T", null, null,
+                BigDecimal.TEN, CondicaoProduto.NOVO, null, Boolean.TRUE);
+
+        when(produtoRepository.findByIdAndAtivoTrue(5L)).thenReturn(Optional.of(produto));
+        when(produtoMapper.toResponse(produto)).thenReturn(esperado);
+
+        ProdutoResponse resultado = produtoService.buscarPorId(5L);
+
+        assertThat(resultado).isEqualTo(esperado);
+    }
+
+    @Test
+    @DisplayName("Deve lancar ResourceNotFoundException ao buscar produto inativo ou inexistente")
+    void shouldThrowNotFoundWhenSearchingInactiveOrMissingProduct() {
+        when(produtoRepository.findByIdAndAtivoTrue(123L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> produtoService.buscarPorId(123L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Produto nao encontrado");
+    }
+
+    @Test
+    @DisplayName("Deve listar produtos ativos de um sebo de forma paginada")
+    void shouldListActiveProductsBySeboPaged() {
+        Produto p1 = Produto.builder().sebo(seboDono).ativo(Boolean.TRUE).build();
+        setId(p1, 1L);
+        Produto p2 = Produto.builder().sebo(seboDono).ativo(Boolean.TRUE).build();
+        setId(p2, 2L);
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Produto> pagina = new PageImpl<>(List.of(p1, p2), pageable, 2);
+        ProdutoResponse r1 = new ProdutoResponse(1L, 1L, "A", null, null, BigDecimal.ONE, CondicaoProduto.NOVO, null, true);
+        ProdutoResponse r2 = new ProdutoResponse(2L, 1L, "B", null, null, BigDecimal.ONE, CondicaoProduto.NOVO, null, true);
+
+        when(produtoRepository.findBySeboIdAndAtivoTrue(1L, pageable)).thenReturn(pagina);
+        when(produtoMapper.toResponse(p1)).thenReturn(r1);
+        when(produtoMapper.toResponse(p2)).thenReturn(r2);
+
+        Page<ProdutoResponse> resultado = produtoService.listarPorSebo(1L, pageable);
+
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        assertThat(resultado.getContent()).containsExactly(r1, r2);
+    }
+
+    private void setId(Object entity, Long id) {
+        try {
+            Field field = BaseEntity.class.getDeclaredField("id");
+            field.setAccessible(true);
+            field.set(entity, id);
+        } catch (ReflectiveOperationException ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+}
