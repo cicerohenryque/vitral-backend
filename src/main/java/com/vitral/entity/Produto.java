@@ -1,0 +1,56 @@
+package com.vitral.entity;
+
+import java.math.BigDecimal;
+
+import com.vitral.enumerations.CondicaoProduto;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Entity
+@Table(name = "produto")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Produto extends BaseEntity {
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "sebo_id", nullable = false)
+    private Sebo sebo;
+
+    @Column(nullable = false, length = 255)
+    private String titulo;
+
+    @Column(length = 255)
+    private String autor;
+
+    @Column(length = 2000)
+    private String descricao;
+
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal preco;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private CondicaoProduto condicao;
+
+    @Column(name = "foto_url", length = 500)
+    private String fotoUrl;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean ativo = Boolean.TRUE;
+}
