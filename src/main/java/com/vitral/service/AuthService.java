@@ -1,5 +1,9 @@
 package com.vitral.service;
 
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -8,11 +12,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.vitral.dto.AuthResponse;
 import com.vitral.dto.LoginRequest;
+import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.RegisterRequest;
 import com.vitral.entity.Account;
+import com.vitral.entity.TokenVerificacaoEmail;
+import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
+import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.AccountMapper;
 import com.vitral.repository.AccountRepository;
+import com.vitral.repository.TokenVerificacaoEmailRepository;
 import com.vitral.security.JwtService;
 
 import lombok.RequiredArgsConstructor;
@@ -22,13 +31,15 @@ import lombok.RequiredArgsConstructor;
 public class AuthService {
 
     private final AccountRepository accountRepository;
+    private final TokenVerificacaoEmailRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final AccountMapper accountMapper;
+    private final EmailService emailService;
 
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
+    public MensagemResponse register(RegisterRequest request) {
         if (accountRepository.existsByEmail(request.email())) {
             throw new ConflictException("Email ja cadastrado");
         }
@@ -38,19 +49,55 @@ public class AuthService {
                 .email(request.email())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .type(request.type())
+                .emailVerificado(false)
                 .build();
 
         Account saved = accountRepository.save(account);
-        return buildAuthResponse(saved);
+
+        String tokenValor = UUID.randomUUID().toString();
+        TokenVerificacaoEmail token = TokenVerificacaoEmail.builder()
+                .account(saved)
+                .token(tokenValor)
+                .expiraEm(OffsetDateTime.now().plusHours(24))
+                .usado(false)
+                .build();
+        tokenRepository.save(token);
+
+        emailService.enviarConfirmacaoCadastro(saved.getEmail(), tokenValor);
+
+        return new MensagemResponse("Cadastro realizado. Verifique seu e-mail para confirmar a conta.");
     }
 
     public AuthResponse login(LoginRequest request) {
+        Account account = accountRepository.findByEmail(request.email())
+                .orElseThrow(() -> new ConflictException("Conta nao encontrada"));
+
+        if (!account.isEmailVerificado()) {
+            throw new BusinessException("E-mail nao confirmado. Verifique sua caixa de entrada.", HttpStatus.UNAUTHORIZED);
+        }
+
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.email(), request.password()));
 
-        Account account = accountRepository.findByEmail(request.email())
-                .orElseThrow(() -> new ConflictException("Conta nao encontrada"));
         return buildAuthResponse(account);
+    }
+
+    @Transactional
+    public MensagemResponse confirmarEmail(String tokenValor) {
+        TokenVerificacaoEmail token = tokenRepository.findByToken(tokenValor)
+                .orElseThrow(() -> new ResourceNotFoundException("Token de confirmacao invalido"));
+
+        if (token.isUsado()) {
+            throw new BusinessException("Token ja utilizado", HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+        if (OffsetDateTime.now().isAfter(token.getExpiraEm())) {
+            throw new BusinessException("Token expirado. Solicite um novo link de confirmacao.", HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        token.getAccount().setEmailVerificado(true);
+        token.setUsado(true);
+
+        return new MensagemResponse("E-mail confirmado com sucesso. Voce ja pode fazer login.");
     }
 
     private AuthResponse buildAuthResponse(Account account) {

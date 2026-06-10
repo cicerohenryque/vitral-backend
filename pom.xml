@@ -136,6 +136,12 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Envio de e-mail (confirmacao de cadastro e notificacoes) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- Banco em memoria para testes de componente (perfil test) -->
         <dependency>
             <groupId>com.h2database</groupId>
