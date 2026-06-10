@@ -34,4 +34,7 @@ public class Account extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AccountType type;
+
+    @Column(name = "email_verificado", nullable = false)
+    private boolean emailVerificado;
 }
