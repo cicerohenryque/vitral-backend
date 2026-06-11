@@ -1,8 +1,10 @@
 package com.vitral.service;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.SeboRequest;
 import com.vitral.dto.SeboResponse;
 import com.vitral.entity.Account;
@@ -12,10 +14,10 @@ import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.SeboMapper;
+import com.vitral.repository.AccountRepository;
 import com.vitral.repository.SeboRepository;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +25,7 @@ public class SeboService {
 
     private final SeboRepository seboRepository;
     private final SeboMapper seboMapper;
+    private final AccountRepository accountRepository;
 
     @Transactional
     public SeboResponse criar(Account account, SeboRequest request) {
@@ -73,5 +76,11 @@ public class SeboService {
     public Sebo buscarEntidadePorAccount(Long accountId) {
         return seboRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
+    }
+
+    @Transactional
+    public MensagemResponse excluirConta(Account account) {
+        accountRepository.delete(account);
+        return new MensagemResponse("Conta do sebo excluida com sucesso");
     }
 }
