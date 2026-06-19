@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.vitral.dto.AccountResponse;
 import com.vitral.dto.AtualizarPerfilRequest;
+import com.vitral.dto.MensagemResponse;
 import com.vitral.entity.Account;
 import com.vitral.mapper.AccountMapper;
 import com.vitral.repository.AccountRepository;
@@ -23,5 +24,11 @@ public class UsuarioService {
         account.setName(request.name());
         Account saved = accountRepository.save(account);
         return accountMapper.toResponse(saved);
+    }
+
+    @Transactional
+    public MensagemResponse excluirConta(Account account) {
+        accountRepository.delete(account);
+        return new MensagemResponse("Conta excluida com sucesso");
     }
 }

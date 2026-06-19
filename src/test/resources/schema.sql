@@ -1,3 +1,7 @@
+DROP TABLE IF EXISTS pedido_item;
+DROP TABLE IF EXISTS pedido;
+DROP TABLE IF EXISTS cesta_item;
+DROP TABLE IF EXISTS favoritos;
 DROP TABLE IF EXISTS token_verificacao_email;
 DROP TABLE IF EXISTS produto;
 DROP TABLE IF EXISTS sebo;
@@ -61,4 +65,51 @@ CREATE TABLE token_verificacao_email (
     CONSTRAINT uk_token_verificacao UNIQUE (token),
     CONSTRAINT fk_token_verificacao_account FOREIGN KEY (account_id)
         REFERENCES account (id) ON DELETE CASCADE
+);
+
+CREATE TABLE favoritos (
+    id         BIGINT    NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    account_id BIGINT    NOT NULL,
+    produto_id BIGINT    NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT uk_favorito UNIQUE (account_id, produto_id),
+    CONSTRAINT fk_favorito_account FOREIGN KEY (account_id) REFERENCES account (id) ON DELETE CASCADE,
+    CONSTRAINT fk_favorito_produto FOREIGN KEY (produto_id) REFERENCES produto (id) ON DELETE CASCADE
+);
+
+CREATE TABLE cesta_item (
+    id         BIGINT    NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    account_id BIGINT    NOT NULL,
+    produto_id BIGINT    NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT uk_cesta_item UNIQUE (account_id, produto_id),
+    CONSTRAINT fk_cesta_account FOREIGN KEY (account_id) REFERENCES account (id) ON DELETE CASCADE,
+    CONSTRAINT fk_cesta_produto FOREIGN KEY (produto_id) REFERENCES produto (id) ON DELETE CASCADE
+);
+
+CREATE TABLE pedido (
+    id         BIGINT         NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    account_id BIGINT         NOT NULL,
+    sebo_id    BIGINT         NOT NULL,
+    status     VARCHAR(30)    NOT NULL DEFAULT 'AGUARDANDO_CONFIRMACAO',
+    total      NUMERIC(12, 2) NOT NULL,
+    created_at TIMESTAMP      NOT NULL,
+    updated_at TIMESTAMP      NOT NULL,
+    CONSTRAINT fk_pedido_account FOREIGN KEY (account_id) REFERENCES account (id),
+    CONSTRAINT fk_pedido_sebo    FOREIGN KEY (sebo_id)    REFERENCES sebo (id),
+    CONSTRAINT ck_pedido_total   CHECK (total >= 0)
+);
+
+CREATE TABLE pedido_item (
+    id               BIGINT         NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    pedido_id        BIGINT         NOT NULL,
+    produto_id       BIGINT         NOT NULL,
+    titulo_snapshot  VARCHAR(255)   NOT NULL,
+    preco_snapshot   NUMERIC(12, 2) NOT NULL,
+    created_at       TIMESTAMP      NOT NULL,
+    updated_at       TIMESTAMP      NOT NULL,
+    CONSTRAINT fk_pedido_item_pedido  FOREIGN KEY (pedido_id)  REFERENCES pedido (id) ON DELETE CASCADE,
+    CONSTRAINT fk_pedido_item_produto FOREIGN KEY (produto_id) REFERENCES produto (id)
 );

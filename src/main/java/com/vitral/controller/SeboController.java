@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.SeboRequest;
 import com.vitral.dto.SeboResponse;
 import com.vitral.security.AccountUserDetails;
@@ -51,5 +53,13 @@ public class SeboController {
     @Operation(summary = "Consulta publica de um sebo pelo id")
     public ResponseEntity<SeboResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(seboService.buscarPorId(id));
+    }
+
+    @DeleteMapping("/me")
+    @PreAuthorize("hasRole('SEBO')")
+    @Operation(summary = "Exclui permanentemente a conta do sebo autenticado e todos os seus dados")
+    public ResponseEntity<MensagemResponse> excluirConta(
+            @AuthenticationPrincipal AccountUserDetails principal) {
+        return ResponseEntity.ok(seboService.excluirConta(principal.getAccount()));
     }
 }

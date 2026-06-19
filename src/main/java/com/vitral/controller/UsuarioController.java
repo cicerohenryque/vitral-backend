@@ -1,7 +1,9 @@
 package com.vitral.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.vitral.dto.AccountResponse;
 import com.vitral.dto.AtualizarPerfilRequest;
+import com.vitral.dto.MensagemResponse;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.service.UsuarioService;
 
@@ -31,5 +34,13 @@ public class UsuarioController {
             @AuthenticationPrincipal AccountUserDetails principal,
             @Valid @RequestBody AtualizarPerfilRequest request) {
         return ResponseEntity.ok(usuarioService.atualizarPerfil(principal.getAccount(), request));
+    }
+
+    @DeleteMapping("/me")
+    @PreAuthorize("hasRole('USUARIO')")
+    @Operation(summary = "Exclui permanentemente a conta do usuario autenticado")
+    public ResponseEntity<MensagemResponse> excluirConta(
+            @AuthenticationPrincipal AccountUserDetails principal) {
+        return ResponseEntity.ok(usuarioService.excluirConta(principal.getAccount()));
     }
 }
