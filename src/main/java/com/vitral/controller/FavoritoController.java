@@ -51,9 +51,10 @@ public class FavoritoController {
     @DeleteMapping("/{produtoId}")
     @PreAuthorize("hasRole('USUARIO')")
     @Operation(summary = "Remove um produto dos favoritos")
-    public ResponseEntity<MensagemResponse> removerFavorito(
+    public ResponseEntity<Void> removerFavorito(
             @AuthenticationPrincipal AccountUserDetails principal,
             @PathVariable Long produtoId) {
-        return ResponseEntity.ok(favoritoService.removerFavorito(principal.getAccount(), produtoId));
+        favoritoService.removerFavorito(principal.getAccount(), produtoId);
+        return ResponseEntity.noContent().build();
     }
 }

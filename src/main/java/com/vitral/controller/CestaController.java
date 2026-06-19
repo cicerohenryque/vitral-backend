@@ -51,9 +51,10 @@ public class CestaController {
     @DeleteMapping("/{produtoId}")
     @PreAuthorize("hasRole('USUARIO')")
     @Operation(summary = "Remove um produto da cesta de compras")
-    public ResponseEntity<MensagemResponse> removerItem(
+    public ResponseEntity<Void> removerItem(
             @AuthenticationPrincipal AccountUserDetails principal,
             @PathVariable Long produtoId) {
-        return ResponseEntity.ok(cestaService.removerItem(principal.getAccount(), produtoId));
+        cestaService.removerItem(principal.getAccount(), produtoId);
+        return ResponseEntity.noContent().build();
     }
 }

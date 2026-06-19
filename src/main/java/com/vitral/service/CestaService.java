@@ -41,7 +41,7 @@ public class CestaService {
 
     @Transactional(readOnly = true)
     public List<CestaItemResponse> listarCesta(Account account) {
-        return cestaItemRepository.findByAccountId(account.getId()).stream()
+        return cestaItemRepository.findByAccountIdComProdutoESebo(account.getId()).stream()
                 .map(i -> new CestaItemResponse(
                         i.getId(),
                         i.getProduto().getId(),

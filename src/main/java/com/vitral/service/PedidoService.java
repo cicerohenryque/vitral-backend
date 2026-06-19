@@ -9,7 +9,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.PedidoItemResponse;
 import com.vitral.dto.PedidoResponse;
 import com.vitral.entity.Account;
@@ -34,19 +33,22 @@ public class PedidoService {
     private final CestaItemRepository cestaItemRepository;
     private final SeboRepository seboRepository;
 
-    /**
-     * Usuário confirma o pedido a partir dos itens da cesta.
-     * Todos os itens da cesta devem pertencer ao mesmo sebo.
-     */
     @Transactional
     public PedidoResponse confirmarPedido(Account account) {
-        List<CestaItem> itens = cestaItemRepository.findByAccountId(account.getId());
+        List<CestaItem> itens = cestaItemRepository.findByAccountIdComProdutoESebo(account.getId());
         if (itens.isEmpty()) {
             throw new BusinessException("A cesta esta vazia", HttpStatus.BAD_REQUEST);
         }
 
-        // Valida que todos os produtos pertencem ao mesmo sebo
-        Long seboId = itens.get(0).getProduto().getSebo().getId();
+        boolean possuiProdutoInativo = itens.stream()
+                .anyMatch(i -> !Boolean.TRUE.equals(i.getProduto().getAtivo()));
+        if (possuiProdutoInativo) {
+            throw new BusinessException(
+                    "A cesta contem produtos que nao estao mais disponiveis",
+                    HttpStatus.BAD_REQUEST);
+        }
+
+        Long seboId = itens.getFirst().getProduto().getSebo().getId();
         boolean sebosDistintos = itens.stream()
                 .anyMatch(i -> !i.getProduto().getSebo().getId().equals(seboId));
         if (sebosDistintos) {
@@ -81,20 +83,16 @@ public class PedidoService {
         pedido.getItens().addAll(pedidoItens);
         Pedido salvo = pedidoRepository.save(pedido);
 
-        // Limpa a cesta do usuário
         cestaItemRepository.deleteByAccountId(account.getId());
 
         return toResponse(salvo);
     }
 
-    /**
-     * Sebo confirma (ou cancela) o pedido.
-     */
     @Transactional
     public PedidoResponse confirmarCompra(Account account, Long pedidoId, StatusPedido novoStatus) {
-        Pedido pedido = buscarPedidoDoConta(pedidoId);
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido nao encontrado"));
 
-        // Valida que o pedido pertence a um sebo da conta autenticada
         if (!pedido.getSebo().getAccount().getId().equals(account.getId())) {
             throw new BusinessException("Pedido nao pertence ao sebo da conta autenticada", HttpStatus.FORBIDDEN);
         }
@@ -112,9 +110,6 @@ public class PedidoService {
         return toResponse(pedido);
     }
 
-    /**
-     * Histórico de pedidos do usuário autenticado (paginado).
-     */
     @Transactional(readOnly = true)
     public Page<PedidoResponse> historicoPedidosUsuario(Account account, Pageable pageable) {
         return pedidoRepository
@@ -122,9 +117,6 @@ public class PedidoService {
                 .map(this::toResponse);
     }
 
-    /**
-     * Histórico de vendas do sebo da conta autenticada (paginado).
-     */
     @Transactional(readOnly = true)
     public Page<PedidoResponse> historicoVendasSebo(Account account, Pageable pageable) {
         Sebo sebo = seboRepository.findByAccountId(account.getId())
@@ -132,15 +124,6 @@ public class PedidoService {
         return pedidoRepository
                 .findBySeboIdOrderByCreatedAtDesc(sebo.getId(), pageable)
                 .map(this::toResponse);
-    }
-
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
-
-    private Pedido buscarPedidoDoConta(Long pedidoId) {
-        return pedidoRepository.findById(pedidoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Pedido nao encontrado"));
     }
 
     private PedidoResponse toResponse(Pedido pedido) {
