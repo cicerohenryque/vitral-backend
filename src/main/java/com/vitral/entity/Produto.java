@@ -31,6 +31,10 @@ public class Produto extends BaseEntity {
     @JoinColumn(name = "sebo_id", nullable = false)
     private Sebo sebo;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "categoria_id")
+    private Categoria categoria;
+
     @Column(nullable = false, length = 255)
     private String titulo;
 
@@ -42,6 +46,10 @@ public class Produto extends BaseEntity {
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal preco;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer estoque = 1;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

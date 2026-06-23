@@ -10,5 +10,7 @@ import com.vitral.entity.Produto;
 public interface ProdutoMapper {
 
     @Mapping(target = "seboId", source = "sebo.id")
+    @Mapping(target = "categoriaId", source = "categoria.id")
+    @Mapping(target = "categoriaNome", source = "categoria.nome")
     ProdutoResponse toResponse(Produto produto);
 }

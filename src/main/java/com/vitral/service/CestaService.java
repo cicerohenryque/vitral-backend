@@ -1,7 +1,9 @@
 package com.vitral.service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,7 +12,7 @@ import com.vitral.dto.MensagemResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.CestaItem;
 import com.vitral.entity.Produto;
-import com.vitral.exception.ConflictException;
+import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.repository.CestaItemRepository;
 import com.vitral.repository.ProdutoRepository;
@@ -26,17 +28,38 @@ public class CestaService {
 
     @Transactional
     public MensagemResponse adicionarItem(Account account, Long produtoId) {
-        if (cestaItemRepository.existsByAccountIdAndProdutoId(account.getId(), produtoId)) {
-            throw new ConflictException("Produto ja esta na cesta");
-        }
+        return adicionarItem(account, produtoId, 1);
+    }
+
+    @Transactional
+    public MensagemResponse adicionarItem(Account account, Long produtoId, Integer quantidade) {
+        int quantidadeNormalizada = normalizarQuantidade(quantidade);
         Produto produto = produtoRepository.findByIdAndAtivoTrue(produtoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
-        CestaItem item = CestaItem.builder()
-                .account(account)
-                .produto(produto)
-                .build();
+        CestaItem item = cestaItemRepository
+                .findByAccountIdAndProdutoId(account.getId(), produtoId)
+                .orElseGet(() -> CestaItem.builder()
+                        .account(account)
+                        .produto(produto)
+                        .quantidade(0)
+                        .build());
+
+        int novaQuantidade = item.getQuantidade() + quantidadeNormalizada;
+        validarEstoque(produto, novaQuantidade);
+        item.setQuantidade(novaQuantidade);
         cestaItemRepository.save(item);
         return new MensagemResponse("Produto adicionado a cesta");
+    }
+
+    @Transactional
+    public MensagemResponse atualizarQuantidade(Account account, Long produtoId, Integer quantidade) {
+        int quantidadeNormalizada = normalizarQuantidade(quantidade);
+        CestaItem item = cestaItemRepository
+                .findByAccountIdAndProdutoId(account.getId(), produtoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Item nao encontrado na cesta"));
+        validarEstoque(item.getProduto(), quantidadeNormalizada);
+        item.setQuantidade(quantidadeNormalizada);
+        return new MensagemResponse("Quantidade atualizada");
     }
 
     @Transactional(readOnly = true)
@@ -48,6 +71,9 @@ public class CestaService {
                         i.getProduto().getTitulo(),
                         i.getProduto().getAutor(),
                         i.getProduto().getPreco(),
+                        i.getQuantidade(),
+                        i.getProduto().getPreco().multiply(BigDecimal.valueOf(i.getQuantidade())),
+                        i.getProduto().getEstoque(),
                         i.getProduto().getCondicao(),
                         i.getProduto().getFotoUrl()))
                 .toList();
@@ -60,5 +86,21 @@ public class CestaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Item nao encontrado na cesta"));
         cestaItemRepository.delete(item);
         return new MensagemResponse("Produto removido da cesta");
+    }
+
+    private int normalizarQuantidade(Integer quantidade) {
+        if (quantidade == null) {
+            return 1;
+        }
+        if (quantidade < 1) {
+            throw new BusinessException("Quantidade deve ser maior que zero", HttpStatus.BAD_REQUEST);
+        }
+        return quantidade;
+    }
+
+    private void validarEstoque(Produto produto, int quantidade) {
+        if (produto.getEstoque() < quantidade) {
+            throw new BusinessException("Quantidade solicitada maior que o estoque disponivel", HttpStatus.BAD_REQUEST);
+        }
     }
 }

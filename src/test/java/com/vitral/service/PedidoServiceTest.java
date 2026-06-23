@@ -158,8 +158,10 @@ class PedidoServiceTest {
         Account account = buildUsuario();
         Sebo sebo = buildSebo(buildSeboAccount(1L), 1L);
         Produto produto = buildProduto(sebo);
+        setId(produto, 50L);
         CestaItem item = CestaItem.builder().account(account).produto(produto).build();
         when(cestaItemRepository.findByAccountIdComProdutoESebo(10L)).thenReturn(List.of(item));
+        when(pedidoRepository.sumQuantidadeReservadaEmPedidosPendentes(50L)).thenReturn(0L);
         when(seboRepository.findById(1L)).thenReturn(Optional.of(sebo));
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -170,6 +172,24 @@ class PedidoServiceTest {
         assertThat(response.itens()).hasSize(1);
         assertThat(response.itens().getFirst().tituloSnapshot()).isEqualTo("O Cortiço");
         verify(cestaItemRepository).deleteByAccountId(10L);
+    }
+
+    @Test
+    @DisplayName("Deve lançar BusinessException quando produto da cesta ja esta reservado")
+    void confirmarPedido_produtoReservado_lancaBusinessException() {
+        Account account = buildUsuario();
+        Sebo sebo = buildSebo(buildSeboAccount(1L), 1L);
+        Produto produto = buildProduto(sebo);
+        setId(produto, 50L);
+        CestaItem item = CestaItem.builder().account(account).produto(produto).build();
+        when(cestaItemRepository.findByAccountIdComProdutoESebo(10L)).thenReturn(List.of(item));
+        when(pedidoRepository.sumQuantidadeReservadaEmPedidosPendentes(50L)).thenReturn(1L);
+
+        assertThatThrownBy(() -> pedidoService.confirmarPedido(account))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("estoque suficiente");
+
+        verify(pedidoRepository, never()).save(any());
     }
 
     @Test
@@ -250,6 +270,26 @@ class PedidoServiceTest {
 
         assertThat(response.status()).isEqualTo(StatusPedido.CONFIRMADO);
         assertThat(pedido.getStatus()).isEqualTo(StatusPedido.CONFIRMADO);
+        assertThat(produto.getAtivo()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Usuario deve cancelar o proprio pedido aguardando confirmacao")
+    void cancelarPedidoUsuario_sucesso_atualizaStatus() {
+        Account account = buildUsuario();
+        Sebo sebo = buildSebo(buildSeboAccount(1L), 1L);
+        Pedido pedido = Pedido.builder()
+                .account(account)
+                .sebo(sebo)
+                .status(StatusPedido.AGUARDANDO_CONFIRMACAO)
+                .total(new BigDecimal("25.00"))
+                .build();
+        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+
+        PedidoResponse response = pedidoService.cancelarPedidoUsuario(account, 1L);
+
+        assertThat(response.status()).isEqualTo(StatusPedido.CANCELADO);
+        assertThat(pedido.getStatus()).isEqualTo(StatusPedido.CANCELADO);
     }
 
     @Test

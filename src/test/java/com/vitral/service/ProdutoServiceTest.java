@@ -51,6 +51,9 @@ class ProdutoServiceTest {
     @Mock
     private SeboService seboService;
 
+    @Mock
+    private CategoriaService categoriaService;
+
     @InjectMocks
     private ProdutoService produtoService;
 
@@ -89,9 +92,11 @@ class ProdutoServiceTest {
 
         request = new ProdutoRequest(
                 "Dom Casmurro",
+                null,
                 "Machado de Assis",
                 "Edicao de 1899, capa dura",
                 new BigDecimal("49.90"),
+                3,
                 CondicaoProduto.USADO,
                 "https://cdn/dom.jpg");
     }
@@ -99,8 +104,8 @@ class ProdutoServiceTest {
     @Test
     @DisplayName("Deve criar produto vinculado ao sebo da conta autenticada com ativo igual a true")
     void shouldCreateProductLinkedToOwnerSeboWithAtivoTrue() {
-        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, request.titulo(), request.autor(),
-                request.descricao(), request.preco(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
+        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, null, null, request.titulo(), request.autor(),
+                request.descricao(), request.preco(), request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
 
         when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
         when(produtoRepository.save(produtoCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -113,6 +118,7 @@ class ProdutoServiceTest {
         assertThat(persistido.getSebo()).isSameAs(seboDono);
         assertThat(persistido.getTitulo()).isEqualTo("Dom Casmurro");
         assertThat(persistido.getPreco()).isEqualByComparingTo("49.90");
+        assertThat(persistido.getEstoque()).isEqualTo(3);
         assertThat(persistido.getCondicao()).isEqualTo(CondicaoProduto.USADO);
         assertThat(persistido.getAtivo()).isTrue();
     }
@@ -139,8 +145,8 @@ class ProdutoServiceTest {
                 .ativo(Boolean.TRUE)
                 .build();
         setId(produto, 50L);
-        ProdutoResponse esperado = new ProdutoResponse(50L, 1L, request.titulo(), request.autor(),
-                request.descricao(), request.preco(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
+        ProdutoResponse esperado = new ProdutoResponse(50L, 1L, null, null, request.titulo(), request.autor(),
+                request.descricao(), request.preco(), request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
 
         when(produtoRepository.findById(50L)).thenReturn(Optional.of(produto));
         when(produtoMapper.toResponse(produto)).thenReturn(esperado);
@@ -150,6 +156,7 @@ class ProdutoServiceTest {
         assertThat(resultado).isEqualTo(esperado);
         assertThat(produto.getTitulo()).isEqualTo("Dom Casmurro");
         assertThat(produto.getPreco()).isEqualByComparingTo("49.90");
+        assertThat(produto.getEstoque()).isEqualTo(3);
         assertThat(produto.getCondicao()).isEqualTo(CondicaoProduto.USADO);
         assertThat(produto.getFotoUrl()).isEqualTo("https://cdn/dom.jpg");
     }
@@ -211,8 +218,8 @@ class ProdutoServiceTest {
     void shouldReturnActiveProductWhenSearchedById() {
         Produto produto = Produto.builder().sebo(seboDono).ativo(Boolean.TRUE).build();
         setId(produto, 5L);
-        ProdutoResponse esperado = new ProdutoResponse(5L, 1L, "T", null, null,
-                BigDecimal.TEN, CondicaoProduto.NOVO, null, Boolean.TRUE);
+        ProdutoResponse esperado = new ProdutoResponse(5L, 1L, null, null, "T", null, null,
+                BigDecimal.TEN, 1, CondicaoProduto.NOVO, null, Boolean.TRUE);
 
         when(produtoRepository.findByIdAndAtivoTrue(5L)).thenReturn(Optional.of(produto));
         when(produtoMapper.toResponse(produto)).thenReturn(esperado);
@@ -241,8 +248,8 @@ class ProdutoServiceTest {
         setId(p2, 2L);
         Pageable pageable = PageRequest.of(0, 10);
         Page<Produto> pagina = new PageImpl<>(List.of(p1, p2), pageable, 2);
-        ProdutoResponse r1 = new ProdutoResponse(1L, 1L, "A", null, null, BigDecimal.ONE, CondicaoProduto.NOVO, null, true);
-        ProdutoResponse r2 = new ProdutoResponse(2L, 1L, "B", null, null, BigDecimal.ONE, CondicaoProduto.NOVO, null, true);
+        ProdutoResponse r1 = new ProdutoResponse(1L, 1L, null, null, "A", null, null, BigDecimal.ONE, 1, CondicaoProduto.NOVO, null, true);
+        ProdutoResponse r2 = new ProdutoResponse(2L, 1L, null, null, "B", null, null, BigDecimal.ONE, 1, CondicaoProduto.NOVO, null, true);
 
         when(produtoRepository.findBySeboIdAndAtivoTrue(1L, pageable)).thenReturn(pagina);
         when(produtoMapper.toResponse(p1)).thenReturn(r1);

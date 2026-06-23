@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.vitral.dto.CestaItemResponse;
@@ -35,9 +37,20 @@ public class CestaController {
     @Operation(summary = "Adiciona um produto a cesta de compras")
     public ResponseEntity<MensagemResponse> adicionarItem(
             @AuthenticationPrincipal AccountUserDetails principal,
-            @PathVariable Long produtoId) {
+            @PathVariable Long produtoId,
+            @RequestParam(required = false) Integer quantidade) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(cestaService.adicionarItem(principal.getAccount(), produtoId));
+                .body(cestaService.adicionarItem(principal.getAccount(), produtoId, quantidade));
+    }
+
+    @PutMapping("/{produtoId}")
+    @PreAuthorize("hasRole('USUARIO')")
+    @Operation(summary = "Atualiza a quantidade de um produto na cesta")
+    public ResponseEntity<MensagemResponse> atualizarQuantidade(
+            @AuthenticationPrincipal AccountUserDetails principal,
+            @PathVariable Long produtoId,
+            @RequestParam Integer quantidade) {
+        return ResponseEntity.ok(cestaService.atualizarQuantidade(principal.getAccount(), produtoId, quantidade));
     }
 
     @GetMapping

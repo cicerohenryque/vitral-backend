@@ -10,6 +10,9 @@ public record CestaItemResponse(
         String titulo,
         String autor,
         BigDecimal preco,
+        Integer quantidade,
+        BigDecimal subtotal,
+        Integer estoqueDisponivel,
         CondicaoProduto condicao,
         String fotoUrl) {
 }
