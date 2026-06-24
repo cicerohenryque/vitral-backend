@@ -52,6 +52,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/pedidos/meus-pedidos").hasRole("USUARIO")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/pedidos/*/status").hasRole("SEBO")
                         .requestMatchers(HttpMethod.GET, "/api/v1/pedidos/vendas").hasRole("SEBO")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/suporte").authenticated()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

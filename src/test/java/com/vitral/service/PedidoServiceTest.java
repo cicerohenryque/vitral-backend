@@ -274,6 +274,34 @@ class PedidoServiceTest {
     }
 
     @Test
+    @DisplayName("Deve descontar quantidade vendida e manter produto ativo quando ainda houver estoque")
+    void confirmarCompra_estoqueParcial_descontaQuantidade() {
+        Account seboAccount = buildSeboAccount(1L);
+        Sebo sebo = buildSebo(seboAccount, 1L);
+        Produto produto = buildProduto(sebo);
+        produto.setEstoque(5);
+        Pedido pedido = Pedido.builder()
+                .account(buildUsuario())
+                .sebo(sebo)
+                .status(StatusPedido.AGUARDANDO_CONFIRMACAO)
+                .total(new BigDecimal("50.00"))
+                .build();
+        pedido.getItens().add(PedidoItem.builder()
+                .pedido(pedido)
+                .produto(produto)
+                .tituloSnapshot("O Cortiço")
+                .precoSnapshot(new BigDecimal("25.00"))
+                .quantidade(2)
+                .build());
+        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+
+        pedidoService.confirmarCompra(seboAccount, 1L, StatusPedido.CONFIRMADO);
+
+        assertThat(produto.getEstoque()).isEqualTo(3);
+        assertThat(produto.getAtivo()).isTrue();
+    }
+
+    @Test
     @DisplayName("Usuario deve cancelar o proprio pedido aguardando confirmacao")
     void cancelarPedidoUsuario_sucesso_atualizaStatus() {
         Account account = buildUsuario();
@@ -290,6 +318,42 @@ class PedidoServiceTest {
 
         assertThat(response.status()).isEqualTo(StatusPedido.CANCELADO);
         assertThat(pedido.getStatus()).isEqualTo(StatusPedido.CANCELADO);
+    }
+
+    @Test
+    @DisplayName("Deve impedir usuario de cancelar pedido de outra conta")
+    void cancelarPedidoUsuario_pedidoDeOutraConta_lancaForbidden() {
+        Account usuario = buildUsuario();
+        Account outroUsuario = buildUsuario();
+        setId(outroUsuario, 11L);
+        Pedido pedido = Pedido.builder()
+                .account(outroUsuario)
+                .sebo(buildSebo(buildSeboAccount(1L), 1L))
+                .status(StatusPedido.AGUARDANDO_CONFIRMACAO)
+                .total(BigDecimal.TEN)
+                .build();
+        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+
+        assertThatThrownBy(() -> pedidoService.cancelarPedidoUsuario(usuario, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("nao pertence");
+    }
+
+    @Test
+    @DisplayName("Deve impedir cancelamento pelo usuario depois da confirmacao")
+    void cancelarPedidoUsuario_pedidoConfirmado_lancaBusinessException() {
+        Account usuario = buildUsuario();
+        Pedido pedido = Pedido.builder()
+                .account(usuario)
+                .sebo(buildSebo(buildSeboAccount(1L), 1L))
+                .status(StatusPedido.CONFIRMADO)
+                .total(BigDecimal.TEN)
+                .build();
+        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+
+        assertThatThrownBy(() -> pedidoService.cancelarPedidoUsuario(usuario, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("aguardando confirmacao");
     }
 
     @Test
@@ -316,5 +380,21 @@ class PedidoServiceTest {
 
         assertThatThrownBy(() -> pedidoService.historicoVendasSebo(seboAccount, pageable))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("Deve retornar historico de vendas do sebo autenticado")
+    void historicoVendasSebo_retornaPagina() {
+        Account seboAccount = buildSeboAccount(1L);
+        Sebo sebo = buildSebo(seboAccount, 5L);
+        Pageable pageable = PageRequest.of(0, 10);
+        when(seboRepository.findByAccountId(1L)).thenReturn(Optional.of(sebo));
+        when(pedidoRepository.findBySeboIdOrderByCreatedAtDesc(5L, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        Page<PedidoResponse> resultado = pedidoService.historicoVendasSebo(seboAccount, pageable);
+
+        assertThat(resultado).isEmpty();
+        verify(pedidoRepository).findBySeboIdOrderByCreatedAtDesc(5L, pageable);
     }
 }

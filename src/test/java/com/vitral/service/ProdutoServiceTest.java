@@ -30,6 +30,7 @@ import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.BaseEntity;
+import com.vitral.entity.Categoria;
 import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
@@ -259,6 +260,45 @@ class ProdutoServiceTest {
 
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertThat(resultado.getContent()).containsExactly(r1, r2);
+    }
+
+    @Test
+    @DisplayName("Deve listar produtos ativos por categoria")
+    void listarPorCategoria_retornaProdutosAtivos() {
+        Categoria categoria = Categoria.builder().nome("Romance").slug("romance").build();
+        setId(categoria, 7L);
+        Produto produto = Produto.builder().sebo(seboDono).categoria(categoria).ativo(true).build();
+        setId(produto, 1L);
+        Pageable pageable = PageRequest.of(0, 10);
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, 7L, "Romance", "A", null, null,
+                BigDecimal.ONE, 1, CondicaoProduto.NOVO, null, true);
+        when(categoriaService.buscarEntidade(7L)).thenReturn(categoria);
+        when(produtoRepository.findByCategoriaIdAndAtivoTrue(7L, pageable))
+                .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
+        when(produtoMapper.toResponse(produto)).thenReturn(response);
+
+        Page<ProdutoResponse> resultado = produtoService.listarPorCategoria(7L, pageable);
+
+        assertThat(resultado.getContent()).containsExactly(response);
+        verify(categoriaService).buscarEntidade(7L);
+    }
+
+    @Test
+    @DisplayName("Deve listar lancamentos usando produtos ativos na ordenacao recebida")
+    void listarLancamentos_retornaProdutosAtivos() {
+        Produto produto = Produto.builder().sebo(seboDono).ativo(true).build();
+        setId(produto, 1L);
+        Pageable pageable = PageRequest.of(0, 10);
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Lancamento", null, null,
+                BigDecimal.TEN, 2, CondicaoProduto.NOVO, null, true);
+        when(produtoRepository.findByAtivoTrue(pageable))
+                .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
+        when(produtoMapper.toResponse(produto)).thenReturn(response);
+
+        Page<ProdutoResponse> resultado = produtoService.listarLancamentos(pageable);
+
+        assertThat(resultado.getContent()).containsExactly(response);
+        verify(produtoRepository).findByAtivoTrue(pageable);
     }
 
     private void setId(Object entity, Long id) {

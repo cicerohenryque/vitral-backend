@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.vitral.dto.AccountResponse;
 import com.vitral.dto.AtualizarPerfilRequest;
+import com.vitral.dto.MensagemResponse;
 import com.vitral.entity.Account;
 import com.vitral.enumerations.AccountType;
 import com.vitral.mapper.AccountMapper;
@@ -77,5 +78,20 @@ class UsuarioServiceTest {
 
         assertThat(accountCaptor.getValue().getName()).isEqualTo("Livraria Novo Nome");
         assertThat(accountCaptor.getValue().getEmail()).isEqualTo("sebo@vitral.com");
+    }
+
+    @Test
+    @DisplayName("Deve excluir conta do usuario autenticado")
+    void excluirConta_deletaAccount() {
+        Account account = Account.builder()
+                .name("Maria")
+                .email("maria@vitral.com")
+                .type(AccountType.USUARIO)
+                .build();
+
+        MensagemResponse response = usuarioService.excluirConta(account);
+
+        verify(accountRepository).delete(account);
+        assertThat(response.mensagem()).isEqualTo("Conta excluida com sucesso");
     }
 }

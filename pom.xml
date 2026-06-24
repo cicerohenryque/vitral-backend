@@ -142,11 +142,11 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
-        <!-- Banco em memoria para testes de componente (perfil test) -->
+        <!-- Banco em memoria para testes unitarios e E2E (ativado apenas por perfil) -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
     </dependencies>
 

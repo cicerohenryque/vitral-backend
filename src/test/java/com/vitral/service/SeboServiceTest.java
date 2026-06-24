@@ -21,6 +21,7 @@ import org.springframework.http.HttpStatus;
 
 import com.vitral.dto.SeboRequest;
 import com.vitral.dto.SeboResponse;
+import com.vitral.dto.MensagemResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
@@ -28,6 +29,7 @@ import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.SeboMapper;
+import com.vitral.repository.AccountRepository;
 import com.vitral.repository.SeboRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,6 +40,9 @@ class SeboServiceTest {
 
     @Mock
     private SeboMapper seboMapper;
+
+    @Mock
+    private AccountRepository accountRepository;
 
     @InjectMocks
     private SeboService seboService;
@@ -203,6 +208,15 @@ class SeboServiceTest {
         assertThatThrownBy(() -> seboService.buscarEntidadePorAccount(10L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("Sebo nao encontrado para esta conta");
+    }
+
+    @Test
+    @DisplayName("Deve excluir conta do sebo autenticado")
+    void excluirConta_deletaAccount() {
+        MensagemResponse response = seboService.excluirConta(contaSebo);
+
+        verify(accountRepository).delete(contaSebo);
+        assertThat(response.mensagem()).isEqualTo("Conta do sebo excluida com sucesso");
     }
 
     private void setAccountId(Account account, Long id) {
