@@ -20,5 +20,7 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long>, JpaSpec
 
     Page<Produto> findByAtivoTrue(Pageable pageable);
 
+    Page<Produto> findByAtivoTrueOrderByCreatedAtAsc(Pageable pageable);
+
     Page<Produto> findByAtivoTrueAndTituloContainingIgnoreCase(String termo, Pageable pageable);
 }

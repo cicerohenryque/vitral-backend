@@ -124,6 +124,13 @@ class SecurityIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    @DisplayName("Rota publica de classicos deve aceitar visitante sem token")
+    void classicos_visitante_temAcesso() throws Exception {
+        mockMvc.perform(get("/api/v1/produtos/classicos"))
+                .andExpect(status().isOk());
+    }
+
     private String bearer(String token) {
         return "Bearer " + token;
     }

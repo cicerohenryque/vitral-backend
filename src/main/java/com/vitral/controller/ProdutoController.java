@@ -84,4 +84,11 @@ public class ProdutoController {
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(produtoService.listarLancamentos(pageable));
     }
+
+    @GetMapping("/classicos")
+    @Operation(summary = "Lista produtos ativos mais antigos (classicos do catalogo)")
+    public ResponseEntity<Page<ProdutoResponse>> listarClassicos(
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(produtoService.listarClassicos(pageable));
+    }
 }

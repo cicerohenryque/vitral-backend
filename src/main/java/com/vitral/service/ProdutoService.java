@@ -95,6 +95,12 @@ public class ProdutoService {
                 .map(produtoMapper::toResponse);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ProdutoResponse> listarClassicos(Pageable pageable) {
+        return produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable)
+                .map(produtoMapper::toResponse);
+    }
+
     private Produto obterProdutoDoDono(Account account, Long produtoId) {
         Produto produto = produtoRepository.findById(produtoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));

@@ -301,6 +301,38 @@ class ProdutoServiceTest {
         verify(produtoRepository).findByAtivoTrue(pageable);
     }
 
+    @Test
+    @DisplayName("Deve listar classicos usando produtos ativos ordenados por data de criacao ascendente")
+    void listarClassicos_retornaProdutosMaisAntigos() {
+        Produto produto = Produto.builder().sebo(seboDono).ativo(true).build();
+        setId(produto, 1L);
+        Pageable pageable = PageRequest.of(0, 10);
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Classico", null, null,
+                BigDecimal.TEN, 1, CondicaoProduto.USADO, null, true);
+        when(produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable))
+                .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
+        when(produtoMapper.toResponse(produto)).thenReturn(response);
+
+        Page<ProdutoResponse> resultado = produtoService.listarClassicos(pageable);
+
+        assertThat(resultado.getContent()).containsExactly(response);
+        verify(produtoRepository).findByAtivoTrueOrderByCreatedAtAsc(pageable);
+    }
+
+    @Test
+    @DisplayName("Deve retornar pagina vazia quando nao existem produtos classicos ativos")
+    void listarClassicos_semProdutos_retornaPaginaVazia() {
+        Pageable pageable = PageRequest.of(0, 10);
+        when(produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        Page<ProdutoResponse> resultado = produtoService.listarClassicos(pageable);
+
+        assertThat(resultado.getContent()).isEmpty();
+        assertThat(resultado.getTotalElements()).isZero();
+        verify(produtoRepository).findByAtivoTrueOrderByCreatedAtAsc(pageable);
+    }
+
     private void setId(Object entity, Long id) {
         try {
             Field field = BaseEntity.class.getDeclaredField("id");
