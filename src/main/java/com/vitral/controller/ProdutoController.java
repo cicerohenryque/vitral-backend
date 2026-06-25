@@ -1,6 +1,5 @@
 package com.vitral.controller;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -17,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.vitral.dto.PageResponse;
 import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
 import com.vitral.security.AccountUserDetails;
@@ -68,27 +68,27 @@ public class ProdutoController {
 
     @GetMapping("/sebo/{seboId}")
     @Operation(summary = "Lista paginada do catalogo ativo de um sebo")
-    public ResponseEntity<Page<ProdutoResponse>> listarPorSebo(@PathVariable Long seboId, Pageable pageable) {
-        return ResponseEntity.ok(produtoService.listarPorSebo(seboId, pageable));
+    public ResponseEntity<PageResponse<ProdutoResponse>> listarPorSebo(@PathVariable Long seboId, Pageable pageable) {
+        return ResponseEntity.ok(PageResponse.from(produtoService.listarPorSebo(seboId, pageable)));
     }
 
     @GetMapping("/categoria/{categoriaId}")
     @Operation(summary = "Lista produtos ativos de uma categoria")
-    public ResponseEntity<Page<ProdutoResponse>> listarPorCategoria(@PathVariable Long categoriaId, Pageable pageable) {
-        return ResponseEntity.ok(produtoService.listarPorCategoria(categoriaId, pageable));
+    public ResponseEntity<PageResponse<ProdutoResponse>> listarPorCategoria(@PathVariable Long categoriaId, Pageable pageable) {
+        return ResponseEntity.ok(PageResponse.from(produtoService.listarPorCategoria(categoriaId, pageable)));
     }
 
     @GetMapping("/lancamentos")
     @Operation(summary = "Lista produtos ativos mais recentes")
-    public ResponseEntity<Page<ProdutoResponse>> listarLancamentos(
+    public ResponseEntity<PageResponse<ProdutoResponse>> listarLancamentos(
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(produtoService.listarLancamentos(pageable));
+        return ResponseEntity.ok(PageResponse.from(produtoService.listarLancamentos(pageable)));
     }
 
     @GetMapping("/classicos")
     @Operation(summary = "Lista produtos ativos mais antigos (classicos do catalogo)")
-    public ResponseEntity<Page<ProdutoResponse>> listarClassicos(
+    public ResponseEntity<PageResponse<ProdutoResponse>> listarClassicos(
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
-        return ResponseEntity.ok(produtoService.listarClassicos(pageable));
+        return ResponseEntity.ok(PageResponse.from(produtoService.listarClassicos(pageable)));
     }
 }

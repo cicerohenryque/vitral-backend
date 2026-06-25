@@ -1,6 +1,5 @@
 package com.vitral.controller;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -15,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.vitral.dto.CategoriaRequest;
 import com.vitral.dto.CategoriaResponse;
+import com.vitral.dto.PageResponse;
 import com.vitral.service.CategoriaService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,9 +32,9 @@ public class CategoriaController {
 
     @GetMapping
     @Operation(summary = "Lista categorias")
-    public ResponseEntity<Page<CategoriaResponse>> listar(
+    public ResponseEntity<PageResponse<CategoriaResponse>> listar(
             @PageableDefault(sort = "nome", direction = Sort.Direction.ASC) Pageable pageable) {
-        return ResponseEntity.ok(categoriaService.listar(pageable));
+        return ResponseEntity.ok(PageResponse.from(categoriaService.listar(pageable)));
     }
 
     @PostMapping

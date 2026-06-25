@@ -1,6 +1,5 @@
 package com.vitral.controller;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.vitral.dto.MensagemConversaResponse;
 import com.vitral.dto.MensagemRequest;
+import com.vitral.dto.PageResponse;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.service.MensagemService;
 
@@ -41,18 +41,18 @@ public class MensagemController {
 
     @GetMapping
     @Operation(summary = "Lista mensagens da conta autenticada")
-    public ResponseEntity<Page<MensagemConversaResponse>> listarConversas(
+    public ResponseEntity<PageResponse<MensagemConversaResponse>> listarConversas(
             @AuthenticationPrincipal AccountUserDetails principal,
             Pageable pageable) {
-        return ResponseEntity.ok(mensagemService.listarConversas(principal.getAccount(), pageable));
+        return ResponseEntity.ok(PageResponse.from(mensagemService.listarConversas(principal.getAccount(), pageable)));
     }
 
     @GetMapping("/conversa/{accountId}")
     @Operation(summary = "Lista conversa com uma conta especifica")
-    public ResponseEntity<Page<MensagemConversaResponse>> listarConversaCom(
+    public ResponseEntity<PageResponse<MensagemConversaResponse>> listarConversaCom(
             @AuthenticationPrincipal AccountUserDetails principal,
             @PathVariable Long accountId,
             Pageable pageable) {
-        return ResponseEntity.ok(mensagemService.listarConversaCom(principal.getAccount(), accountId, pageable));
+        return ResponseEntity.ok(PageResponse.from(mensagemService.listarConversaCom(principal.getAccount(), accountId, pageable)));
     }
 }

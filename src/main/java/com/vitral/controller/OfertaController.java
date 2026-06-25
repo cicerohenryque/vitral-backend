@@ -1,6 +1,5 @@
 package com.vitral.controller;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -19,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.vitral.dto.OfertaRequest;
 import com.vitral.dto.OfertaResponse;
+import com.vitral.dto.PageResponse;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.service.OfertaService;
 
@@ -37,9 +37,9 @@ public class OfertaController {
 
     @GetMapping
     @Operation(summary = "Lista ofertas ativas e vigentes")
-    public ResponseEntity<Page<OfertaResponse>> listarAtivas(
+    public ResponseEntity<PageResponse<OfertaResponse>> listarAtivas(
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(ofertaService.listarAtivas(pageable));
+        return ResponseEntity.ok(PageResponse.from(ofertaService.listarAtivas(pageable)));
     }
 
     @PostMapping
