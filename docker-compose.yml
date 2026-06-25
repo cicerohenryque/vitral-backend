@@ -3,9 +3,9 @@ services:
     image: postgres:16
     container_name: vitral-db
     environment:
-      POSTGRES_DB: vitral_db
-      POSTGRES_USER: vitral_user
-      POSTGRES_PASSWORD: vitral_pass
+      POSTGRES_DB: ${POSTGRES_DB:-vitral_db}
+      POSTGRES_USER: ${POSTGRES_USER:-vitral_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     ports:
       - "5432:5432"
     volumes:
