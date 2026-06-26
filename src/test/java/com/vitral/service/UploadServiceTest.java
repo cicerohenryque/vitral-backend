@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
 
 import com.vitral.exception.BusinessException;
+import com.vitral.exception.ResourceNotFoundException;
 
 class UploadServiceTest {
 
@@ -54,5 +55,50 @@ class UploadServiceTest {
         assertThatThrownBy(() -> service.storeImage(file))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getMessage()).contains("Formato de imagem invalido"));
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar imagem maior que 5MB")
+    void storeImage_tamanhoExcedido_lancaErro() {
+        UploadService service = new UploadService(tempDir.toString());
+        byte[] content = new byte[(5 * 1024 * 1024) + 1];
+        MockMultipartFile file = new MockMultipartFile("file", "grande.jpg", "image/jpeg", content);
+
+        assertThatThrownBy(() -> service.storeImage(file))
+                .isInstanceOfSatisfying(BusinessException.class, exception -> {
+                    assertThat(exception.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(exception.getMessage()).contains("maximo 5MB");
+                });
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar consulta de imagem inexistente")
+    void loadImage_arquivoInexistente_lancaErro() {
+        UploadService service = new UploadService(tempDir.toString());
+
+        assertThatThrownBy(() -> service.loadImage("inexistente.png"))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Imagem nao encontrada");
+    }
+
+    @Test
+    @DisplayName("Deve impedir acesso a arquivo fora do diretorio de imagens")
+    void loadImage_pathTraversal_lancaErro() {
+        UploadService service = new UploadService(tempDir.toString());
+
+        assertThatThrownBy(() -> service.loadImage("../segredo.png"))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("Deve identificar os tipos de imagem suportados")
+    void contentType_retornaMimeTypeCorreto() {
+        UploadService service = new UploadService(tempDir.toString());
+
+        assertThat(service.contentType("imagem.jpg")).isEqualTo("image/jpeg");
+        assertThat(service.contentType("imagem.JPEG")).isEqualTo("image/jpeg");
+        assertThat(service.contentType("imagem.png")).isEqualTo("image/png");
+        assertThat(service.contentType("imagem.webp")).isEqualTo("image/webp");
+        assertThat(service.contentType("imagem.bin")).isEqualTo("application/octet-stream");
     }
 }
