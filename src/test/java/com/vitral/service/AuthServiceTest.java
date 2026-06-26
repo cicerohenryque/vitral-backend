@@ -134,7 +134,7 @@ class AuthServiceTest {
                 .type(AccountType.USUARIO)
                 .emailVerificado(true)
                 .build();
-        AccountResponse accountResponse = new AccountResponse(1L, "Maria", "maria@vitral.com", AccountType.USUARIO);
+        AccountResponse accountResponse = new AccountResponse(1L, "Maria", "maria@vitral.com", AccountType.USUARIO, null);
 
         when(accountRepository.findByEmail("maria@vitral.com")).thenReturn(Optional.of(account));
         when(jwtService.generateToken("maria@vitral.com", "USUARIO")).thenReturn("token-jwt");

@@ -37,4 +37,7 @@ public class Account extends BaseEntity {
 
     @Column(name = "email_verificado", nullable = false)
     private boolean emailVerificado;
+
+    @Column(name = "foto_url", length = 500)
+    private String fotoUrl;
 }
