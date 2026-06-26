@@ -78,7 +78,7 @@ class CestaServiceTest {
         Account account = buildUsuario();
         when(cestaItemRepository.existsByAccountIdAndProdutoId(account.getId(), 1L)).thenReturn(true);
 
-        assertThatThrownBy(() -> cestaService.adicionarItem(account, 1L))
+        assertThatThrownBy(() -> cestaService.adicionarItem(account, 1L, 1))
                 .isInstanceOf(ConflictException.class);
 
         verify(produtoRepository, never()).findByIdAndAtivoTrue(any());
@@ -92,7 +92,7 @@ class CestaServiceTest {
         when(cestaItemRepository.existsByAccountIdAndProdutoId(account.getId(), 99L)).thenReturn(false);
         when(produtoRepository.findByIdAndAtivoTrue(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> cestaService.adicionarItem(account, 99L))
+        assertThatThrownBy(() -> cestaService.adicionarItem(account, 99L, 1))
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verify(cestaItemRepository, never()).save(any());
@@ -106,7 +106,7 @@ class CestaServiceTest {
         when(cestaItemRepository.existsByAccountIdAndProdutoId(account.getId(), 1L)).thenReturn(false);
         when(produtoRepository.findByIdAndAtivoTrue(1L)).thenReturn(Optional.of(produto));
 
-        MensagemResponse response = cestaService.adicionarItem(account, 1L);
+        MensagemResponse response = cestaService.adicionarItem(account, 1L, 1);
 
         assertThat(response.mensagem()).isEqualTo("Produto adicionado a cesta");
         verify(cestaItemRepository).save(any(CestaItem.class));

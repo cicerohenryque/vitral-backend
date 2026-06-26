@@ -14,8 +14,8 @@ public class EmailService {
     @Value("${app.mail.enabled:false}")
     private boolean mailEnabled;
 
-    @Value("${app.url.base:http://localhost:8080}")
-    private String baseUrl;
+    @Value("${app.url.frontend:http://localhost:5173}")
+    private String frontendUrl;
 
     @Value("${spring.mail.username:noreply@vitral.com}")
     private String remetente;
@@ -33,7 +33,7 @@ public class EmailService {
         mensagem.setTo(destinatario);
         mensagem.setSubject("Vitral — Confirme seu cadastro");
         mensagem.setText("Olá! Clique no link abaixo para confirmar seu cadastro no Vitral:\n\n"
-                + baseUrl + "/api/v1/auth/confirmar?token=" + token
+                + frontendUrl + "/auth/confirmar?token=" + token
                 + "\n\nO link expira em 24 horas.\n\nCaso não tenha criado uma conta, ignore este e-mail.");
         mailSender.send(mensagem);
     }

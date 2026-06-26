@@ -36,4 +36,8 @@ public class PedidoItem extends BaseEntity {
 
     @Column(name = "preco_snapshot", nullable = false, precision = 12, scale = 2)
     private BigDecimal precoSnapshot;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer quantidade = 1;
 }

@@ -61,7 +61,7 @@ public class PedidoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado"));
 
         BigDecimal total = itens.stream()
-                .map(i -> i.getProduto().getPreco())
+                .map(i -> i.getProduto().getPreco().multiply(BigDecimal.valueOf(i.getQuantidade())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         Pedido pedido = Pedido.builder()
@@ -77,14 +77,13 @@ public class PedidoService {
                         .produto(i.getProduto())
                         .tituloSnapshot(i.getProduto().getTitulo())
                         .precoSnapshot(i.getProduto().getPreco())
+                        .quantidade(i.getQuantidade())
                         .build())
                 .toList();
 
         pedido.getItens().addAll(pedidoItens);
         Pedido salvo = pedidoRepository.save(pedido);
-
         cestaItemRepository.deleteByAccountId(account.getId());
-
         return toResponse(salvo);
     }
 
@@ -96,17 +95,33 @@ public class PedidoService {
         if (!pedido.getSebo().getAccount().getId().equals(account.getId())) {
             throw new BusinessException("Pedido nao pertence ao sebo da conta autenticada", HttpStatus.FORBIDDEN);
         }
-
         if (pedido.getStatus() != StatusPedido.AGUARDANDO_CONFIRMACAO) {
             throw new BusinessException("Apenas pedidos com status AGUARDANDO_CONFIRMACAO podem ser atualizados",
                     HttpStatus.BAD_REQUEST);
         }
-
         if (novoStatus != StatusPedido.CONFIRMADO && novoStatus != StatusPedido.CANCELADO) {
             throw new BusinessException("Status invalido. Use CONFIRMADO ou CANCELADO", HttpStatus.BAD_REQUEST);
         }
 
         pedido.setStatus(novoStatus);
+        return toResponse(pedido);
+    }
+
+    @Transactional
+    public PedidoResponse cancelarPedido(Account account, Long pedidoId) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido nao encontrado"));
+
+        if (!pedido.getAccount().getId().equals(account.getId())) {
+            throw new BusinessException("Pedido nao pertence ao usuario autenticado", HttpStatus.FORBIDDEN);
+        }
+        if (pedido.getStatus() != StatusPedido.AGUARDANDO_CONFIRMACAO) {
+            throw new BusinessException(
+                    "Apenas pedidos com status AGUARDANDO_CONFIRMACAO podem ser cancelados",
+                    HttpStatus.BAD_REQUEST);
+        }
+
+        pedido.setStatus(StatusPedido.CANCELADO);
         return toResponse(pedido);
     }
 
@@ -132,7 +147,8 @@ public class PedidoService {
                         i.getId(),
                         i.getProduto().getId(),
                         i.getTituloSnapshot(),
-                        i.getPrecoSnapshot()))
+                        i.getPrecoSnapshot(),
+                        i.getQuantidade()))
                 .toList();
         return new PedidoResponse(
                 pedido.getId(),

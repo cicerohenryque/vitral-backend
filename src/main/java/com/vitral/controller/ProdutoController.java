@@ -69,4 +69,22 @@ public class ProdutoController {
     public ResponseEntity<Page<ProdutoResponse>> listarPorSebo(@PathVariable Long seboId, Pageable pageable) {
         return ResponseEntity.ok(produtoService.listarPorSebo(seboId, pageable));
     }
+
+    @GetMapping("/categoria/{categoriaId}")
+    @Operation(summary = "Lista produtos ativos de uma categoria")
+    public ResponseEntity<Page<ProdutoResponse>> listarPorCategoria(@PathVariable Long categoriaId, Pageable pageable) {
+        return ResponseEntity.ok(produtoService.listarPorCategoria(categoriaId, pageable));
+    }
+
+    @GetMapping("/lancamentos")
+    @Operation(summary = "Lista os produtos mais recentes cadastrados na plataforma")
+    public ResponseEntity<Page<ProdutoResponse>> listarLancamentos(Pageable pageable) {
+        return ResponseEntity.ok(produtoService.listarLancamentos(pageable));
+    }
+
+    @GetMapping("/classicos")
+    @Operation(summary = "Lista os produtos mais antigos disponíveis na plataforma")
+    public ResponseEntity<Page<ProdutoResponse>> listarClassicos(Pageable pageable) {
+        return ResponseEntity.ok(produtoService.listarClassicos(pageable));
+    }
 }

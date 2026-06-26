@@ -86,8 +86,8 @@ class BuscaServiceTest {
                 .ativo(true)
                 .build();
 
-        produtoResponse = new ProdutoResponse(1L, 1L, "Dom Casmurro", null, null,
-                BigDecimal.valueOf(25.00), CondicaoProduto.USADO, null, true);
+        produtoResponse = new ProdutoResponse(1L, 1L, null, null, "Dom Casmurro", null, null,
+                BigDecimal.valueOf(25.00), 1, CondicaoProduto.USADO, null, true);
     }
 
     @Test

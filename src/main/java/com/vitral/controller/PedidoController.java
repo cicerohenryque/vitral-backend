@@ -50,6 +50,15 @@ public class PedidoController {
         return ResponseEntity.ok(pedidoService.confirmarCompra(principal.getAccount(), id, status));
     }
 
+    @PutMapping("/{id}/cancelar")
+    @PreAuthorize("hasRole('USUARIO')")
+    @Operation(summary = "Usuario cancela um pedido com status AGUARDANDO_CONFIRMACAO")
+    public ResponseEntity<PedidoResponse> cancelarPedido(
+            @AuthenticationPrincipal AccountUserDetails principal,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(pedidoService.cancelarPedido(principal.getAccount(), id));
+    }
+
     @GetMapping("/meus-pedidos")
     @PreAuthorize("hasRole('USUARIO')")
     @Operation(summary = "Historico de pedidos do usuario autenticado")

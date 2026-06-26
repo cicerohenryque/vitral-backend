@@ -1,5 +1,6 @@
 package com.vitral.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
@@ -27,4 +28,8 @@ public class CestaItem extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "produto_id", nullable = false)
     private Produto produto;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer quantidade = 1;
 }
