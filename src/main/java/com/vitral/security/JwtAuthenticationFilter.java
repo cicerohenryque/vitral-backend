@@ -24,6 +24,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final AccountUserDetailsService userDetailsService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Override
     protected void doFilterInternal(
@@ -33,6 +34,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = resolveToken(request);
         if (token != null && jwtService.isValid(token)
+                && !tokenBlacklistService.isRevoked(token)
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
             String email = jwtService.extractSubject(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);

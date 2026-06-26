@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import com.vitral.dto.AccountResponse;
 import com.vitral.dto.AuthResponse;
 import com.vitral.dto.LoginRequest;
@@ -17,6 +19,8 @@ import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.RegisterRequest;
 import com.vitral.mapper.AccountMapper;
 import com.vitral.security.AccountUserDetails;
+import com.vitral.security.JwtService;
+import com.vitral.security.TokenBlacklistService;
 import com.vitral.service.AuthService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,6 +36,8 @@ public class AuthController {
 
     private final AuthService authService;
     private final AccountMapper accountMapper;
+    private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @PostMapping("/register")
     @Operation(summary = "Cria uma conta (Sebo ou Usuario) e envia e-mail de confirmacao")
@@ -58,8 +64,15 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "Encerra a sessao — o cliente deve descartar o token JWT")
-    public ResponseEntity<Void> logout() {
+    @Operation(summary = "Encerra a sessao e invalida o token JWT no servidor")
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            String token = header.substring(7);
+            if (jwtService.isValid(token)) {
+                tokenBlacklistService.revoke(token, jwtService.extractExpiration(token));
+            }
+        }
         return ResponseEntity.noContent().build();
     }
 }

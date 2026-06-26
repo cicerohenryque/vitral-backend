@@ -1,5 +1,6 @@
 package com.vitral.security;
 
+import java.time.Instant;
 import java.util.Date;
 
 import javax.crypto.SecretKey;
@@ -47,6 +48,10 @@ public class JwtService {
         } catch (RuntimeException exception) {
             return false;
         }
+    }
+
+    public Instant extractExpiration(String token) {
+        return parse(token).getExpiration().toInstant();
     }
 
     public long getExpiration() {
