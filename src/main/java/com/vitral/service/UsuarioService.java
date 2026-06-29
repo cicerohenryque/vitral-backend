@@ -22,6 +22,7 @@ public class UsuarioService {
     @Transactional
     public AccountResponse atualizarPerfil(Account account, AtualizarPerfilRequest request) {
         account.setName(request.name());
+        account.setFotoUrl(request.fotoUrl());
         Account saved = accountRepository.save(account);
         return accountMapper.toResponse(saved);
     }
