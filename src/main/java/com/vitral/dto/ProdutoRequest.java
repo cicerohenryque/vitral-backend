@@ -17,7 +17,7 @@ public record ProdutoRequest(
         @Size(max = 255) String autor,
         @Size(max = 2000) String descricao,
         @NotNull @DecimalMin(value = "0.0", inclusive = true) @Digits(integer = 10, fraction = 2) BigDecimal preco,
-        @Min(1) Integer estoque,
+        @Min(0) Integer estoque,
         @NotNull CondicaoProduto condicao,
         @Size(max = 500) String fotoUrl) {
 }

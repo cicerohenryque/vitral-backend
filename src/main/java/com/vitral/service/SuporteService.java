@@ -4,9 +4,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.vitral.dto.SuporteRequest;
+import com.vitral.dto.SuporteResponse;
 import com.vitral.entity.Account;
-import com.vitral.entity.TicketSuporte;
-import com.vitral.repository.TicketSuporteRepository;
+import com.vitral.entity.Suporte;
+import com.vitral.repository.SuporteRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -14,15 +15,24 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SuporteService {
 
-    private final TicketSuporteRepository ticketSuporteRepository;
+    private final SuporteRepository suporteRepository;
 
     @Transactional
-    public void enviar(Account account, SuporteRequest request) {
-        TicketSuporte ticket = TicketSuporte.builder()
-                .account(account)
+    public SuporteResponse enviar(Account remetente, SuporteRequest request) {
+        Suporte suporte = Suporte.builder()
                 .assunto(request.assunto())
                 .mensagem(request.mensagem())
+                .remetente(remetente)
                 .build();
-        ticketSuporteRepository.save(ticket);
+        return toResponse(suporteRepository.save(suporte));
+    }
+
+    private SuporteResponse toResponse(Suporte suporte) {
+        return new SuporteResponse(
+                suporte.getId(),
+                suporte.getAssunto(),
+                suporte.getMensagem(),
+                suporte.getStatus().name(),
+                suporte.getCreatedAt());
     }
 }

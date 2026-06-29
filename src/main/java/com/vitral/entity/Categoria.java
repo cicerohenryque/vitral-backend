@@ -18,10 +18,10 @@ import lombok.Setter;
 @AllArgsConstructor
 public class Categoria extends BaseEntity {
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, unique = true, length = 120)
     private String nome;
 
-    @Column(nullable = false, length = 100, unique = true)
+    @Column(nullable = false, unique = true, length = 140)
     private String slug;
 
     @Column(length = 500)

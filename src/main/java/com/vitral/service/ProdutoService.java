@@ -1,9 +1,7 @@
 package com.vitral.service;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,8 +31,7 @@ public class ProdutoService {
     @Transactional
     public ProdutoResponse criar(Account account, ProdutoRequest request) {
         Sebo sebo = seboService.buscarEntidadePorAccount(account.getId());
-        Categoria categoria = request.categoriaId() != null
-                ? categoriaService.buscarEntidade(request.categoriaId()) : null;
+        Categoria categoria = obterCategoria(request.categoriaId());
         Produto produto = Produto.builder()
                 .sebo(sebo)
                 .categoria(categoria)
@@ -42,27 +39,27 @@ public class ProdutoService {
                 .autor(request.autor())
                 .descricao(request.descricao())
                 .preco(request.preco())
-                .estoque(request.estoque() != null ? request.estoque() : 1)
+                .estoque(normalizarEstoque(request.estoque()))
                 .condicao(request.condicao())
                 .fotoUrl(request.fotoUrl())
-                .ativo(Boolean.TRUE)
+                .ativo(normalizarEstoque(request.estoque()) > 0)
                 .build();
-        return produtoMapper.toResponse(produtoRepository.save(produto));
+        Produto salvo = produtoRepository.save(produto);
+        return produtoMapper.toResponse(salvo);
     }
 
     @Transactional
     public ProdutoResponse atualizar(Account account, Long produtoId, ProdutoRequest request) {
         Produto produto = obterProdutoDoDono(account, produtoId);
-        Categoria categoria = request.categoriaId() != null
-                ? categoriaService.buscarEntidade(request.categoriaId()) : null;
-        produto.setCategoria(categoria);
+        produto.setCategoria(obterCategoria(request.categoriaId()));
         produto.setTitulo(request.titulo());
         produto.setAutor(request.autor());
         produto.setDescricao(request.descricao());
         produto.setPreco(request.preco());
-        produto.setEstoque(request.estoque() != null ? request.estoque() : produto.getEstoque());
+        produto.setEstoque(normalizarEstoque(request.estoque()));
         produto.setCondicao(request.condicao());
         produto.setFotoUrl(request.fotoUrl());
+        produto.setAtivo(produto.getEstoque() > 0);
         return produtoMapper.toResponse(produto);
     }
 
@@ -74,8 +71,9 @@ public class ProdutoService {
 
     @Transactional(readOnly = true)
     public ProdutoResponse buscarPorId(Long id) {
-        return produtoMapper.toResponse(produtoRepository.findByIdAndAtivoTrue(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado")));
+        Produto produto = produtoRepository.findByIdAndAtivoTrue(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
+        return produtoMapper.toResponse(produto);
     }
 
     @Transactional(readOnly = true)
@@ -85,26 +83,21 @@ public class ProdutoService {
     }
 
     @Transactional(readOnly = true)
+    public Page<ProdutoResponse> listarPorCategoria(Long categoriaId, Pageable pageable) {
+        categoriaService.buscarEntidade(categoriaId);
+        return produtoRepository.findByCategoriaIdAndAtivoTrue(categoriaId, pageable)
+                .map(produtoMapper::toResponse);
+    }
+
+    @Transactional(readOnly = true)
     public Page<ProdutoResponse> listarLancamentos(Pageable pageable) {
-        Pageable ordenado = PageRequest.of(
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
-                Sort.by(Sort.Direction.DESC, "createdAt"));
-        return produtoRepository.findByAtivoTrue(ordenado).map(produtoMapper::toResponse);
+        return produtoRepository.findByAtivoTrue(pageable)
+                .map(produtoMapper::toResponse);
     }
 
     @Transactional(readOnly = true)
     public Page<ProdutoResponse> listarClassicos(Pageable pageable) {
-        Pageable ordenado = PageRequest.of(
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
-                Sort.by(Sort.Direction.ASC, "createdAt"));
-        return produtoRepository.findByAtivoTrue(ordenado).map(produtoMapper::toResponse);
-    }
-
-    @Transactional(readOnly = true)
-    public Page<ProdutoResponse> listarPorCategoria(Long categoriaId, Pageable pageable) {
-        return produtoRepository.findByCategoriaIdAndAtivoTrue(categoriaId, pageable)
+        return produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable)
                 .map(produtoMapper::toResponse);
     }
 
@@ -115,5 +108,16 @@ public class ProdutoService {
             throw new BusinessException("Produto nao pertence ao sebo da conta autenticada", HttpStatus.FORBIDDEN);
         }
         return produto;
+    }
+
+    private Categoria obterCategoria(Long categoriaId) {
+        if (categoriaId == null) {
+            return null;
+        }
+        return categoriaService.buscarEntidade(categoriaId);
+    }
+
+    private int normalizarEstoque(Integer estoque) {
+        return estoque == null ? 1 : estoque;
     }
 }

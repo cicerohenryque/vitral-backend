@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.vitral.entity.Pedido;
@@ -20,4 +22,22 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     // Para verificar se há pedido ativo com aquele produto (evitar duplicidade)
     List<Pedido> findByAccountId(Long accountId);
+
+    @Query("""
+            select case when count(p) > 0 then true else false end
+            from Pedido p
+            join p.itens i
+            where i.produto.id = :produtoId
+              and p.status = com.vitral.enumerations.StatusPedido.AGUARDANDO_CONFIRMACAO
+            """)
+    boolean existsPedidoPendenteComProduto(@Param("produtoId") Long produtoId);
+
+    @Query("""
+            select coalesce(sum(i.quantidade), 0)
+            from Pedido p
+            join p.itens i
+            where i.produto.id = :produtoId
+              and p.status = com.vitral.enumerations.StatusPedido.AGUARDANDO_CONFIRMACAO
+            """)
+    Long sumQuantidadeReservadaEmPedidosPendentes(@Param("produtoId") Long produtoId);
 }

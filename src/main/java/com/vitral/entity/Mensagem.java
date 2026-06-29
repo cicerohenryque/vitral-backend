@@ -29,7 +29,7 @@ public class Mensagem extends BaseEntity {
     @JoinColumn(name = "destinatario_id", nullable = false)
     private Account destinatario;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false, length = 2000)
     private String conteudo;
 
     @Column(nullable = false)

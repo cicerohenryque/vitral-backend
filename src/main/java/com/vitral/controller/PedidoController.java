@@ -1,6 +1,5 @@
 package com.vitral.controller;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.vitral.dto.PageResponse;
 import com.vitral.dto.PedidoResponse;
 import com.vitral.enumerations.StatusPedido;
 import com.vitral.security.AccountUserDetails;
@@ -52,28 +52,28 @@ public class PedidoController {
 
     @PutMapping("/{id}/cancelar")
     @PreAuthorize("hasRole('USUARIO')")
-    @Operation(summary = "Usuario cancela um pedido com status AGUARDANDO_CONFIRMACAO")
-    public ResponseEntity<PedidoResponse> cancelarPedido(
+    @Operation(summary = "Usuario cancela o proprio pedido enquanto aguarda confirmacao")
+    public ResponseEntity<PedidoResponse> cancelarPedidoUsuario(
             @AuthenticationPrincipal AccountUserDetails principal,
             @PathVariable Long id) {
-        return ResponseEntity.ok(pedidoService.cancelarPedido(principal.getAccount(), id));
+        return ResponseEntity.ok(pedidoService.cancelarPedidoUsuario(principal.getAccount(), id));
     }
 
     @GetMapping("/meus-pedidos")
     @PreAuthorize("hasRole('USUARIO')")
     @Operation(summary = "Historico de pedidos do usuario autenticado")
-    public ResponseEntity<Page<PedidoResponse>> historicoPedidosUsuario(
+    public ResponseEntity<PageResponse<PedidoResponse>> historicoPedidosUsuario(
             @AuthenticationPrincipal AccountUserDetails principal,
             Pageable pageable) {
-        return ResponseEntity.ok(pedidoService.historicoPedidosUsuario(principal.getAccount(), pageable));
+        return ResponseEntity.ok(PageResponse.from(pedidoService.historicoPedidosUsuario(principal.getAccount(), pageable)));
     }
 
     @GetMapping("/vendas")
     @PreAuthorize("hasRole('SEBO')")
     @Operation(summary = "Historico de vendas do sebo autenticado")
-    public ResponseEntity<Page<PedidoResponse>> historicoVendasSebo(
+    public ResponseEntity<PageResponse<PedidoResponse>> historicoVendasSebo(
             @AuthenticationPrincipal AccountUserDetails principal,
             Pageable pageable) {
-        return ResponseEntity.ok(pedidoService.historicoVendasSebo(principal.getAccount(), pageable));
+        return ResponseEntity.ok(PageResponse.from(pedidoService.historicoVendasSebo(principal.getAccount(), pageable)));
     }
 }

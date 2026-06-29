@@ -47,16 +47,16 @@ public class Produto extends BaseEntity {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal preco;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer estoque = 1;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private CondicaoProduto condicao;
 
     @Column(name = "foto_url", length = 500)
     private String fotoUrl;
-
-    @Column(nullable = false)
-    @Builder.Default
-    private Integer estoque = 1;
 
     @Column(nullable = false)
     @Builder.Default

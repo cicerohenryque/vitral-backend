@@ -30,6 +30,7 @@ import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.BaseEntity;
+import com.vitral.entity.Categoria;
 import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
@@ -96,7 +97,7 @@ class ProdutoServiceTest {
                 "Machado de Assis",
                 "Edicao de 1899, capa dura",
                 new BigDecimal("49.90"),
-                1,
+                3,
                 CondicaoProduto.USADO,
                 "https://cdn/dom.jpg");
     }
@@ -118,6 +119,7 @@ class ProdutoServiceTest {
         assertThat(persistido.getSebo()).isSameAs(seboDono);
         assertThat(persistido.getTitulo()).isEqualTo("Dom Casmurro");
         assertThat(persistido.getPreco()).isEqualByComparingTo("49.90");
+        assertThat(persistido.getEstoque()).isEqualTo(3);
         assertThat(persistido.getCondicao()).isEqualTo(CondicaoProduto.USADO);
         assertThat(persistido.getAtivo()).isTrue();
     }
@@ -155,6 +157,7 @@ class ProdutoServiceTest {
         assertThat(resultado).isEqualTo(esperado);
         assertThat(produto.getTitulo()).isEqualTo("Dom Casmurro");
         assertThat(produto.getPreco()).isEqualByComparingTo("49.90");
+        assertThat(produto.getEstoque()).isEqualTo(3);
         assertThat(produto.getCondicao()).isEqualTo(CondicaoProduto.USADO);
         assertThat(produto.getFotoUrl()).isEqualTo("https://cdn/dom.jpg");
     }
@@ -257,6 +260,77 @@ class ProdutoServiceTest {
 
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertThat(resultado.getContent()).containsExactly(r1, r2);
+    }
+
+    @Test
+    @DisplayName("Deve listar produtos ativos por categoria")
+    void listarPorCategoria_retornaProdutosAtivos() {
+        Categoria categoria = Categoria.builder().nome("Romance").slug("romance").build();
+        setId(categoria, 7L);
+        Produto produto = Produto.builder().sebo(seboDono).categoria(categoria).ativo(true).build();
+        setId(produto, 1L);
+        Pageable pageable = PageRequest.of(0, 10);
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, 7L, "Romance", "A", null, null,
+                BigDecimal.ONE, 1, CondicaoProduto.NOVO, null, true);
+        when(categoriaService.buscarEntidade(7L)).thenReturn(categoria);
+        when(produtoRepository.findByCategoriaIdAndAtivoTrue(7L, pageable))
+                .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
+        when(produtoMapper.toResponse(produto)).thenReturn(response);
+
+        Page<ProdutoResponse> resultado = produtoService.listarPorCategoria(7L, pageable);
+
+        assertThat(resultado.getContent()).containsExactly(response);
+        verify(categoriaService).buscarEntidade(7L);
+    }
+
+    @Test
+    @DisplayName("Deve listar lancamentos usando produtos ativos na ordenacao recebida")
+    void listarLancamentos_retornaProdutosAtivos() {
+        Produto produto = Produto.builder().sebo(seboDono).ativo(true).build();
+        setId(produto, 1L);
+        Pageable pageable = PageRequest.of(0, 10);
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Lancamento", null, null,
+                BigDecimal.TEN, 2, CondicaoProduto.NOVO, null, true);
+        when(produtoRepository.findByAtivoTrue(pageable))
+                .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
+        when(produtoMapper.toResponse(produto)).thenReturn(response);
+
+        Page<ProdutoResponse> resultado = produtoService.listarLancamentos(pageable);
+
+        assertThat(resultado.getContent()).containsExactly(response);
+        verify(produtoRepository).findByAtivoTrue(pageable);
+    }
+
+    @Test
+    @DisplayName("Deve listar classicos usando produtos ativos ordenados por data de criacao ascendente")
+    void listarClassicos_retornaProdutosMaisAntigos() {
+        Produto produto = Produto.builder().sebo(seboDono).ativo(true).build();
+        setId(produto, 1L);
+        Pageable pageable = PageRequest.of(0, 10);
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Classico", null, null,
+                BigDecimal.TEN, 1, CondicaoProduto.USADO, null, true);
+        when(produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable))
+                .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
+        when(produtoMapper.toResponse(produto)).thenReturn(response);
+
+        Page<ProdutoResponse> resultado = produtoService.listarClassicos(pageable);
+
+        assertThat(resultado.getContent()).containsExactly(response);
+        verify(produtoRepository).findByAtivoTrueOrderByCreatedAtAsc(pageable);
+    }
+
+    @Test
+    @DisplayName("Deve retornar pagina vazia quando nao existem produtos classicos ativos")
+    void listarClassicos_semProdutos_retornaPaginaVazia() {
+        Pageable pageable = PageRequest.of(0, 10);
+        when(produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        Page<ProdutoResponse> resultado = produtoService.listarClassicos(pageable);
+
+        assertThat(resultado.getContent()).isEmpty();
+        assertThat(resultado.getTotalElements()).isZero();
+        verify(produtoRepository).findByAtivoTrueOrderByCreatedAtAsc(pageable);
     }
 
     private void setId(Object entity, Long id) {

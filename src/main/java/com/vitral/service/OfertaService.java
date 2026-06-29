@@ -1,5 +1,7 @@
 package com.vitral.service;
 
+import java.time.OffsetDateTime;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -12,8 +14,8 @@ import com.vitral.entity.Account;
 import com.vitral.entity.Oferta;
 import com.vitral.entity.Produto;
 import com.vitral.exception.BusinessException;
+import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
-import com.vitral.mapper.OfertaMapper;
 import com.vitral.repository.OfertaRepository;
 import com.vitral.repository.ProdutoRepository;
 
@@ -25,66 +27,85 @@ public class OfertaService {
 
     private final OfertaRepository ofertaRepository;
     private final ProdutoRepository produtoRepository;
-    private final OfertaMapper ofertaMapper;
-
-    @Transactional(readOnly = true)
-    public Page<OfertaResponse> listarAtivas(Pageable pageable) {
-        return ofertaRepository.findByAtivaTrue(pageable).map(ofertaMapper::toResponse);
-    }
 
     @Transactional
     public OfertaResponse criar(Account account, OfertaRequest request) {
-        Produto produto = buscarProdutoDoDono(account, request.produtoId());
-        if (request.precoPromocional().compareTo(produto.getPreco()) >= 0) {
-            throw new BusinessException("Preco promocional deve ser menor que o preco original", HttpStatus.BAD_REQUEST);
+        Produto produto = obterProdutoDoSebo(account, request.produtoId());
+        if (ofertaRepository.findByProdutoIdAndAtivaTrue(produto.getId()).isPresent()) {
+            throw new ConflictException("Produto ja possui oferta ativa");
         }
+        validarPeriodo(request.inicioEm(), request.fimEm());
         Oferta oferta = Oferta.builder()
                 .produto(produto)
-                .precoOriginal(produto.getPreco())
                 .precoPromocional(request.precoPromocional())
                 .descricao(request.descricao())
                 .inicioEm(request.inicioEm())
                 .fimEm(request.fimEm())
-                .ativa(request.ativa() != null ? request.ativa() : Boolean.TRUE)
+                .ativa(request.ativa() == null || request.ativa())
                 .build();
-        return ofertaMapper.toResponse(ofertaRepository.save(oferta));
+        return toResponse(ofertaRepository.save(oferta));
     }
 
     @Transactional
-    public OfertaResponse atualizar(Account account, Long ofertaId, OfertaRequest request) {
-        Oferta oferta = buscarOfertaDoDono(account, ofertaId);
-        Produto produto = oferta.getProduto();
-        if (request.precoPromocional().compareTo(produto.getPreco()) >= 0) {
-            throw new BusinessException("Preco promocional deve ser menor que o preco original", HttpStatus.BAD_REQUEST);
-        }
-        oferta.setPrecoOriginal(produto.getPreco());
+    public OfertaResponse atualizar(Account account, Long id, OfertaRequest request) {
+        Oferta oferta = ofertaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Oferta nao encontrada"));
+        Produto produto = obterProdutoDoSebo(account, request.produtoId());
+        validarPeriodo(request.inicioEm(), request.fimEm());
+        oferta.setProduto(produto);
         oferta.setPrecoPromocional(request.precoPromocional());
         oferta.setDescricao(request.descricao());
         oferta.setInicioEm(request.inicioEm());
         oferta.setFimEm(request.fimEm());
-        if (request.ativa() != null) {
-            oferta.setAtiva(request.ativa());
-        }
-        return ofertaMapper.toResponse(oferta);
+        oferta.setAtiva(request.ativa() == null || request.ativa());
+        return toResponse(oferta);
     }
 
     @Transactional
-    public void remover(Account account, Long ofertaId) {
-        Oferta oferta = buscarOfertaDoDono(account, ofertaId);
-        ofertaRepository.delete(oferta);
+    public void remover(Account account, Long id) {
+        Oferta oferta = ofertaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Oferta nao encontrada"));
+        if (!oferta.getProduto().getSebo().getAccount().getId().equals(account.getId())) {
+            throw new BusinessException("Oferta nao pertence ao sebo da conta autenticada", HttpStatus.FORBIDDEN);
+        }
+        oferta.setAtiva(Boolean.FALSE);
     }
 
-    private Produto buscarProdutoDoDono(Account account, Long produtoId) {
+    @Transactional(readOnly = true)
+    public Page<OfertaResponse> listarAtivas(Pageable pageable) {
+        return ofertaRepository.findOfertasAtivas(OffsetDateTime.now(), pageable).map(this::toResponse);
+    }
+
+    private Produto obterProdutoDoSebo(Account account, Long produtoId) {
         Produto produto = produtoRepository.findById(produtoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
         if (!produto.getSebo().getAccount().getId().equals(account.getId())) {
             throw new BusinessException("Produto nao pertence ao sebo da conta autenticada", HttpStatus.FORBIDDEN);
         }
+        if (!Boolean.TRUE.equals(produto.getAtivo())) {
+            throw new BusinessException("Produto nao esta disponivel para oferta", HttpStatus.BAD_REQUEST);
+        }
         return produto;
     }
 
-    private Oferta buscarOfertaDoDono(Account account, Long ofertaId) {
-        return ofertaRepository.findByIdAndProdutoSeboAccountId(ofertaId, account.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Oferta nao encontrada"));
+    private void validarPeriodo(OffsetDateTime inicioEm, OffsetDateTime fimEm) {
+        if (inicioEm != null && fimEm != null && fimEm.isBefore(inicioEm)) {
+            throw new BusinessException("Data final da oferta deve ser posterior ao inicio", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private OfertaResponse toResponse(Oferta oferta) {
+        Produto produto = oferta.getProduto();
+        return new OfertaResponse(
+                oferta.getId(),
+                produto.getId(),
+                produto.getSebo().getId(),
+                produto.getTitulo(),
+                produto.getPreco(),
+                oferta.getPrecoPromocional(),
+                oferta.getDescricao(),
+                oferta.getInicioEm(),
+                oferta.getFimEm(),
+                oferta.getAtiva());
     }
 }

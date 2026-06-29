@@ -1,7 +1,8 @@
 package com.vitral.controller;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.vitral.dto.OfertaRequest;
 import com.vitral.dto.OfertaResponse;
+import com.vitral.dto.PageResponse;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.service.OfertaService;
 
@@ -28,20 +30,21 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/v1/ofertas")
 @RequiredArgsConstructor
-@Tag(name = "Ofertas", description = "Gerenciamento de promoções dos sebos")
+@Tag(name = "Ofertas", description = "Ofertas do catalogo")
 public class OfertaController {
 
     private final OfertaService ofertaService;
 
     @GetMapping
-    @Operation(summary = "Lista todas as ofertas ativas (publico)")
-    public ResponseEntity<Page<OfertaResponse>> listarAtivas(Pageable pageable) {
-        return ResponseEntity.ok(ofertaService.listarAtivas(pageable));
+    @Operation(summary = "Lista ofertas ativas e vigentes")
+    public ResponseEntity<PageResponse<OfertaResponse>> listarAtivas(
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(PageResponse.from(ofertaService.listarAtivas(pageable)));
     }
 
     @PostMapping
     @PreAuthorize("hasRole('SEBO')")
-    @Operation(summary = "Cria uma oferta para um produto do sebo autenticado")
+    @Operation(summary = "Cria oferta para produto do sebo autenticado")
     public ResponseEntity<OfertaResponse> criar(
             @AuthenticationPrincipal AccountUserDetails principal,
             @Valid @RequestBody OfertaRequest request) {
@@ -51,7 +54,7 @@ public class OfertaController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('SEBO')")
-    @Operation(summary = "Atualiza uma oferta do sebo autenticado")
+    @Operation(summary = "Atualiza oferta do sebo autenticado")
     public ResponseEntity<OfertaResponse> atualizar(
             @AuthenticationPrincipal AccountUserDetails principal,
             @PathVariable Long id,
@@ -61,7 +64,7 @@ public class OfertaController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SEBO')")
-    @Operation(summary = "Remove uma oferta do sebo autenticado")
+    @Operation(summary = "Desativa oferta do sebo autenticado")
     public ResponseEntity<Void> remover(
             @AuthenticationPrincipal AccountUserDetails principal,
             @PathVariable Long id) {

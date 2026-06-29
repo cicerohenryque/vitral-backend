@@ -42,18 +42,21 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_PATHS).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/sebos/**", "/api/v1/produtos/**", "/api/v1/busca/**", "/api/v1/categorias/**", "/api/v1/ofertas").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/sebos/**", "/api/v1/produtos/**", "/api/v1/busca/**",
+                                "/api/v1/categorias/**", "/api/v1/ofertas/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/ofertas").hasRole("SEBO")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/ofertas/**").hasRole("SEBO")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/ofertas/**").hasRole("SEBO")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/suporte").authenticated()
                         .requestMatchers("/api/v1/mensagens/**").authenticated()
                         .requestMatchers("/api/v1/cesta/**").hasRole("USUARIO")
                         .requestMatchers("/api/v1/favoritos/**").hasRole("USUARIO")
                         .requestMatchers(HttpMethod.POST, "/api/v1/pedidos").hasRole("USUARIO")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/pedidos/*/cancelar").hasRole("USUARIO")
                         .requestMatchers(HttpMethod.GET, "/api/v1/pedidos/meus-pedidos").hasRole("USUARIO")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/pedidos/*/status").hasRole("SEBO")
                         .requestMatchers(HttpMethod.GET, "/api/v1/pedidos/vendas").hasRole("SEBO")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/suporte").authenticated()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

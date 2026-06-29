@@ -28,10 +28,7 @@ public class Oferta extends BaseEntity {
     @JoinColumn(name = "produto_id", nullable = false)
     private Produto produto;
 
-    @Column(name = "preco_original", nullable = false, precision = 12, scale = 2)
-    private BigDecimal precoOriginal;
-
-    @Column(name = "preco_promocional", nullable = false, precision = 12, scale = 2)
+    @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal precoPromocional;
 
     @Column(length = 500)

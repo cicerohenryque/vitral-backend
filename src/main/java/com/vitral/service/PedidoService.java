@@ -41,7 +41,7 @@ public class PedidoService {
         }
 
         boolean possuiProdutoInativo = itens.stream()
-                .anyMatch(i -> !Boolean.TRUE.equals(i.getProduto().getAtivo()));
+                .anyMatch(i -> !Boolean.TRUE.equals(i.getProduto().getAtivo()) || i.getProduto().getEstoque() <= 0);
         if (possuiProdutoInativo) {
             throw new BusinessException(
                     "A cesta contem produtos que nao estao mais disponiveis",
@@ -56,6 +56,8 @@ public class PedidoService {
                     "Todos os produtos da cesta devem pertencer ao mesmo sebo para realizar um pedido",
                     HttpStatus.BAD_REQUEST);
         }
+
+        itens.forEach(this::validarQuantidadeDisponivel);
 
         Sebo sebo = seboRepository.findById(seboId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado"));
@@ -104,6 +106,35 @@ public class PedidoService {
         }
 
         pedido.setStatus(novoStatus);
+        if (novoStatus == StatusPedido.CONFIRMADO) {
+            pedido.getItens().forEach(item -> {
+                int estoqueAtual = item.getProduto().getEstoque();
+                if (estoqueAtual < item.getQuantidade()) {
+                    throw new BusinessException("Estoque insuficiente para confirmar o pedido", HttpStatus.BAD_REQUEST);
+                }
+                int novoEstoque = estoqueAtual - item.getQuantidade();
+                item.getProduto().setEstoque(novoEstoque);
+                item.getProduto().setAtivo(novoEstoque > 0);
+            });
+        }
+        return toResponse(pedido);
+    }
+
+    @Transactional
+    public PedidoResponse cancelarPedidoUsuario(Account account, Long pedidoId) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido nao encontrado"));
+
+        if (!pedido.getAccount().getId().equals(account.getId())) {
+            throw new BusinessException("Pedido nao pertence ao usuario autenticado", HttpStatus.FORBIDDEN);
+        }
+
+        if (pedido.getStatus() != StatusPedido.AGUARDANDO_CONFIRMACAO) {
+            throw new BusinessException("Apenas pedidos aguardando confirmacao podem ser cancelados pelo usuario",
+                    HttpStatus.BAD_REQUEST);
+        }
+
+        pedido.setStatus(StatusPedido.CANCELADO);
         return toResponse(pedido);
     }
 
@@ -158,5 +189,16 @@ public class PedidoService {
                 pedido.getTotal(),
                 pedido.getCreatedAt(),
                 itensResponse);
+    }
+
+    private void validarQuantidadeDisponivel(CestaItem item) {
+        Long quantidadeReservada = pedidoRepository
+                .sumQuantidadeReservadaEmPedidosPendentes(item.getProduto().getId());
+        int disponivel = item.getProduto().getEstoque() - quantidadeReservada.intValue();
+        if (item.getQuantidade() > disponivel) {
+            throw new BusinessException(
+                    "A cesta contem produtos sem estoque suficiente",
+                    HttpStatus.BAD_REQUEST);
+        }
     }
 }

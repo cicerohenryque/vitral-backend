@@ -26,7 +26,7 @@ import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.CondicaoProduto;
-import com.vitral.exception.ConflictException;
+import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.repository.CestaItemRepository;
 import com.vitral.repository.ProdutoRepository;
@@ -67,32 +67,35 @@ class CestaServiceTest {
                 .titulo("Dom Casmurro")
                 .autor("Machado de Assis")
                 .preco(new BigDecimal("29.90"))
+                .estoque(5)
                 .condicao(CondicaoProduto.USADO)
                 .ativo(true)
                 .build();
     }
 
     @Test
-    @DisplayName("Deve lançar ConflictException quando produto já está na cesta")
-    void adicionarItem_produtoJaNaCesta_lancaConflictException() {
+    @DisplayName("Deve incrementar quantidade quando produto já está na cesta")
+    void adicionarItem_produtoJaNaCesta_incrementaQuantidade() {
         Account account = buildUsuario();
-        when(cestaItemRepository.existsByAccountIdAndProdutoId(account.getId(), 1L)).thenReturn(true);
+        Produto produto = buildProduto();
+        CestaItem cestaItem = CestaItem.builder().account(account).produto(produto).quantidade(1).build();
+        when(produtoRepository.findByIdAndAtivoTrue(1L)).thenReturn(Optional.of(produto));
+        when(cestaItemRepository.findByAccountIdAndProdutoId(account.getId(), 1L)).thenReturn(Optional.of(cestaItem));
 
-        assertThatThrownBy(() -> cestaService.adicionarItem(account, 1L, 1))
-                .isInstanceOf(ConflictException.class);
+        MensagemResponse response = cestaService.adicionarItem(account, 1L);
 
-        verify(produtoRepository, never()).findByIdAndAtivoTrue(any());
-        verify(cestaItemRepository, never()).save(any());
+        assertThat(response.mensagem()).isEqualTo("Produto adicionado a cesta");
+        assertThat(cestaItem.getQuantidade()).isEqualTo(2);
+        verify(cestaItemRepository).save(cestaItem);
     }
 
     @Test
     @DisplayName("Deve lançar ResourceNotFoundException quando produto não existe ou está inativo")
     void adicionarItem_produtoNaoEncontrado_lancaResourceNotFoundException() {
         Account account = buildUsuario();
-        when(cestaItemRepository.existsByAccountIdAndProdutoId(account.getId(), 99L)).thenReturn(false);
         when(produtoRepository.findByIdAndAtivoTrue(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> cestaService.adicionarItem(account, 99L, 1))
+        assertThatThrownBy(() -> cestaService.adicionarItem(account, 99L))
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verify(cestaItemRepository, never()).save(any());
@@ -103,13 +106,26 @@ class CestaServiceTest {
     void adicionarItem_sucesso_salvaCestaItemERetornaMensagem() {
         Account account = buildUsuario();
         Produto produto = buildProduto();
-        when(cestaItemRepository.existsByAccountIdAndProdutoId(account.getId(), 1L)).thenReturn(false);
         when(produtoRepository.findByIdAndAtivoTrue(1L)).thenReturn(Optional.of(produto));
 
-        MensagemResponse response = cestaService.adicionarItem(account, 1L, 1);
+        MensagemResponse response = cestaService.adicionarItem(account, 1L);
 
         assertThat(response.mensagem()).isEqualTo("Produto adicionado a cesta");
         verify(cestaItemRepository).save(any(CestaItem.class));
+    }
+
+    @Test
+    @DisplayName("Deve lançar BusinessException quando quantidade excede o estoque")
+    void adicionarItem_quantidadeMaiorQueEstoque_lancaBusinessException() {
+        Account account = buildUsuario();
+        Produto produto = buildProduto();
+        when(produtoRepository.findByIdAndAtivoTrue(1L)).thenReturn(Optional.of(produto));
+
+        assertThatThrownBy(() -> cestaService.adicionarItem(account, 1L, 6))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("estoque");
+
+        verify(cestaItemRepository, never()).save(any());
     }
 
     @Test
@@ -117,7 +133,7 @@ class CestaServiceTest {
     void listarCesta_comItens_retornaListaMapeada() {
         Account account = buildUsuario();
         Produto produto = buildProduto();
-        CestaItem cestaItem = CestaItem.builder().account(account).produto(produto).build();
+        CestaItem cestaItem = CestaItem.builder().account(account).produto(produto).quantidade(2).build();
         when(cestaItemRepository.findByAccountIdComProdutoESebo(account.getId()))
                 .thenReturn(List.of(cestaItem));
 
@@ -126,6 +142,8 @@ class CestaServiceTest {
         assertThat(resultado).hasSize(1);
         assertThat(resultado.getFirst().titulo()).isEqualTo("Dom Casmurro");
         assertThat(resultado.getFirst().preco()).isEqualByComparingTo("29.90");
+        assertThat(resultado.getFirst().quantidade()).isEqualTo(2);
+        assertThat(resultado.getFirst().subtotal()).isEqualByComparingTo("59.80");
     }
 
     @Test

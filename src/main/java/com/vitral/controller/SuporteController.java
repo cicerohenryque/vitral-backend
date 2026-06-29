@@ -1,5 +1,6 @@
 package com.vitral.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -7,8 +8,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.SuporteRequest;
+import com.vitral.dto.SuporteResponse;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.service.SuporteService;
 
@@ -20,17 +21,17 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/v1/suporte")
 @RequiredArgsConstructor
-@Tag(name = "Suporte", description = "Envio de tickets de suporte ao Vitral")
+@Tag(name = "Suporte", description = "Envio de mensagens de suporte ao Vitral")
 public class SuporteController {
 
     private final SuporteService suporteService;
 
     @PostMapping
-    @Operation(summary = "Envia um ticket de suporte para a equipe do Vitral")
-    public ResponseEntity<MensagemResponse> enviar(
+    @Operation(summary = "Envia mensagem de suporte ao Vitral")
+    public ResponseEntity<SuporteResponse> enviar(
             @AuthenticationPrincipal AccountUserDetails principal,
             @Valid @RequestBody SuporteRequest request) {
-        suporteService.enviar(principal.getAccount(), request);
-        return ResponseEntity.ok(new MensagemResponse("Mensagem enviada com sucesso. Nossa equipe entrara em contato em breve."));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(suporteService.enviar(principal.getAccount(), request));
     }
 }

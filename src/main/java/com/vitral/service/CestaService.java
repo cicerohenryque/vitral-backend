@@ -13,7 +13,6 @@ import com.vitral.entity.Account;
 import com.vitral.entity.CestaItem;
 import com.vitral.entity.Produto;
 import com.vitral.exception.BusinessException;
-import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.repository.CestaItemRepository;
 import com.vitral.repository.ProdutoRepository;
@@ -28,46 +27,55 @@ public class CestaService {
     private final ProdutoRepository produtoRepository;
 
     @Transactional
-    public MensagemResponse adicionarItem(Account account, Long produtoId, int quantidade) {
-        if (cestaItemRepository.existsByAccountIdAndProdutoId(account.getId(), produtoId)) {
-            throw new ConflictException("Produto ja esta na cesta");
-        }
+    public MensagemResponse adicionarItem(Account account, Long produtoId) {
+        return adicionarItem(account, produtoId, 1);
+    }
+
+    @Transactional
+    public MensagemResponse adicionarItem(Account account, Long produtoId, Integer quantidade) {
+        int quantidadeNormalizada = normalizarQuantidade(quantidade);
         Produto produto = produtoRepository.findByIdAndAtivoTrue(produtoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
-        if (produto.getEstoque() < 1) {
-            throw new BusinessException("Produto sem estoque disponivel", HttpStatus.BAD_REQUEST);
-        }
-        if (quantidade > produto.getEstoque()) {
-            throw new BusinessException("Quantidade solicitada maior que o estoque disponivel", HttpStatus.BAD_REQUEST);
-        }
-        CestaItem item = CestaItem.builder()
-                .account(account)
-                .produto(produto)
-                .quantidade(quantidade)
-                .build();
+        CestaItem item = cestaItemRepository
+                .findByAccountIdAndProdutoId(account.getId(), produtoId)
+                .orElseGet(() -> CestaItem.builder()
+                        .account(account)
+                        .produto(produto)
+                        .quantidade(0)
+                        .build());
+
+        int novaQuantidade = item.getQuantidade() + quantidadeNormalizada;
+        validarEstoque(produto, novaQuantidade);
+        item.setQuantidade(novaQuantidade);
         cestaItemRepository.save(item);
         return new MensagemResponse("Produto adicionado a cesta");
     }
 
     @Transactional
-    public MensagemResponse atualizarQuantidade(Account account, Long produtoId, int quantidade) {
-        if (quantidade < 1) {
-            throw new BusinessException("Quantidade deve ser maior que zero", HttpStatus.BAD_REQUEST);
-        }
+    public MensagemResponse atualizarQuantidade(Account account, Long produtoId, Integer quantidade) {
+        int quantidadeNormalizada = normalizarQuantidade(quantidade);
         CestaItem item = cestaItemRepository
                 .findByAccountIdAndProdutoId(account.getId(), produtoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Item nao encontrado na cesta"));
-        if (quantidade > item.getProduto().getEstoque()) {
-            throw new BusinessException("Quantidade solicitada excede o estoque disponivel", HttpStatus.BAD_REQUEST);
-        }
-        item.setQuantidade(quantidade);
+        validarEstoque(item.getProduto(), quantidadeNormalizada);
+        item.setQuantidade(quantidadeNormalizada);
         return new MensagemResponse("Quantidade atualizada");
     }
 
     @Transactional(readOnly = true)
     public List<CestaItemResponse> listarCesta(Account account) {
         return cestaItemRepository.findByAccountIdComProdutoESebo(account.getId()).stream()
-                .map(this::toResponse)
+                .map(i -> new CestaItemResponse(
+                        i.getId(),
+                        i.getProduto().getId(),
+                        i.getProduto().getTitulo(),
+                        i.getProduto().getAutor(),
+                        i.getProduto().getPreco(),
+                        i.getQuantidade(),
+                        i.getProduto().getPreco().multiply(BigDecimal.valueOf(i.getQuantidade())),
+                        i.getProduto().getEstoque(),
+                        i.getProduto().getCondicao(),
+                        i.getProduto().getFotoUrl()))
                 .toList();
     }
 
@@ -80,19 +88,19 @@ public class CestaService {
         return new MensagemResponse("Produto removido da cesta");
     }
 
-    private CestaItemResponse toResponse(CestaItem item) {
-        Produto p = item.getProduto();
-        BigDecimal subtotal = p.getPreco().multiply(BigDecimal.valueOf(item.getQuantidade()));
-        return new CestaItemResponse(
-                item.getId(),
-                p.getId(),
-                p.getTitulo(),
-                p.getAutor(),
-                p.getPreco(),
-                item.getQuantidade(),
-                subtotal,
-                p.getEstoque(),
-                p.getCondicao(),
-                p.getFotoUrl());
+    private int normalizarQuantidade(Integer quantidade) {
+        if (quantidade == null) {
+            return 1;
+        }
+        if (quantidade < 1) {
+            throw new BusinessException("Quantidade deve ser maior que zero", HttpStatus.BAD_REQUEST);
+        }
+        return quantidade;
+    }
+
+    private void validarEstoque(Produto produto, int quantidade) {
+        if (produto.getEstoque() < quantidade) {
+            throw new BusinessException("Quantidade solicitada maior que o estoque disponivel", HttpStatus.BAD_REQUEST);
+        }
     }
 }

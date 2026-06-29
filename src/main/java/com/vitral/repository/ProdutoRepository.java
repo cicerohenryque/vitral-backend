@@ -16,9 +16,11 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long>, JpaSpec
 
     Page<Produto> findBySeboIdAndAtivoTrue(Long seboId, Pageable pageable);
 
+    Page<Produto> findByCategoriaIdAndAtivoTrue(Long categoriaId, Pageable pageable);
+
     Page<Produto> findByAtivoTrue(Pageable pageable);
 
-    Page<Produto> findByAtivoTrueAndTituloContainingIgnoreCase(String termo, Pageable pageable);
+    Page<Produto> findByAtivoTrueOrderByCreatedAtAsc(Pageable pageable);
 
-    Page<Produto> findByCategoriaIdAndAtivoTrue(Long categoriaId, Pageable pageable);
+    Page<Produto> findByAtivoTrueAndTituloContainingIgnoreCase(String termo, Pageable pageable);
 }

@@ -10,9 +10,34 @@ import com.vitral.entity.Mensagem;
 
 public interface MensagemRepository extends JpaRepository<Mensagem, Long> {
 
-    @Query("SELECT m FROM Mensagem m WHERE m.remetente.id = :userId OR m.destinatario.id = :userId ORDER BY m.createdAt DESC")
-    Page<Mensagem> findByUsuario(@Param("userId") Long userId, Pageable pageable);
+    @Query(value = """
+            select m from Mensagem m
+            join fetch m.remetente r
+            join fetch m.destinatario d
+            where m.remetente.id = :accountId or m.destinatario.id = :accountId
+            order by m.createdAt desc
+            """,
+            countQuery = """
+            select count(m) from Mensagem m
+            where m.remetente.id = :accountId or m.destinatario.id = :accountId
+            """)
+    Page<Mensagem> findConversasDaConta(@Param("accountId") Long accountId, Pageable pageable);
 
-    @Query("SELECT m FROM Mensagem m WHERE (m.remetente.id = :userA AND m.destinatario.id = :userB) OR (m.remetente.id = :userB AND m.destinatario.id = :userA) ORDER BY m.createdAt ASC")
-    Page<Mensagem> findConversa(@Param("userA") Long userA, @Param("userB") Long userB, Pageable pageable);
+    @Query(value = """
+            select m from Mensagem m
+            join fetch m.remetente r
+            join fetch m.destinatario d
+            where (m.remetente.id = :accountId and m.destinatario.id = :outroAccountId)
+               or (m.remetente.id = :outroAccountId and m.destinatario.id = :accountId)
+            order by m.createdAt asc
+            """,
+            countQuery = """
+            select count(m) from Mensagem m
+            where (m.remetente.id = :accountId and m.destinatario.id = :outroAccountId)
+               or (m.remetente.id = :outroAccountId and m.destinatario.id = :accountId)
+            """)
+    Page<Mensagem> findConversaComConta(
+            @Param("accountId") Long accountId,
+            @Param("outroAccountId") Long outroAccountId,
+            Pageable pageable);
 }

@@ -38,17 +38,9 @@ public class CestaController {
     public ResponseEntity<MensagemResponse> adicionarItem(
             @AuthenticationPrincipal AccountUserDetails principal,
             @PathVariable Long produtoId,
-            @RequestParam(defaultValue = "1") int quantidade) {
+            @RequestParam(required = false) Integer quantidade) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(cestaService.adicionarItem(principal.getAccount(), produtoId, quantidade));
-    }
-
-    @GetMapping
-    @PreAuthorize("hasRole('USUARIO')")
-    @Operation(summary = "Lista os itens da cesta de compras do usuario autenticado")
-    public ResponseEntity<List<CestaItemResponse>> listarCesta(
-            @AuthenticationPrincipal AccountUserDetails principal) {
-        return ResponseEntity.ok(cestaService.listarCesta(principal.getAccount()));
     }
 
     @PutMapping("/{produtoId}")
@@ -57,8 +49,16 @@ public class CestaController {
     public ResponseEntity<MensagemResponse> atualizarQuantidade(
             @AuthenticationPrincipal AccountUserDetails principal,
             @PathVariable Long produtoId,
-            @RequestParam int quantidade) {
+            @RequestParam Integer quantidade) {
         return ResponseEntity.ok(cestaService.atualizarQuantidade(principal.getAccount(), produtoId, quantidade));
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('USUARIO')")
+    @Operation(summary = "Lista os itens da cesta de compras do usuario autenticado")
+    public ResponseEntity<List<CestaItemResponse>> listarCesta(
+            @AuthenticationPrincipal AccountUserDetails principal) {
+        return ResponseEntity.ok(cestaService.listarCesta(principal.getAccount()));
     }
 
     @DeleteMapping("/{produtoId}")

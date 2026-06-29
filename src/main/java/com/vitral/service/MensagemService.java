@@ -6,13 +6,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.vitral.dto.MensagemChatRequest;
-import com.vitral.dto.MensagemChatResponse;
+import com.vitral.dto.MensagemConversaResponse;
+import com.vitral.dto.MensagemRequest;
 import com.vitral.entity.Account;
 import com.vitral.entity.Mensagem;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
-import com.vitral.mapper.MensagemMapper;
 import com.vitral.repository.AccountRepository;
 import com.vitral.repository.MensagemRepository;
 
@@ -24,10 +23,9 @@ public class MensagemService {
 
     private final MensagemRepository mensagemRepository;
     private final AccountRepository accountRepository;
-    private final MensagemMapper mensagemMapper;
 
     @Transactional
-    public MensagemChatResponse enviar(Account remetente, MensagemChatRequest request) {
+    public MensagemConversaResponse enviar(Account remetente, MensagemRequest request) {
         if (remetente.getId().equals(request.destinatarioId())) {
             throw new BusinessException("Nao e possivel enviar mensagem para si mesmo", HttpStatus.BAD_REQUEST);
         }
@@ -38,18 +36,32 @@ public class MensagemService {
                 .destinatario(destinatario)
                 .conteudo(request.conteudo())
                 .build();
-        return mensagemMapper.toResponse(mensagemRepository.save(mensagem));
+        return toResponse(mensagemRepository.save(mensagem));
     }
 
     @Transactional(readOnly = true)
-    public Page<MensagemChatResponse> listar(Account account, Pageable pageable) {
-        return mensagemRepository.findByUsuario(account.getId(), pageable)
-                .map(mensagemMapper::toResponse);
+    public Page<MensagemConversaResponse> listarConversas(Account account, Pageable pageable) {
+        return mensagemRepository.findConversasDaConta(account.getId(), pageable).map(this::toResponse);
     }
 
-    @Transactional(readOnly = true)
-    public Page<MensagemChatResponse> listarConversa(Account account, Long outroAccountId, Pageable pageable) {
-        return mensagemRepository.findConversa(account.getId(), outroAccountId, pageable)
-                .map(mensagemMapper::toResponse);
+    @Transactional
+    public Page<MensagemConversaResponse> listarConversaCom(Account account, Long outroAccountId, Pageable pageable) {
+        Page<Mensagem> mensagens = mensagemRepository.findConversaComConta(account.getId(), outroAccountId, pageable);
+        mensagens.stream()
+                .filter(m -> m.getDestinatario().getId().equals(account.getId()))
+                .forEach(m -> m.setLida(Boolean.TRUE));
+        return mensagens.map(this::toResponse);
+    }
+
+    private MensagemConversaResponse toResponse(Mensagem mensagem) {
+        return new MensagemConversaResponse(
+                mensagem.getId(),
+                mensagem.getRemetente().getId(),
+                mensagem.getRemetente().getName(),
+                mensagem.getDestinatario().getId(),
+                mensagem.getDestinatario().getName(),
+                mensagem.getConteudo(),
+                mensagem.getLida(),
+                mensagem.getCreatedAt());
     }
 }
