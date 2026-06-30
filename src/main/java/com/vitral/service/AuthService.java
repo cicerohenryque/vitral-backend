@@ -16,6 +16,7 @@ import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.RegisterRequest;
 import com.vitral.dto.RecuperarSenhaRequest;
 import com.vitral.dto.RedefinirSenhaRequest;
+import com.vitral.dto.ReenviarConfirmacaoRequest;
 import com.vitral.entity.Account;
 import com.vitral.entity.TokenVerificacaoEmail;
 import com.vitral.entity.TokenRecuperacaoSenha;
@@ -59,16 +60,7 @@ public class AuthService {
 
         Account saved = accountRepository.save(account);
 
-        String tokenValor = UUID.randomUUID().toString();
-        TokenVerificacaoEmail token = TokenVerificacaoEmail.builder()
-                .account(saved)
-                .token(tokenValor)
-                .expiraEm(OffsetDateTime.now().plusHours(24))
-                .usado(false)
-                .build();
-        tokenRepository.save(token);
-
-        emailService.enviarConfirmacaoCadastro(saved.getEmail(), tokenValor);
+        enviarTokenConfirmacao(saved);
 
         return new MensagemResponse("Cadastro realizado. Verifique seu e-mail para confirmar a conta.");
     }
@@ -106,6 +98,18 @@ public class AuthService {
     }
 
     @Transactional
+    public MensagemResponse reenviarConfirmacao(ReenviarConfirmacaoRequest request) {
+        accountRepository.findByEmail(request.email()).ifPresent(account -> {
+            if (!account.isEmailVerificado()) {
+                tokenRepository.deleteByAccountId(account.getId());
+                enviarTokenConfirmacao(account);
+            }
+        });
+        return new MensagemResponse(
+                "Se a conta estiver pendente, enviaremos um novo link de confirmação.");
+    }
+
+    @Transactional
     public MensagemResponse solicitarRecuperacaoSenha(RecuperarSenhaRequest request) {
         accountRepository.findByEmail(request.email()).ifPresent(account -> {
             tokenRecuperacaoSenhaRepository.deleteByAccountId(account.getId());
@@ -132,12 +136,25 @@ public class AuthService {
             throw new BusinessException("Link de recuperacao expirado. Solicite um novo.", HttpStatus.UNPROCESSABLE_ENTITY);
         }
         token.getAccount().setPasswordHash(passwordEncoder.encode(request.password()));
+        token.getAccount().setAuthVersion(token.getAccount().getAuthVersion() + 1);
         token.setUsado(true);
         return new MensagemResponse("Senha redefinida com sucesso.");
     }
 
     private AuthResponse buildAuthResponse(Account account) {
-        String token = jwtService.generateToken(account.getEmail(), account.getType().name());
+        String token = jwtService.generateToken(
+                account.getEmail(), account.getType().name(), account.getAuthVersion());
         return new AuthResponse(token, jwtService.getExpiration(), accountMapper.toResponse(account));
+    }
+
+    private void enviarTokenConfirmacao(Account account) {
+        String tokenValor = UUID.randomUUID().toString();
+        tokenRepository.save(TokenVerificacaoEmail.builder()
+                .account(account)
+                .token(tokenValor)
+                .expiraEm(OffsetDateTime.now().plusHours(24))
+                .usado(false)
+                .build());
+        emailService.enviarConfirmacaoCadastro(account.getEmail(), tokenValor);
     }
 }

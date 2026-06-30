@@ -28,7 +28,13 @@ public class SecurityConfig {
     private final CorsConfigurationSource corsConfigurationSource;
 
     private static final String[] PUBLIC_PATHS = {
-            "/api/v1/auth/**",
+            "/api/v1/auth/register",
+            "/api/v1/auth/login",
+            "/api/v1/auth/confirmar",
+            "/api/v1/auth/recuperar-senha",
+            "/api/v1/auth/redefinir-senha",
+            "/api/v1/auth/reenviar-confirmacao",
+            "/error",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"

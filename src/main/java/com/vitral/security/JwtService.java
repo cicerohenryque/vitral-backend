@@ -26,11 +26,16 @@ public class JwtService {
     }
 
     public String generateToken(String subject, String type) {
+        return generateToken(subject, type, 0);
+    }
+
+    public String generateToken(String subject, String type, int authVersion) {
         Date now = new Date();
         Date expiresAt = new Date(now.getTime() + expiration);
         return Jwts.builder()
                 .subject(subject)
                 .claim("type", type)
+                .claim("ver", authVersion)
                 .issuedAt(now)
                 .expiration(expiresAt)
                 .signWith(signingKey)
@@ -52,6 +57,11 @@ public class JwtService {
 
     public Instant extractExpiration(String token) {
         return parse(token).getExpiration().toInstant();
+    }
+
+    public int extractAuthVersion(String token) {
+        Integer version = parse(token).get("ver", Integer.class);
+        return version == null ? 0 : version;
     }
 
     public long getExpiration() {

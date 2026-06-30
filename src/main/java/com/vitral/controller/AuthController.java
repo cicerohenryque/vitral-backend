@@ -1,5 +1,8 @@
 package com.vitral.controller;
 
+import java.time.Duration;
+import java.util.Locale;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,10 +22,12 @@ import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.RegisterRequest;
 import com.vitral.dto.RecuperarSenhaRequest;
 import com.vitral.dto.RedefinirSenhaRequest;
+import com.vitral.dto.ReenviarConfirmacaoRequest;
 import com.vitral.mapper.AccountMapper;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.security.JwtService;
 import com.vitral.security.TokenBlacklistService;
+import com.vitral.security.RateLimitService;
 import com.vitral.service.AuthService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +45,7 @@ public class AuthController {
     private final AccountMapper accountMapper;
     private final JwtService jwtService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final RateLimitService rateLimitService;
 
     @PostMapping("/register")
     @Operation(summary = "Cria uma conta (Sebo ou Usuario) e envia e-mail de confirmacao")
@@ -49,8 +55,15 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(summary = "Autentica e retorna o token de acesso — requer e-mail confirmado")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    public ResponseEntity<AuthResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest) {
+        String emailKey = "login:email:" + normalize(request.email());
+        rateLimitService.check("login:ip:" + clientIp(httpRequest), 30, Duration.ofMinutes(15));
+        rateLimitService.check(emailKey, 5, Duration.ofMinutes(15));
+        AuthResponse response = authService.login(request);
+        rateLimitService.reset(emailKey);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/confirmar")
@@ -61,14 +74,31 @@ public class AuthController {
 
     @PostMapping("/recuperar-senha")
     @Operation(summary = "Envia um link temporario para redefinicao de senha")
-    public ResponseEntity<MensagemResponse> recuperarSenha(@Valid @RequestBody RecuperarSenhaRequest request) {
+    public ResponseEntity<MensagemResponse> recuperarSenha(
+            @Valid @RequestBody RecuperarSenhaRequest request,
+            HttpServletRequest httpRequest) {
+        rateLimitService.check("recovery:ip:" + clientIp(httpRequest), 15, Duration.ofHours(1));
+        rateLimitService.check("recovery:email:" + normalize(request.email()), 3, Duration.ofHours(1));
         return ResponseEntity.ok(authService.solicitarRecuperacaoSenha(request));
     }
 
     @PostMapping("/redefinir-senha")
     @Operation(summary = "Redefine a senha usando um token temporario")
-    public ResponseEntity<MensagemResponse> redefinirSenha(@Valid @RequestBody RedefinirSenhaRequest request) {
+    public ResponseEntity<MensagemResponse> redefinirSenha(
+            @Valid @RequestBody RedefinirSenhaRequest request,
+            HttpServletRequest httpRequest) {
+        rateLimitService.check("reset:ip:" + clientIp(httpRequest), 10, Duration.ofMinutes(15));
         return ResponseEntity.ok(authService.redefinirSenha(request));
+    }
+
+    @PostMapping("/reenviar-confirmacao")
+    @Operation(summary = "Reenvia o link de confirmacao para uma conta pendente")
+    public ResponseEntity<MensagemResponse> reenviarConfirmacao(
+            @Valid @RequestBody ReenviarConfirmacaoRequest request,
+            HttpServletRequest httpRequest) {
+        rateLimitService.check("confirmation:ip:" + clientIp(httpRequest), 15, Duration.ofHours(1));
+        rateLimitService.check("confirmation:email:" + normalize(request.email()), 3, Duration.ofHours(1));
+        return ResponseEntity.ok(authService.reenviarConfirmacao(request));
     }
 
     @GetMapping("/me")
@@ -88,5 +118,13 @@ public class AuthController {
             }
         }
         return ResponseEntity.noContent().build();
+    }
+
+    private String clientIp(HttpServletRequest request) {
+        return request.getRemoteAddr();
+    }
+
+    private String normalize(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 }

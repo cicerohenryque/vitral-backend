@@ -40,4 +40,8 @@ public class Account extends BaseEntity {
 
     @Column(name = "foto_url", length = 500)
     private String fotoUrl;
+
+    @Builder.Default
+    @Column(name = "auth_version", nullable = false, columnDefinition = "integer default 0")
+    private Integer authVersion = 0;
 }

@@ -81,6 +81,13 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    @DisplayName("Dados da conta devem bloquear visitante sem token")
+    void authMe_visitanteSemToken_eBloqueado() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/me"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("Usuario autenticado deve acessar favoritos e cesta")
     void usuario_acessaRotasDeUsuario() throws Exception {
         mockMvc.perform(get("/api/v1/favoritos")
@@ -129,6 +136,18 @@ class SecurityIntegrationTest {
     void classicos_visitante_temAcesso() throws Exception {
         mockMvc.perform(get("/api/v1/produtos/classicos"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Token emitido antes da troca de senha deve ser rejeitado")
+    void tokenComVersaoAntiga_eBloqueado() throws Exception {
+        Account usuario = accountRepository.findByEmail("usuario-seguranca@vitral.com").orElseThrow();
+        usuario.setAuthVersion(usuario.getAuthVersion() + 1);
+        accountRepository.saveAndFlush(usuario);
+
+        mockMvc.perform(get("/api/v1/favoritos")
+                        .header("Authorization", bearer(tokenUsuario)))
+                .andExpect(status().isForbidden());
     }
 
     private String bearer(String token) {

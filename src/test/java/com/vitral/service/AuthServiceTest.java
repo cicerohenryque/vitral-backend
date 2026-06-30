@@ -30,6 +30,7 @@ import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.RegisterRequest;
 import com.vitral.dto.RecuperarSenhaRequest;
 import com.vitral.dto.RedefinirSenhaRequest;
+import com.vitral.dto.ReenviarConfirmacaoRequest;
 import com.vitral.entity.Account;
 import com.vitral.entity.TokenRecuperacaoSenha;
 import com.vitral.entity.TokenVerificacaoEmail;
@@ -144,7 +145,7 @@ class AuthServiceTest {
         AccountResponse accountResponse = new AccountResponse(1L, "Maria", "maria@vitral.com", AccountType.USUARIO, null);
 
         when(accountRepository.findByEmail("maria@vitral.com")).thenReturn(Optional.of(account));
-        when(jwtService.generateToken("maria@vitral.com", "USUARIO")).thenReturn("token-jwt");
+        when(jwtService.generateToken("maria@vitral.com", "USUARIO", 0)).thenReturn("token-jwt");
         when(jwtService.getExpiration()).thenReturn(86400000L);
         when(accountMapper.toResponse(account)).thenReturn(accountResponse);
 
@@ -274,6 +275,40 @@ class AuthServiceTest {
 
         assertThat(result.mensagem()).contains("sucesso");
         assertThat(account.getPasswordHash()).isEqualTo("nova-hash");
+        assertThat(account.getAuthVersion()).isEqualTo(1);
         assertThat(token.isUsado()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Deve substituir o token e reenviar confirmacao para conta pendente")
+    void shouldResendConfirmationForPendingAccount() {
+        Account account = Account.builder()
+                .email("maria@vitral.com")
+                .emailVerificado(false)
+                .build();
+        when(accountRepository.findByEmail("maria@vitral.com")).thenReturn(Optional.of(account));
+
+        MensagemResponse result = authService.reenviarConfirmacao(
+                new ReenviarConfirmacaoRequest("maria@vitral.com"));
+
+        assertThat(result.mensagem()).contains("conta estiver pendente");
+        verify(tokenRepository).deleteByAccountId(account.getId());
+        verify(tokenRepository).save(any(TokenVerificacaoEmail.class));
+        verify(emailService).enviarConfirmacaoCadastro(any(), any());
+    }
+
+    @Test
+    @DisplayName("Nao deve reenviar confirmacao para conta ja verificada")
+    void shouldNotResendConfirmationForVerifiedAccount() {
+        Account account = Account.builder()
+                .email("maria@vitral.com")
+                .emailVerificado(true)
+                .build();
+        when(accountRepository.findByEmail("maria@vitral.com")).thenReturn(Optional.of(account));
+
+        authService.reenviarConfirmacao(new ReenviarConfirmacaoRequest("maria@vitral.com"));
+
+        verify(tokenRepository, never()).save(any(TokenVerificacaoEmail.class));
+        verify(emailService, never()).enviarConfirmacaoCadastro(any(), any());
     }
 }
