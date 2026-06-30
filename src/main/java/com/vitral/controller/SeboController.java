@@ -55,8 +55,14 @@ public class SeboController {
         return ResponseEntity.ok(seboService.buscarPorId(id));
     }
 
-    @DeleteMapping("/me")
+    @GetMapping("/me")
     @PreAuthorize("hasRole('SEBO')")
+    @Operation(summary = "Consulta o perfil do sebo vinculado a conta autenticada")
+    public ResponseEntity<SeboResponse> buscarMeuSebo(@AuthenticationPrincipal AccountUserDetails principal) {
+        return ResponseEntity.ok(seboService.buscarMeuSebo(principal.getAccount()));
+    }
+
+    @DeleteMapping("/me")
     @Operation(summary = "Exclui permanentemente a conta do sebo autenticado e todos os seus dados")
     public ResponseEntity<MensagemResponse> excluirConta(
             @AuthenticationPrincipal AccountUserDetails principal) {

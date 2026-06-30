@@ -365,7 +365,7 @@ class PedidoServiceTest {
         when(pedidoRepository.findByAccountIdOrderByCreatedAtDesc(eq(10L), eq(pageable)))
                 .thenReturn(paginaVazia);
 
-        Page<PedidoResponse> resultado = pedidoService.historicoPedidosUsuario(account, pageable);
+        Page<PedidoResponse> resultado = pedidoService.historicoPedidosUsuario(account, null, pageable);
 
         assertThat(resultado.getContent()).isEmpty();
         verify(pedidoRepository).findByAccountIdOrderByCreatedAtDesc(10L, pageable);
@@ -378,7 +378,7 @@ class PedidoServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         when(seboRepository.findByAccountId(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> pedidoService.historicoVendasSebo(seboAccount, pageable))
+        assertThatThrownBy(() -> pedidoService.historicoVendasSebo(seboAccount, null, pageable))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -392,7 +392,7 @@ class PedidoServiceTest {
         when(pedidoRepository.findBySeboIdOrderByCreatedAtDesc(5L, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
-        Page<PedidoResponse> resultado = pedidoService.historicoVendasSebo(seboAccount, pageable);
+        Page<PedidoResponse> resultado = pedidoService.historicoVendasSebo(seboAccount, null, pageable);
 
         assertThat(resultado).isEmpty();
         verify(pedidoRepository).findBySeboIdOrderByCreatedAtDesc(5L, pageable);

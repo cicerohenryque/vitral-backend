@@ -157,18 +157,22 @@ public class PedidoService {
     }
 
     @Transactional(readOnly = true)
-    public Page<PedidoResponse> historicoPedidosUsuario(Account account, Pageable pageable) {
-        return pedidoRepository
-                .findByAccountIdOrderByCreatedAtDesc(account.getId(), pageable)
+    public Page<PedidoResponse> historicoPedidosUsuario(Account account, StatusPedido status, Pageable pageable) {
+        Page<Pedido> pedidos = status == null
+                ? pedidoRepository.findByAccountIdOrderByCreatedAtDesc(account.getId(), pageable)
+                : pedidoRepository.findByAccountIdAndStatusOrderByCreatedAtDesc(account.getId(), status, pageable);
+        return pedidos
                 .map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
-    public Page<PedidoResponse> historicoVendasSebo(Account account, Pageable pageable) {
+    public Page<PedidoResponse> historicoVendasSebo(Account account, StatusPedido status, Pageable pageable) {
         Sebo sebo = seboRepository.findByAccountId(account.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
-        return pedidoRepository
-                .findBySeboIdOrderByCreatedAtDesc(sebo.getId(), pageable)
+        Page<Pedido> pedidos = status == null
+                ? pedidoRepository.findBySeboIdOrderByCreatedAtDesc(sebo.getId(), pageable)
+                : pedidoRepository.findBySeboIdAndStatusOrderByCreatedAtDesc(sebo.getId(), status, pageable);
+        return pedidos
                 .map(this::toResponse);
     }
 

@@ -1,7 +1,15 @@
 INSERT INTO account (name, email, password_hash, type, email_verificado, created_at, updated_at)
 VALUES
     ('Sebo E2E', 'sebo.e2e@vitral.test', '$2y$10$52z1p18.egDdQNSUIeVvsO074XSRoARd.B9WGb095Gg3NcPlP/ETO', 'SEBO', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('Cliente E2E', 'cliente.e2e@vitral.test', '$2y$10$52z1p18.egDdQNSUIeVvsO074XSRoARd.B9WGb095Gg3NcPlP/ETO', 'USUARIO', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+    ('Cliente E2E', 'cliente.e2e@vitral.test', '$2y$10$52z1p18.egDdQNSUIeVvsO074XSRoARd.B9WGb095Gg3NcPlP/ETO', 'USUARIO', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('Confirmação E2E', 'confirmacao.e2e@vitral.test', '$2y$10$52z1p18.egDdQNSUIeVvsO074XSRoARd.B9WGb095Gg3NcPlP/ETO', 'USUARIO', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('Sebo Descartável E2E', 'descartavel.e2e@vitral.test', '$2y$10$52z1p18.egDdQNSUIeVvsO074XSRoARd.B9WGb095Gg3NcPlP/ETO', 'SEBO', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO token_verificacao_email (account_id, token, expira_em, usado, created_at, updated_at)
+VALUES (3, '11111111-1111-1111-1111-111111111111', DATEADD('HOUR', 1, CURRENT_TIMESTAMP), FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO token_recuperacao_senha (account_id, token, expira_em, usado, created_at, updated_at)
+VALUES (2, '22222222-2222-2222-2222-222222222222', DATEADD('HOUR', 1, CURRENT_TIMESTAMP), FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 INSERT INTO sebo (account_id, descricao, telefone, cidade, uf, horario_funcionamento, created_at, updated_at)
 VALUES (1, 'Sebo criado exclusivamente para os testes E2E.', '85999990000', 'Fortaleza', 'CE', '08h às 18h', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);

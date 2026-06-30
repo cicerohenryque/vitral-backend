@@ -28,7 +28,10 @@ import com.vitral.dto.AuthResponse;
 import com.vitral.dto.LoginRequest;
 import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.RegisterRequest;
+import com.vitral.dto.RecuperarSenhaRequest;
+import com.vitral.dto.RedefinirSenhaRequest;
 import com.vitral.entity.Account;
+import com.vitral.entity.TokenRecuperacaoSenha;
 import com.vitral.entity.TokenVerificacaoEmail;
 import com.vitral.enumerations.AccountType;
 import com.vitral.exception.BusinessException;
@@ -37,6 +40,7 @@ import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.AccountMapper;
 import com.vitral.repository.AccountRepository;
 import com.vitral.repository.TokenVerificacaoEmailRepository;
+import com.vitral.repository.TokenRecuperacaoSenhaRepository;
 import com.vitral.security.JwtService;
 
 @ExtendWith(MockitoExtension.class)
@@ -47,6 +51,9 @@ class AuthServiceTest {
 
     @Mock
     private TokenVerificacaoEmailRepository tokenRepository;
+
+    @Mock
+    private TokenRecuperacaoSenhaRepository tokenRecuperacaoSenhaRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -234,5 +241,39 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.confirmarEmail("token-inexistente"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("Token de confirmacao invalido");
+    }
+
+    @Test
+    @DisplayName("Deve responder de forma neutra quando o e-mail de recuperacao nao existir")
+    void shouldNotRevealWhetherRecoveryEmailExists() {
+        when(accountRepository.findByEmail("ausente@vitral.com")).thenReturn(Optional.empty());
+
+        MensagemResponse result = authService.solicitarRecuperacaoSenha(
+                new RecuperarSenhaRequest("ausente@vitral.com"));
+
+        assertThat(result.mensagem()).contains("Se o e-mail estiver cadastrado");
+        verify(tokenRecuperacaoSenhaRepository, never()).save(any());
+        verify(emailService, never()).enviarRecuperacaoSenha(any(), any());
+    }
+
+    @Test
+    @DisplayName("Deve redefinir a senha e consumir o token de recuperacao")
+    void shouldResetPasswordAndConsumeToken() {
+        Account account = Account.builder().email("maria@vitral.com").passwordHash("antiga").build();
+        TokenRecuperacaoSenha token = TokenRecuperacaoSenha.builder()
+                .account(account)
+                .token("token-recuperacao")
+                .expiraEm(OffsetDateTime.now().plusHours(1))
+                .usado(false)
+                .build();
+        when(tokenRecuperacaoSenhaRepository.findByToken("token-recuperacao")).thenReturn(Optional.of(token));
+        when(passwordEncoder.encode("novaSenha123")).thenReturn("nova-hash");
+
+        MensagemResponse result = authService.redefinirSenha(
+                new RedefinirSenhaRequest("token-recuperacao", "novaSenha123"));
+
+        assertThat(result.mensagem()).contains("sucesso");
+        assertThat(account.getPasswordHash()).isEqualTo("nova-hash");
+        assertThat(token.isUsado()).isTrue();
     }
 }

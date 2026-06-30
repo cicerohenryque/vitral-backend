@@ -37,7 +37,6 @@ public class UsuarioController {
     }
 
     @DeleteMapping("/me")
-    @PreAuthorize("hasRole('USUARIO')")
     @Operation(summary = "Exclui permanentemente a conta do usuario autenticado")
     public ResponseEntity<MensagemResponse> excluirConta(
             @AuthenticationPrincipal AccountUserDetails principal) {

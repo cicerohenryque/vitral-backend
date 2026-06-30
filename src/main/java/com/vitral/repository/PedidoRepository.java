@@ -10,15 +10,18 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.vitral.entity.Pedido;
+import com.vitral.enumerations.StatusPedido;
 
 @Repository
 public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     // Histórico de pedidos do usuário (paginado)
     Page<Pedido> findByAccountIdOrderByCreatedAtDesc(Long accountId, Pageable pageable);
+    Page<Pedido> findByAccountIdAndStatusOrderByCreatedAtDesc(Long accountId, StatusPedido status, Pageable pageable);
 
     // Histórico de vendas do sebo (paginado)
     Page<Pedido> findBySeboIdOrderByCreatedAtDesc(Long seboId, Pageable pageable);
+    Page<Pedido> findBySeboIdAndStatusOrderByCreatedAtDesc(Long seboId, StatusPedido status, Pageable pageable);
 
     // Para verificar se há pedido ativo com aquele produto (evitar duplicidade)
     List<Pedido> findByAccountId(Long accountId);

@@ -17,6 +17,8 @@ import com.vitral.dto.AuthResponse;
 import com.vitral.dto.LoginRequest;
 import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.RegisterRequest;
+import com.vitral.dto.RecuperarSenhaRequest;
+import com.vitral.dto.RedefinirSenhaRequest;
 import com.vitral.mapper.AccountMapper;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.security.JwtService;
@@ -55,6 +57,18 @@ public class AuthController {
     @Operation(summary = "Confirma o cadastro via token recebido por e-mail")
     public ResponseEntity<MensagemResponse> confirmar(@RequestParam String token) {
         return ResponseEntity.ok(authService.confirmarEmail(token));
+    }
+
+    @PostMapping("/recuperar-senha")
+    @Operation(summary = "Envia um link temporario para redefinicao de senha")
+    public ResponseEntity<MensagemResponse> recuperarSenha(@Valid @RequestBody RecuperarSenhaRequest request) {
+        return ResponseEntity.ok(authService.solicitarRecuperacaoSenha(request));
+    }
+
+    @PostMapping("/redefinir-senha")
+    @Operation(summary = "Redefine a senha usando um token temporario")
+    public ResponseEntity<MensagemResponse> redefinirSenha(@Valid @RequestBody RedefinirSenhaRequest request) {
+        return ResponseEntity.ok(authService.redefinirSenha(request));
     }
 
     @GetMapping("/me")

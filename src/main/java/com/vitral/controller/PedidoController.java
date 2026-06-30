@@ -64,8 +64,10 @@ public class PedidoController {
     @Operation(summary = "Historico de pedidos do usuario autenticado")
     public ResponseEntity<PageResponse<PedidoResponse>> historicoPedidosUsuario(
             @AuthenticationPrincipal AccountUserDetails principal,
+            @RequestParam(required = false) StatusPedido status,
             Pageable pageable) {
-        return ResponseEntity.ok(PageResponse.from(pedidoService.historicoPedidosUsuario(principal.getAccount(), pageable)));
+        return ResponseEntity.ok(PageResponse.from(
+                pedidoService.historicoPedidosUsuario(principal.getAccount(), status, pageable)));
     }
 
     @GetMapping("/vendas")
@@ -73,7 +75,9 @@ public class PedidoController {
     @Operation(summary = "Historico de vendas do sebo autenticado")
     public ResponseEntity<PageResponse<PedidoResponse>> historicoVendasSebo(
             @AuthenticationPrincipal AccountUserDetails principal,
+            @RequestParam(required = false) StatusPedido status,
             Pageable pageable) {
-        return ResponseEntity.ok(PageResponse.from(pedidoService.historicoVendasSebo(principal.getAccount(), pageable)));
+        return ResponseEntity.ok(PageResponse.from(
+                pedidoService.historicoVendasSebo(principal.getAccount(), status, pageable)));
     }
 }

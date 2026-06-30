@@ -37,4 +37,18 @@ public class EmailService {
                 + "\n\nO link expira em 24 horas.\n\nCaso não tenha criado uma conta, ignore este e-mail.");
         mailSender.send(mensagem);
     }
+
+    public void enviarRecuperacaoSenha(String destinatario, String token) {
+        if (!mailEnabled || mailSender == null) {
+            return;
+        }
+        SimpleMailMessage mensagem = new SimpleMailMessage();
+        mensagem.setFrom(remetente);
+        mensagem.setTo(destinatario);
+        mensagem.setSubject("Vitral — Redefina sua senha");
+        mensagem.setText("Recebemos uma solicitação para redefinir sua senha no Vitral:\n\n"
+                + frontendUrl + "/auth/redefinir-senha?token=" + token
+                + "\n\nO link expira em 1 hora. Se você não fez esta solicitação, ignore este e-mail.");
+        mailSender.send(mensagem);
+    }
 }

@@ -14,14 +14,18 @@ import com.vitral.dto.AuthResponse;
 import com.vitral.dto.LoginRequest;
 import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.RegisterRequest;
+import com.vitral.dto.RecuperarSenhaRequest;
+import com.vitral.dto.RedefinirSenhaRequest;
 import com.vitral.entity.Account;
 import com.vitral.entity.TokenVerificacaoEmail;
+import com.vitral.entity.TokenRecuperacaoSenha;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.AccountMapper;
 import com.vitral.repository.AccountRepository;
 import com.vitral.repository.TokenVerificacaoEmailRepository;
+import com.vitral.repository.TokenRecuperacaoSenhaRepository;
 import com.vitral.security.JwtService;
 
 import lombok.RequiredArgsConstructor;
@@ -32,6 +36,7 @@ public class AuthService {
 
     private final AccountRepository accountRepository;
     private final TokenVerificacaoEmailRepository tokenRepository;
+    private final TokenRecuperacaoSenhaRepository tokenRecuperacaoSenhaRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
@@ -98,6 +103,37 @@ public class AuthService {
         token.setUsado(true);
 
         return new MensagemResponse("E-mail confirmado com sucesso. Voce ja pode fazer login.");
+    }
+
+    @Transactional
+    public MensagemResponse solicitarRecuperacaoSenha(RecuperarSenhaRequest request) {
+        accountRepository.findByEmail(request.email()).ifPresent(account -> {
+            tokenRecuperacaoSenhaRepository.deleteByAccountId(account.getId());
+            String tokenValor = UUID.randomUUID().toString();
+            tokenRecuperacaoSenhaRepository.save(TokenRecuperacaoSenha.builder()
+                    .account(account)
+                    .token(tokenValor)
+                    .expiraEm(OffsetDateTime.now().plusHours(1))
+                    .usado(false)
+                    .build());
+            emailService.enviarRecuperacaoSenha(account.getEmail(), tokenValor);
+        });
+        return new MensagemResponse("Se o e-mail estiver cadastrado, enviaremos um link para redefinir sua senha.");
+    }
+
+    @Transactional
+    public MensagemResponse redefinirSenha(RedefinirSenhaRequest request) {
+        TokenRecuperacaoSenha token = tokenRecuperacaoSenhaRepository.findByToken(request.token())
+                .orElseThrow(() -> new ResourceNotFoundException("Link de recuperacao invalido"));
+        if (token.isUsado()) {
+            throw new BusinessException("Link de recuperacao ja utilizado", HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+        if (OffsetDateTime.now().isAfter(token.getExpiraEm())) {
+            throw new BusinessException("Link de recuperacao expirado. Solicite um novo.", HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+        token.getAccount().setPasswordHash(passwordEncoder.encode(request.password()));
+        token.setUsado(true);
+        return new MensagemResponse("Senha redefinida com sucesso.");
     }
 
     private AuthResponse buildAuthResponse(Account account) {

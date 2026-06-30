@@ -73,6 +73,11 @@ public class SeboService {
     }
 
     @Transactional(readOnly = true)
+    public SeboResponse buscarMeuSebo(Account account) {
+        return seboMapper.toResponse(buscarEntidadePorAccount(account.getId()));
+    }
+
+    @Transactional(readOnly = true)
     public Sebo buscarEntidadePorAccount(Long accountId) {
         return seboRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
@@ -80,6 +85,10 @@ public class SeboService {
 
     @Transactional
     public MensagemResponse excluirConta(Account account) {
+        seboRepository.findByAccountId(account.getId()).ifPresent(sebo -> {
+            seboRepository.delete(sebo);
+            seboRepository.flush();
+        });
         accountRepository.delete(account);
         return new MensagemResponse("Conta do sebo excluida com sucesso");
     }
