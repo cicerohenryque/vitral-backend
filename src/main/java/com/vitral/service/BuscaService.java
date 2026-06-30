@@ -33,7 +33,7 @@ public class BuscaService {
 
     @Transactional(readOnly = true)
     public Page<SeboResponse> buscarSebos(String termo, String cidade, String uf, Pageable pageable) {
-        Specification<Sebo> spec = Specification.where(null);
+        Specification<Sebo> spec = Specification.unrestricted();
 
         if (termo != null && !termo.isBlank()) {
             spec = spec.and(SeboSpecification.nomeContem(termo));

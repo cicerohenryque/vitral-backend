@@ -1,7 +1,6 @@
 package com.vitral.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -14,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -94,117 +94,125 @@ class BuscaServiceTest {
     @DisplayName("Deve retornar sebos filtrados quando parametros sao fornecidos")
     void shouldReturnFilteredSebosWhenParametersProvided() {
         Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
-        when(seboRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(pageResult);
+        when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
         when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
 
         Page<SeboResponse> resultado = buscaService.buscarSebos("Livraria", "Campina Grande", null, pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
         assertThat(resultado.getContent().getFirst()).isEqualTo(seboResponse);
-        verify(seboRepository).findAll(any(Specification.class), eq(pageable));
+        verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
     }
 
     @Test
     @DisplayName("Deve listar todos os sebos quando nenhum filtro for informado")
     void shouldListAllSebosWhenNoFiltersProvided() {
         Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
-        when(seboRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(pageResult);
+        when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
         when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
 
         Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
-        verify(seboRepository).findAll(any(Specification.class), eq(pageable));
+        verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
     }
 
     @Test
     @DisplayName("Deve filtrar sebos por estado quando apenas uf for informada")
     void shouldFilterSebosByUfWhenOnlyUfProvided() {
         Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
-        when(seboRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(pageResult);
+        when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
         when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
 
         Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, "PB", pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
-        verify(seboRepository).findAll(any(Specification.class), eq(pageable));
+        verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
     }
 
     @Test
     @DisplayName("Deve buscar produtos ativos por titulo quando o termo for informado")
     void shouldSearchActiveProductsByTitleWhenTermoProvided() {
         Page<Produto> pageResult = new PageImpl<>(List.of(produto));
-        when(produtoRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(pageResult);
+        when(produtoRepository.findAll(anyProdutoSpecification(), eq(pageable))).thenReturn(pageResult);
         when(produtoMapper.toResponse(produto)).thenReturn(produtoResponse);
 
         Page<ProdutoResponse> resultado = buscaService.buscarProdutos("Dom", null, null, null, null, pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
         assertThat(resultado.getContent().getFirst().titulo()).isEqualTo("Dom Casmurro");
-        verify(produtoRepository).findAll(any(Specification.class), eq(pageable));
+        verify(produtoRepository).findAll(anyProdutoSpecification(), eq(pageable));
     }
 
     @Test
     @DisplayName("Deve filtrar produtos por sebo quando seboId for informado")
     void shouldFilterProductsBySeboWhenSeboIdProvided() {
         Page<Produto> pageResult = new PageImpl<>(List.of(produto));
-        when(produtoRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(pageResult);
+        when(produtoRepository.findAll(anyProdutoSpecification(), eq(pageable))).thenReturn(pageResult);
         when(produtoMapper.toResponse(produto)).thenReturn(produtoResponse);
 
         Page<ProdutoResponse> resultado = buscaService.buscarProdutos(null, 1L, null, null, null, pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
-        verify(produtoRepository).findAll(any(Specification.class), eq(pageable));
+        verify(produtoRepository).findAll(anyProdutoSpecification(), eq(pageable));
     }
 
     @Test
     @DisplayName("Deve filtrar produtos por condicao quando condicao for informada")
     void shouldFilterProductsByCondicaoWhenCondicaoProvided() {
         Page<Produto> pageResult = new PageImpl<>(List.of(produto));
-        when(produtoRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(pageResult);
+        when(produtoRepository.findAll(anyProdutoSpecification(), eq(pageable))).thenReturn(pageResult);
         when(produtoMapper.toResponse(produto)).thenReturn(produtoResponse);
 
         Page<ProdutoResponse> resultado = buscaService.buscarProdutos(null, null, CondicaoProduto.USADO, null, null, pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
-        verify(produtoRepository).findAll(any(Specification.class), eq(pageable));
+        verify(produtoRepository).findAll(anyProdutoSpecification(), eq(pageable));
     }
 
     @Test
     @DisplayName("Deve filtrar produtos por faixa de preco quando precoMin e precoMax forem informados")
     void shouldFilterProductsByPriceRangeWhenBothLimitsProvided() {
         Page<Produto> pageResult = new PageImpl<>(List.of(produto));
-        when(produtoRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(pageResult);
+        when(produtoRepository.findAll(anyProdutoSpecification(), eq(pageable))).thenReturn(pageResult);
         when(produtoMapper.toResponse(produto)).thenReturn(produtoResponse);
 
         Page<ProdutoResponse> resultado = buscaService.buscarProdutos(
                 null, null, null, BigDecimal.valueOf(10), BigDecimal.valueOf(50), pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
-        verify(produtoRepository).findAll(any(Specification.class), eq(pageable));
+        verify(produtoRepository).findAll(anyProdutoSpecification(), eq(pageable));
     }
 
     @Test
     @DisplayName("Deve listar todos os produtos ativos quando nenhum filtro for informado")
     void shouldListAllActiveProductsWhenNoFiltersProvided() {
         Page<Produto> pageResult = new PageImpl<>(List.of(produto));
-        when(produtoRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(pageResult);
+        when(produtoRepository.findAll(anyProdutoSpecification(), eq(pageable))).thenReturn(pageResult);
         when(produtoMapper.toResponse(produto)).thenReturn(produtoResponse);
 
         Page<ProdutoResponse> resultado = buscaService.buscarProdutos(null, null, null, null, null, pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
-        verify(produtoRepository).findAll(any(Specification.class), eq(pageable));
+        verify(produtoRepository).findAll(anyProdutoSpecification(), eq(pageable));
     }
 
     @Test
     @DisplayName("Deve retornar pagina vazia quando nenhum resultado for encontrado")
     void shouldReturnEmptyPageWhenNoResultsFound() {
-        when(seboRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(new PageImpl<>(List.of()));
+        when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(new PageImpl<>(List.of()));
 
         Page<SeboResponse> resultado = buscaService.buscarSebos("Inexistente", null, null, pageable);
 
         assertThat(resultado.getContent()).isEmpty();
         assertThat(resultado.getTotalElements()).isZero();
+    }
+
+    private static Specification<Sebo> anySeboSpecification() {
+        return ArgumentMatchers.any();
+    }
+
+    private static Specification<Produto> anyProdutoSpecification() {
+        return ArgumentMatchers.any();
     }
 }
