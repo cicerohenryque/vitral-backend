@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -55,6 +56,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException exception, WebRequest request) {
         log.warn("Conflito de integridade em {}", path(request));
         return build(HttpStatus.CONFLICT, "A operacao conflita com dados existentes", request, List.of());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleMaxUploadSize(MaxUploadSizeExceededException exception, WebRequest request) {
+        return build(HttpStatus.PAYLOAD_TOO_LARGE, "A imagem deve ter no maximo 5MB", request, List.of());
     }
 
     @ExceptionHandler(Exception.class)
