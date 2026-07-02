@@ -24,9 +24,35 @@ docker compose version
 - PostgreSQL: `5432`
 - Swagger: <http://localhost:8080/swagger-ui.html>
 
-## 1. Iniciar o PostgreSQL com Docker
+## Opção A — Subir tudo em containers (banco + backend)
 
-O arquivo `docker-compose.yml` deste repositório inicia somente o PostgreSQL. O backend é executado localmente com o Maven Wrapper.
+O `docker-compose.yml` sobe o PostgreSQL **e** o backend (imagem construída pelo `Dockerfile`). O backend só inicia depois que o banco fica saudável (`healthcheck` + `depends_on`), e as imagens enviadas ficam em um volume persistente.
+
+### Linux e macOS
+
+```bash
+export POSTGRES_PASSWORD="vitral_dev"
+export JWT_SECRET="MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+docker compose up --build -d
+docker compose ps
+```
+
+### Windows — PowerShell
+
+```powershell
+$env:POSTGRES_PASSWORD="vitral_dev"
+$env:JWT_SECRET="MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+docker compose up --build -d
+docker compose ps
+```
+
+Quando `vitral-backend` estiver `Up`, acesse <http://localhost:8080> e <http://localhost:8080/swagger-ui.html>. Para parar tudo: `docker compose down` (adicione `-v` para apagar banco e uploads).
+
+## Opção B — Banco em Docker + backend local (Maven Wrapper)
+
+Use esta opção para desenvolvimento com hot reload. Suba **apenas** o banco e rode o backend pelo Maven Wrapper.
+
+### 1. Iniciar o PostgreSQL com Docker
 
 ### Windows — PowerShell
 
@@ -63,9 +89,11 @@ Usuário: vitral_user
 Senha:   valor definido em POSTGRES_PASSWORD
 ```
 
-## 2. Executar o backend
+### 2. Executar o backend
 
 O segredo abaixo serve somente para desenvolvimento local. Em produção, utilize um segredo exclusivo e armazenado de forma segura.
+
+> O `JWT_SECRET` precisa estar em **Base64 padrão** (o backend o decodifica com `Decoders.BASE64`) e ter no mínimo 32 bytes. Não use Base64 *URL-safe*: caracteres como `-` e `_` são inválidos e causam o erro `Illegal base64 character` na inicialização. Para gerar um válido: `openssl rand -base64 32`.
 
 ### Windows — PowerShell
 
@@ -178,6 +206,19 @@ APP_URL_BASE=http://localhost:8080
 APP_URL_FRONTEND=http://localhost:5173
 JWT_EXPIRATION=86400000
 SERVER_PORT=8080
+```
+
+## Variáveis de ambiente adicionais
+
+Todas as configurações sensíveis ou de ambiente são lidas por variáveis:
+
+```text
+# Origens permitidas no CORS (separadas por vírgula). Em produção, use o domínio real do frontend.
+APP_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+# Diretório onde as imagens enviadas são gravadas.
+# No Docker (Opção A) já aponta para o volume persistente /data/uploads/images.
+APP_UPLOAD_IMAGE_DIR=uploads/images
 ```
 
 Nunca envie senhas reais ou segredos JWT para o Git.

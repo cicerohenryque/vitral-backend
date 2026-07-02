@@ -1,0 +1,11 @@
+target/
+uploads/
+.git/
+.github/
+.idea/
+.vscode/
+*.iml
+*.log
+HELP.md
+codex/
+.mvn/wrapper/maven-wrapper.jar
