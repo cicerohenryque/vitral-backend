@@ -20,8 +20,27 @@ public class EmailService {
     @Value("${spring.mail.username:noreply@vitral.com}")
     private String remetente;
 
+    @Value("${app.support.email:vitral.no.reply@gmail.com}")
+    private String supportEmail;
+
     public EmailService(@Autowired(required = false) JavaMailSender mailSender) {
         this.mailSender = mailSender;
+    }
+
+    public void enviarMensagemSuporte(String remetenteNome, String remetenteEmail, String assunto, String mensagem) {
+        if (!mailEnabled || mailSender == null) {
+            return;
+        }
+        SimpleMailMessage email = new SimpleMailMessage();
+        email.setFrom(remetente);
+        email.setTo(supportEmail);
+        email.setReplyTo(remetenteEmail);
+        email.setSubject("Vitral Suporte — " + assunto);
+        email.setText("Nova mensagem de suporte recebida.\n\n"
+                + "De: " + remetenteNome + " <" + remetenteEmail + ">\n"
+                + "Assunto: " + assunto + "\n\n"
+                + "Mensagem:\n" + mensagem + "\n");
+        mailSender.send(email);
     }
 
     public void enviarConfirmacaoCadastro(String destinatario, String token) {
