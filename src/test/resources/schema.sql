@@ -19,6 +19,7 @@ CREATE TABLE account (
     email_verificado BOOLEAN      NOT NULL DEFAULT FALSE,
     foto_url         VARCHAR(500),
     auth_version     INTEGER      NOT NULL DEFAULT 0,
+    ativo            BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at       TIMESTAMP    NOT NULL,
     updated_at       TIMESTAMP    NOT NULL,
     CONSTRAINT uk_account_email UNIQUE (email),

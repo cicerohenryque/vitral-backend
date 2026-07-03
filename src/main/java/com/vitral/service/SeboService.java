@@ -16,6 +16,7 @@ import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.SeboMapper;
 import com.vitral.repository.AccountRepository;
 import com.vitral.repository.SeboRepository;
+import com.vitral.repository.ProdutoRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,6 +27,7 @@ public class SeboService {
     private final SeboRepository seboRepository;
     private final SeboMapper seboMapper;
     private final AccountRepository accountRepository;
+    private final ProdutoRepository produtoRepository;
 
     @Transactional
     public SeboResponse criar(Account account, SeboRequest request) {
@@ -39,11 +41,6 @@ public class SeboService {
                 .account(account)
                 .descricao(request.descricao())
                 .telefone(request.telefone())
-                .cep(request.cep())
-                .logradouro(request.logradouro())
-                .cidade(request.cidade())
-                .uf(request.uf())
-                .horarioFuncionamento(request.horarioFuncionamento())
                 .fotoUrl(request.fotoUrl())
                 .build();
         Sebo salvo = seboRepository.save(sebo);
@@ -56,18 +53,13 @@ public class SeboService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
         sebo.setDescricao(request.descricao());
         sebo.setTelefone(request.telefone());
-        sebo.setCep(request.cep());
-        sebo.setLogradouro(request.logradouro());
-        sebo.setCidade(request.cidade());
-        sebo.setUf(request.uf());
-        sebo.setHorarioFuncionamento(request.horarioFuncionamento());
         sebo.setFotoUrl(request.fotoUrl());
         return seboMapper.toResponse(sebo);
     }
 
     @Transactional(readOnly = true)
     public SeboResponse buscarPorId(Long id) {
-        Sebo sebo = seboRepository.findById(id)
+        Sebo sebo = seboRepository.findByIdAndAccountAtivoTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado"));
         return seboMapper.toResponse(sebo);
     }
@@ -86,10 +78,21 @@ public class SeboService {
     @Transactional
     public MensagemResponse excluirConta(Account account) {
         seboRepository.findByAccountId(account.getId()).ifPresent(sebo -> {
-            seboRepository.delete(sebo);
-            seboRepository.flush();
+            produtoRepository.desativarCatalogoDoSebo(sebo.getId());
+            sebo.setDescricao("Sebo desativado");
+            sebo.setTelefone(null);
+            sebo.setFotoUrl(null);
         });
-        accountRepository.delete(account);
+        anonimizarEDesativar(account);
         return new MensagemResponse("Conta do sebo excluida com sucesso");
+    }
+
+    private void anonimizarEDesativar(Account account) {
+        account.setAtivo(Boolean.FALSE);
+        account.setName("Conta excluida");
+        account.setEmail("excluida-" + account.getId() + "@invalid.local");
+        account.setPasswordHash("CONTA_DESATIVADA");
+        account.setFotoUrl(null);
+        account.setAuthVersion(account.getAuthVersion() + 1);
     }
 }

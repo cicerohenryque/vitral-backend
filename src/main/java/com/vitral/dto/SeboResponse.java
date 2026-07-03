@@ -7,10 +7,5 @@ public record SeboResponse(
         String email,
         String descricao,
         String telefone,
-        String cep,
-        String logradouro,
-        String cidade,
-        String uf,
-        String horarioFuncionamento,
         String fotoUrl) {
 }

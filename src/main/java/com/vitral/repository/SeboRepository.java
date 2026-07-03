@@ -13,6 +13,8 @@ public interface SeboRepository extends JpaRepository<Sebo, Long>, JpaSpecificat
 
     Optional<Sebo> findByAccountId(Long accountId);
 
+    Optional<Sebo> findByIdAndAccountAtivoTrue(Long id);
+
     boolean existsByAccountId(Long accountId);
 
     Page<Sebo> findByAccountNameContainingIgnoreCase(String termo, Pageable pageable);

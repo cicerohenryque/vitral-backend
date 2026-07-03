@@ -1,6 +1,7 @@
 package com.vitral.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -82,8 +83,8 @@ class UsuarioServiceTest {
     }
 
     @Test
-    @DisplayName("Deve excluir conta do usuario autenticado")
-    void excluirConta_deletaAccount() {
+    @DisplayName("Deve anonimizar e desativar conta do usuario autenticado")
+    void excluirConta_desativaAccount() {
         Account account = Account.builder()
                 .name("Maria")
                 .email("maria@vitral.com")
@@ -92,7 +93,10 @@ class UsuarioServiceTest {
 
         MensagemResponse response = usuarioService.excluirConta(account);
 
-        verify(accountRepository).delete(account);
+        assertThat(account.getAtivo()).isFalse();
+        assertThat(account.getEmail()).endsWith("@invalid.local");
+        assertThat(account.getAuthVersion()).isEqualTo(1);
+        verify(accountRepository, never()).delete(account);
         assertThat(response.mensagem()).isEqualTo("Conta excluida com sucesso");
     }
 }

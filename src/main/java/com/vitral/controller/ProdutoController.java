@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.vitral.dto.PageResponse;
 import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
+import com.vitral.dto.VendaFisicaRequest;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.service.ProdutoService;
 
@@ -58,6 +59,16 @@ public class ProdutoController {
             @PathVariable Long id) {
         produtoService.remover(principal.getAccount(), id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/venda-fisica")
+    @PreAuthorize("hasRole('SEBO')")
+    @Operation(summary = "Registra uma venda presencial e sincroniza o estoque compartilhado")
+    public ResponseEntity<ProdutoResponse> registrarVendaFisica(
+            @AuthenticationPrincipal AccountUserDetails principal,
+            @PathVariable Long id,
+            @Valid @RequestBody VendaFisicaRequest request) {
+        return ResponseEntity.ok(produtoService.registrarVendaFisica(principal.getAccount(), id, request));
     }
 
     @GetMapping("/{id}")

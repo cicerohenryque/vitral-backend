@@ -29,7 +29,12 @@ public class UsuarioService {
 
     @Transactional
     public MensagemResponse excluirConta(Account account) {
-        accountRepository.delete(account);
+        account.setAtivo(Boolean.FALSE);
+        account.setName("Conta excluida");
+        account.setEmail("excluida-" + account.getId() + "@invalid.local");
+        account.setPasswordHash("CONTA_DESATIVADA");
+        account.setFotoUrl(null);
+        account.setAuthVersion(account.getAuthVersion() + 1);
         return new MensagemResponse("Conta excluida com sucesso");
     }
 }

@@ -71,8 +71,8 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
         String identificador = request.login().trim();
         Account account = (identificador.contains("@")
-                ? accountRepository.findByEmail(identificador)
-                : accountRepository.findFirstByNameOrderByIdAsc(identificador))
+                ? accountRepository.findByEmailAndAtivoTrue(identificador)
+                : accountRepository.findFirstByNameAndAtivoTrueOrderByIdAsc(identificador))
                 .orElseThrow(() -> new BusinessException("Credenciais invalidas", HttpStatus.UNAUTHORIZED));
 
         if (!account.isEmailVerificado()) {
@@ -105,7 +105,7 @@ public class AuthService {
 
     @Transactional
     public MensagemResponse reenviarConfirmacao(ReenviarConfirmacaoRequest request) {
-        accountRepository.findByEmail(request.email()).ifPresent(account -> {
+        accountRepository.findByEmailAndAtivoTrue(request.email()).ifPresent(account -> {
             if (!account.isEmailVerificado()) {
                 tokenRepository.deleteByAccountId(account.getId());
                 enviarTokenConfirmacao(account);
@@ -117,7 +117,7 @@ public class AuthService {
 
     @Transactional
     public MensagemResponse solicitarRecuperacaoSenha(RecuperarSenhaRequest request) {
-        accountRepository.findByEmail(request.email()).ifPresent(account -> {
+        accountRepository.findByEmailAndAtivoTrue(request.email()).ifPresent(account -> {
             tokenRecuperacaoSenhaRepository.deleteByAccountId(account.getId());
             String tokenValor = UUID.randomUUID().toString();
             tokenRecuperacaoSenhaRepository.save(TokenRecuperacaoSenha.builder()

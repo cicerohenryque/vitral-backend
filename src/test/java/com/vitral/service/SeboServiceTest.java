@@ -75,11 +75,6 @@ class SeboServiceTest {
         request = new SeboRequest(
                 "Sebo familiar com livros raros",
                 "8399999-0000",
-                "58400-000",
-                "Rua das Flores, 123",
-                "Campina Grande",
-                "PB",
-                "Seg-Sex 09:00-18:00",
                 "https://cdn/foto.jpg");
     }
 
@@ -87,8 +82,7 @@ class SeboServiceTest {
     @DisplayName("Deve criar sebo para conta do tipo SEBO ainda sem perfil cadastrado")
     void shouldCreateSeboWhenAccountIsSeboAndHasNoProfileYet() {
         SeboResponse responseEsperado = new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
-                request.descricao(), request.telefone(), request.cep(), request.logradouro(),
-                request.cidade(), request.uf(), request.horarioFuncionamento(), request.fotoUrl());
+                request.descricao(), request.telefone(), request.fotoUrl());
 
         when(seboRepository.existsByAccountId(10L)).thenReturn(false);
         when(seboRepository.save(seboCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -101,9 +95,7 @@ class SeboServiceTest {
         assertThat(persistido.getAccount()).isSameAs(contaSebo);
         assertThat(persistido.getDescricao()).isEqualTo(request.descricao());
         assertThat(persistido.getTelefone()).isEqualTo(request.telefone());
-        assertThat(persistido.getCidade()).isEqualTo("Campina Grande");
-        assertThat(persistido.getUf()).isEqualTo("PB");
-        assertThat(persistido.getHorarioFuncionamento()).isEqualTo("Seg-Sex 09:00-18:00");
+        assertThat(persistido.getFotoUrl()).isEqualTo(request.fotoUrl());
     }
 
     @Test
@@ -139,8 +131,7 @@ class SeboServiceTest {
                 .uf("PB")
                 .build();
         SeboResponse responseEsperado = new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
-                request.descricao(), request.telefone(), request.cep(), request.logradouro(),
-                request.cidade(), request.uf(), request.horarioFuncionamento(), request.fotoUrl());
+                request.descricao(), request.telefone(), request.fotoUrl());
 
         when(seboRepository.findByAccountId(10L)).thenReturn(Optional.of(existente));
         when(seboMapper.toResponse(existente)).thenReturn(responseEsperado);
@@ -149,7 +140,7 @@ class SeboServiceTest {
 
         assertThat(resultado).isEqualTo(responseEsperado);
         assertThat(existente.getDescricao()).isEqualTo(request.descricao());
-        assertThat(existente.getCidade()).isEqualTo("Campina Grande");
+        assertThat(existente.getCidade()).isEqualTo("Joao Pessoa");
         assertThat(existente.getTelefone()).isEqualTo(request.telefone());
         assertThat(existente.getFotoUrl()).isEqualTo(request.fotoUrl());
     }
@@ -169,9 +160,9 @@ class SeboServiceTest {
     void shouldReturnSeboWhenIdExists() {
         Sebo sebo = Sebo.builder().account(contaSebo).cidade("Recife").build();
         SeboResponse responseEsperado = new SeboResponse(7L, 10L, "Sebo do Joao", "sebo@vitral.com",
-                null, null, null, null, "Recife", null, null, null);
+                null, null, null);
 
-        when(seboRepository.findById(7L)).thenReturn(Optional.of(sebo));
+        when(seboRepository.findByIdAndAccountAtivoTrue(7L)).thenReturn(Optional.of(sebo));
         when(seboMapper.toResponse(sebo)).thenReturn(responseEsperado);
 
         SeboResponse resultado = seboService.buscarPorId(7L);
@@ -182,7 +173,7 @@ class SeboServiceTest {
     @Test
     @DisplayName("Deve lancar ResourceNotFoundException ao buscar sebo por id inexistente")
     void shouldThrowNotFoundWhenSeboIdDoesNotExist() {
-        when(seboRepository.findById(99L)).thenReturn(Optional.empty());
+        when(seboRepository.findByIdAndAccountAtivoTrue(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> seboService.buscarPorId(99L))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -211,11 +202,14 @@ class SeboServiceTest {
     }
 
     @Test
-    @DisplayName("Deve excluir conta do sebo autenticado")
-    void excluirConta_deletaAccount() {
+    @DisplayName("Deve anonimizar e desativar conta do sebo autenticado")
+    void excluirConta_desativaAccount() {
         MensagemResponse response = seboService.excluirConta(contaSebo);
 
-        verify(accountRepository).delete(contaSebo);
+        assertThat(contaSebo.getAtivo()).isFalse();
+        assertThat(contaSebo.getEmail()).endsWith("@invalid.local");
+        assertThat(contaSebo.getAuthVersion()).isEqualTo(1);
+        verify(accountRepository, never()).delete(contaSebo);
         assertThat(response.mensagem()).isEqualTo("Conta do sebo excluida com sucesso");
     }
 

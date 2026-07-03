@@ -11,6 +11,10 @@ public class SeboSpecification {
     private SeboSpecification() {
     }
 
+    public static Specification<Sebo> ativo() {
+        return (root, query, cb) -> cb.isTrue(root.join("account", JoinType.INNER).get("ativo"));
+    }
+
     public static Specification<Sebo> nomeContem(String termo) {
         return (root, query, cb) -> cb.like(
                 cb.lower(root.join("account", JoinType.INNER).get("name")),

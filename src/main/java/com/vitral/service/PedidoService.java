@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.vitral.dto.ConfirmarPedidoRequest;
+import com.vitral.dto.FaturamentoMensalResponse;
 import com.vitral.dto.PedidoItemResponse;
 import com.vitral.dto.PedidoResponse;
 import com.vitral.entity.Account;
@@ -222,6 +223,20 @@ public class PedidoService {
                 : pedidoRepository.findBySeboIdAndStatusOrderByCreatedAtDesc(sebo.getId(), status, pageable);
         return pedidos
                 .map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public List<FaturamentoMensalResponse> faturamentoMensal(Account account, int ano) {
+        if (ano < 2000 || ano > 2100) {
+            throw new BusinessException("Ano invalido", HttpStatus.BAD_REQUEST);
+        }
+        Sebo sebo = seboRepository.findByAccountId(account.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
+        Map<Integer, BigDecimal> totais = pedidoRepository.faturamentoMensal(sebo.getId(), ano).stream()
+                .collect(Collectors.toMap(row -> ((Number) row[0]).intValue(), row -> (BigDecimal) row[1]));
+        return java.util.stream.IntStream.rangeClosed(1, 12)
+                .mapToObj(mes -> new FaturamentoMensalResponse(ano, mes, totais.getOrDefault(mes, BigDecimal.ZERO)))
+                .toList();
     }
 
     private PedidoResponse toResponse(Pedido pedido) {

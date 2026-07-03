@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
+import com.vitral.dto.VendaFisicaRequest;
 import com.vitral.entity.Account;
 import com.vitral.entity.Categoria;
 import com.vitral.entity.Produto;
@@ -32,6 +33,7 @@ public class ProdutoService {
     private final SeboService seboService;
     private final CategoriaService categoriaService;
     private final PrecoService precoService;
+    private final com.vitral.repository.PedidoRepository pedidoRepository;
 
     @Transactional
     public ProdutoResponse criar(Account account, ProdutoRequest request) {
@@ -72,6 +74,21 @@ public class ProdutoService {
     public void remover(Account account, Long produtoId) {
         Produto produto = obterProdutoDoDono(account, produtoId);
         produto.setAtivo(Boolean.FALSE);
+    }
+
+    @Transactional
+    public ProdutoResponse registrarVendaFisica(Account account, Long produtoId, VendaFisicaRequest request) {
+        Produto produto = obterProdutoDoDono(account, produtoId);
+        long reservado = pedidoRepository.sumQuantidadeReservadaEmPedidosPendentes(produtoId);
+        int disponivel = produto.getEstoque() - Math.toIntExact(reservado);
+        if (request.quantidade() > disponivel) {
+            throw new BusinessException("Estoque insuficiente: existem unidades reservadas em pedidos online",
+                    HttpStatus.BAD_REQUEST);
+        }
+        int novoEstoque = produto.getEstoque() - request.quantidade();
+        produto.setEstoque(novoEstoque);
+        produto.setAtivo(novoEstoque > 0);
+        return toResponse(produto);
     }
 
     @Transactional(readOnly = true)

@@ -28,13 +28,11 @@ public class BuscaController {
     private final BuscaService buscaService;
 
     @GetMapping("/sebos")
-    @Operation(summary = "Busca sebos com filtros opcionais: nome (q), cidade e estado (uf)")
+    @Operation(summary = "Busca vitrines virtuais de sebos ativos pelo nome opcional (q)")
     public ResponseEntity<PageResponse<SeboResponse>> buscarSebos(
             @RequestParam(required = false) String q,
-            @RequestParam(required = false) String cidade,
-            @RequestParam(required = false) String uf,
             Pageable pageable) {
-        return ResponseEntity.ok(PageResponse.from(buscaService.buscarSebos(q, cidade, uf, pageable)));
+        return ResponseEntity.ok(PageResponse.from(buscaService.buscarSebos(q, pageable)));
     }
 
     @GetMapping("/produtos")

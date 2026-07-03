@@ -17,7 +17,7 @@ public class AccountUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) {
-        return accountRepository.findByEmail(email)
+        return accountRepository.findByEmailAndAtivoTrue(email)
                 .map(AccountUserDetails::new)
                 .orElseThrow(() -> new UsernameNotFoundException("Conta nao encontrada: " + email));
     }

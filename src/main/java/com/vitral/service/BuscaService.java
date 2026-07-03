@@ -35,19 +35,12 @@ public class BuscaService {
     private final PrecoService precoService;
 
     @Transactional(readOnly = true)
-    public Page<SeboResponse> buscarSebos(String termo, String cidade, String uf, Pageable pageable) {
-        Specification<Sebo> spec = Specification.unrestricted();
+    public Page<SeboResponse> buscarSebos(String termo, Pageable pageable) {
+        Specification<Sebo> spec = SeboSpecification.ativo();
 
         if (termo != null && !termo.isBlank()) {
             spec = spec.and(SeboSpecification.nomeContem(termo));
         }
-        if (cidade != null && !cidade.isBlank()) {
-            spec = spec.and(SeboSpecification.daCidade(cidade));
-        }
-        if (uf != null && !uf.isBlank()) {
-            spec = spec.and(SeboSpecification.doEstado(uf));
-        }
-
         return seboRepository.findAll(spec, pageable).map(seboMapper::toResponse);
     }
 
