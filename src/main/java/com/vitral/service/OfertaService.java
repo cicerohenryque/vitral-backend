@@ -76,6 +76,11 @@ public class OfertaService {
         return ofertaRepository.findOfertasAtivas(OffsetDateTime.now(), pageable).map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
+    public Page<OfertaResponse> listarDoSebo(Account account, Pageable pageable) {
+        return ofertaRepository.findDoSebo(account.getId(), pageable).map(this::toResponse);
+    }
+
     private Produto obterProdutoDoSebo(Account account, Long produtoId) {
         Produto produto = produtoRepository.findById(produtoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));

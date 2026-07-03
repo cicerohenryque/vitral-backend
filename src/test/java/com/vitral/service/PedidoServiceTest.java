@@ -22,8 +22,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.vitral.dto.ConfirmarPedidoRequest;
 import com.vitral.dto.PedidoResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.CestaItem;
@@ -33,6 +35,8 @@ import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.enumerations.FormaPagamento;
+import com.vitral.enumerations.StatusPagamento;
 import com.vitral.enumerations.StatusPedido;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
@@ -52,11 +56,21 @@ class PedidoServiceTest {
     @Mock
     private SeboRepository seboRepository;
 
+    @Mock
+    private EmailService emailService;
+
+    @Mock
+    private PrecoService precoService;
+
     @InjectMocks
     private PedidoService pedidoService;
 
     private void setId(Object entity, Long id) {
         ReflectionTestUtils.setField(entity, "id", id);
+    }
+
+    private ConfirmarPedidoRequest pagamentoPix() {
+        return new ConfirmarPedidoRequest(FormaPagamento.PIX, null);
     }
 
     private Account buildUsuario() {
@@ -106,7 +120,7 @@ class PedidoServiceTest {
         Account account = buildUsuario();
         when(cestaItemRepository.findByAccountIdComProdutoESebo(10L)).thenReturn(List.of());
 
-        assertThatThrownBy(() -> pedidoService.confirmarPedido(account))
+        assertThatThrownBy(() -> pedidoService.confirmarPedido(account, pagamentoPix()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("cesta esta vazia");
 
@@ -128,7 +142,7 @@ class PedidoServiceTest {
         CestaItem item = CestaItem.builder().account(account).produto(produtoInativo).build();
         when(cestaItemRepository.findByAccountIdComProdutoESebo(10L)).thenReturn(List.of(item));
 
-        assertThatThrownBy(() -> pedidoService.confirmarPedido(account))
+        assertThatThrownBy(() -> pedidoService.confirmarPedido(account, pagamentoPix()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("nao estao mais disponiveis");
 
@@ -145,7 +159,7 @@ class PedidoServiceTest {
         CestaItem item2 = CestaItem.builder().account(account).produto(buildProduto(sebo2)).build();
         when(cestaItemRepository.findByAccountIdComProdutoESebo(10L)).thenReturn(List.of(item1, item2));
 
-        assertThatThrownBy(() -> pedidoService.confirmarPedido(account))
+        assertThatThrownBy(() -> pedidoService.confirmarPedido(account, pagamentoPix()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("mesmo sebo");
 
@@ -164,14 +178,77 @@ class PedidoServiceTest {
         when(pedidoRepository.sumQuantidadeReservadaEmPedidosPendentes(50L)).thenReturn(0L);
         when(seboRepository.findById(1L)).thenReturn(Optional.of(sebo));
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(precoService.precoEfetivo(produto)).thenReturn(new BigDecimal("25.00"));
 
-        PedidoResponse response = pedidoService.confirmarPedido(account);
+        PedidoResponse response = pedidoService.confirmarPedido(account, pagamentoPix());
 
         assertThat(response.status()).isEqualTo(StatusPedido.AGUARDANDO_CONFIRMACAO);
+        assertThat(response.formaPagamento()).isEqualTo(FormaPagamento.PIX);
+        assertThat(response.statusPagamento()).isEqualTo(StatusPagamento.APROVADO);
         assertThat(response.total()).isEqualByComparingTo("25.00");
         assertThat(response.itens()).hasSize(1);
         assertThat(response.itens().getFirst().tituloSnapshot()).isEqualTo("O Cortiço");
         verify(cestaItemRepository).deleteByAccountId(10L);
+    }
+
+    @Test
+    @DisplayName("Deve recusar o pedido quando o pagamento no cartao for reprovado (mock)")
+    void confirmarPedido_pagamentoRecusado_lancaBusinessException() {
+        Account account = buildUsuario();
+        Sebo sebo = buildSebo(buildSeboAccount(1L), 1L);
+        Produto produto = buildProduto(sebo);
+        setId(produto, 50L);
+        CestaItem item = CestaItem.builder().account(account).produto(produto).build();
+        when(cestaItemRepository.findByAccountIdComProdutoESebo(10L)).thenReturn(List.of(item));
+        when(pedidoRepository.sumQuantidadeReservadaEmPedidosPendentes(50L)).thenReturn(0L);
+
+        assertThatThrownBy(() -> pedidoService.confirmarPedido(account,
+                new ConfirmarPedidoRequest(FormaPagamento.CARTAO, "4111 1111 1111 0000")))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                        .isEqualTo(HttpStatus.PAYMENT_REQUIRED));
+
+        verify(pedidoRepository, never()).save(any());
+        verify(cestaItemRepository, never()).deleteByAccountId(10L);
+    }
+
+    @Test
+    @DisplayName("Deve notificar o sebo por e-mail ao criar o pedido")
+    void confirmarPedido_notificaSeboPorEmail() {
+        Account account = buildUsuario();
+        Sebo sebo = buildSebo(buildSeboAccount(1L), 1L);
+        Produto produto = buildProduto(sebo);
+        setId(produto, 50L);
+        CestaItem item = CestaItem.builder().account(account).produto(produto).build();
+        when(cestaItemRepository.findByAccountIdComProdutoESebo(10L)).thenReturn(List.of(item));
+        when(pedidoRepository.sumQuantidadeReservadaEmPedidosPendentes(50L)).thenReturn(0L);
+        when(seboRepository.findById(1L)).thenReturn(Optional.of(sebo));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(precoService.precoEfetivo(produto)).thenReturn(new BigDecimal("25.00"));
+
+        pedidoService.confirmarPedido(account, pagamentoPix());
+
+        verify(emailService).enviarNotificacaoNovoPedido("sebo1@email.com", null, "Carlos", new BigDecimal("25.00"));
+    }
+
+    @Test
+    @DisplayName("Deve usar o preco promocional da oferta no total e no snapshot do pedido")
+    void confirmarPedido_comOferta_usaPrecoPromocional() {
+        Account account = buildUsuario();
+        Sebo sebo = buildSebo(buildSeboAccount(1L), 1L);
+        Produto produto = buildProduto(sebo);
+        setId(produto, 50L);
+        CestaItem item = CestaItem.builder().account(account).produto(produto).build();
+        when(cestaItemRepository.findByAccountIdComProdutoESebo(10L)).thenReturn(List.of(item));
+        when(pedidoRepository.sumQuantidadeReservadaEmPedidosPendentes(50L)).thenReturn(0L);
+        when(seboRepository.findById(1L)).thenReturn(Optional.of(sebo));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(precoService.precoEfetivo(produto)).thenReturn(new BigDecimal("15.00"));
+
+        PedidoResponse response = pedidoService.confirmarPedido(account, pagamentoPix());
+
+        assertThat(response.total()).isEqualByComparingTo("15.00");
+        assertThat(response.itens().getFirst().precoSnapshot()).isEqualByComparingTo("15.00");
     }
 
     @Test
@@ -185,7 +262,7 @@ class PedidoServiceTest {
         when(cestaItemRepository.findByAccountIdComProdutoESebo(10L)).thenReturn(List.of(item));
         when(pedidoRepository.sumQuantidadeReservadaEmPedidosPendentes(50L)).thenReturn(1L);
 
-        assertThatThrownBy(() -> pedidoService.confirmarPedido(account))
+        assertThatThrownBy(() -> pedidoService.confirmarPedido(account, pagamentoPix()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("estoque suficiente");
 

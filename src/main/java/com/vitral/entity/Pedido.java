@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.vitral.enumerations.FormaPagamento;
+import com.vitral.enumerations.StatusPagamento;
 import com.vitral.enumerations.StatusPedido;
 
 import jakarta.persistence.CascadeType;
@@ -46,6 +48,15 @@ public class Pedido extends BaseEntity {
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal total;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "forma_pagamento", length = 20)
+    private FormaPagamento formaPagamento;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_pagamento", nullable = false, length = 20)
+    @Builder.Default
+    private StatusPagamento statusPagamento = StatusPagamento.PENDENTE;
 
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

@@ -1,6 +1,8 @@
 package com.vitral.service;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +32,7 @@ public class BuscaService {
     private final ProdutoRepository produtoRepository;
     private final SeboMapper seboMapper;
     private final ProdutoMapper produtoMapper;
+    private final PrecoService precoService;
 
     @Transactional(readOnly = true)
     public Page<SeboResponse> buscarSebos(String termo, String cidade, String uf, Pageable pageable) {
@@ -69,6 +72,9 @@ public class BuscaService {
             spec = spec.and(ProdutoSpecification.precoMaximo(precoMax));
         }
 
-        return produtoRepository.findAll(spec, pageable).map(produtoMapper::toResponse);
+        Page<Produto> produtos = produtoRepository.findAll(spec, pageable);
+        List<Long> ids = produtos.getContent().stream().map(Produto::getId).toList();
+        Map<Long, BigDecimal> promocionais = precoService.precosPromocionaisVigentes(ids);
+        return produtos.map(p -> produtoMapper.toResponse(p, promocionais.get(p.getId())));
     }
 }

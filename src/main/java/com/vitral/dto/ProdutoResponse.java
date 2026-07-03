@@ -13,6 +13,7 @@ public record ProdutoResponse(
         String autor,
         String descricao,
         BigDecimal preco,
+        BigDecimal precoPromocional,
         Integer estoque,
         CondicaoProduto condicao,
         String fotoUrl,

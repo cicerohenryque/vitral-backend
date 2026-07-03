@@ -49,6 +49,9 @@ public class AuthService {
         if (accountRepository.existsByEmail(request.email())) {
             throw new ConflictException("Email ja cadastrado");
         }
+        if (accountRepository.existsByName(request.name())) {
+            throw new ConflictException("Nome de usuario ja cadastrado");
+        }
 
         Account account = Account.builder()
                 .name(request.name())
@@ -66,15 +69,18 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        Account account = accountRepository.findByEmail(request.email())
-                .orElseThrow(() -> new ConflictException("Conta nao encontrada"));
+        String identificador = request.login().trim();
+        Account account = (identificador.contains("@")
+                ? accountRepository.findByEmail(identificador)
+                : accountRepository.findFirstByNameOrderByIdAsc(identificador))
+                .orElseThrow(() -> new BusinessException("Credenciais invalidas", HttpStatus.UNAUTHORIZED));
 
         if (!account.isEmailVerificado()) {
             throw new BusinessException("E-mail nao confirmado. Verifique sua caixa de entrada.", HttpStatus.UNAUTHORIZED);
         }
 
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+                new UsernamePasswordAuthenticationToken(account.getEmail(), request.password()));
 
         return buildAuthResponse(account);
     }

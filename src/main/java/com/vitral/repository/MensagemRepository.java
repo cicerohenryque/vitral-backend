@@ -29,7 +29,7 @@ public interface MensagemRepository extends JpaRepository<Mensagem, Long> {
             join fetch m.destinatario d
             where (m.remetente.id = :accountId and m.destinatario.id = :outroAccountId)
                or (m.remetente.id = :outroAccountId and m.destinatario.id = :accountId)
-            order by m.createdAt asc
+            order by m.createdAt asc, m.id asc
             """,
             countQuery = """
             select count(m) from Mensagem m

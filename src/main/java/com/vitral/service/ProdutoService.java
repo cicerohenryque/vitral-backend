@@ -1,5 +1,9 @@
 package com.vitral.service;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -27,6 +31,7 @@ public class ProdutoService {
     private final ProdutoMapper produtoMapper;
     private final SeboService seboService;
     private final CategoriaService categoriaService;
+    private final PrecoService precoService;
 
     @Transactional
     public ProdutoResponse criar(Account account, ProdutoRequest request) {
@@ -45,7 +50,7 @@ public class ProdutoService {
                 .ativo(normalizarEstoque(request.estoque()) > 0)
                 .build();
         Produto salvo = produtoRepository.save(produto);
-        return produtoMapper.toResponse(salvo);
+        return toResponse(salvo);
     }
 
     @Transactional
@@ -60,7 +65,7 @@ public class ProdutoService {
         produto.setCondicao(request.condicao());
         produto.setFotoUrl(request.fotoUrl());
         produto.setAtivo(produto.getEstoque() > 0);
-        return produtoMapper.toResponse(produto);
+        return toResponse(produto);
     }
 
     @Transactional
@@ -73,32 +78,38 @@ public class ProdutoService {
     public ProdutoResponse buscarPorId(Long id) {
         Produto produto = produtoRepository.findByIdAndAtivoTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
-        return produtoMapper.toResponse(produto);
+        return toResponse(produto);
     }
 
     @Transactional(readOnly = true)
     public Page<ProdutoResponse> listarPorSebo(Long seboId, Pageable pageable) {
-        return produtoRepository.findBySeboIdAndAtivoTrue(seboId, pageable)
-                .map(produtoMapper::toResponse);
+        return toResponsePage(produtoRepository.findBySeboIdAndAtivoTrue(seboId, pageable));
     }
 
     @Transactional(readOnly = true)
     public Page<ProdutoResponse> listarPorCategoria(Long categoriaId, Pageable pageable) {
         categoriaService.buscarEntidade(categoriaId);
-        return produtoRepository.findByCategoriaIdAndAtivoTrue(categoriaId, pageable)
-                .map(produtoMapper::toResponse);
+        return toResponsePage(produtoRepository.findByCategoriaIdAndAtivoTrue(categoriaId, pageable));
     }
 
     @Transactional(readOnly = true)
     public Page<ProdutoResponse> listarLancamentos(Pageable pageable) {
-        return produtoRepository.findByAtivoTrue(pageable)
-                .map(produtoMapper::toResponse);
+        return toResponsePage(produtoRepository.findByAtivoTrue(pageable));
     }
 
     @Transactional(readOnly = true)
     public Page<ProdutoResponse> listarClassicos(Pageable pageable) {
-        return produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable)
-                .map(produtoMapper::toResponse);
+        return toResponsePage(produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable));
+    }
+
+    private ProdutoResponse toResponse(Produto produto) {
+        return produtoMapper.toResponse(produto, precoService.precoPromocionalVigente(produto).orElse(null));
+    }
+
+    private Page<ProdutoResponse> toResponsePage(Page<Produto> produtos) {
+        List<Long> ids = produtos.getContent().stream().map(Produto::getId).toList();
+        Map<Long, BigDecimal> promocionais = precoService.precosPromocionaisVigentes(ids);
+        return produtos.map(p -> produtoMapper.toResponse(p, promocionais.get(p.getId())));
     }
 
     private Produto obterProdutoDoDono(Account account, Long produtoId) {

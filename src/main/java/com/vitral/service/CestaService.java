@@ -25,6 +25,7 @@ public class CestaService {
 
     private final CestaItemRepository cestaItemRepository;
     private final ProdutoRepository produtoRepository;
+    private final PrecoService precoService;
 
     @Transactional
     public MensagemResponse adicionarItem(Account account, Long produtoId) {
@@ -65,17 +66,21 @@ public class CestaService {
     @Transactional(readOnly = true)
     public List<CestaItemResponse> listarCesta(Account account) {
         return cestaItemRepository.findByAccountIdComProdutoESebo(account.getId()).stream()
-                .map(i -> new CestaItemResponse(
-                        i.getId(),
-                        i.getProduto().getId(),
-                        i.getProduto().getTitulo(),
-                        i.getProduto().getAutor(),
-                        i.getProduto().getPreco(),
-                        i.getQuantidade(),
-                        i.getProduto().getPreco().multiply(BigDecimal.valueOf(i.getQuantidade())),
-                        i.getProduto().getEstoque(),
-                        i.getProduto().getCondicao(),
-                        i.getProduto().getFotoUrl()))
+                .map(i -> {
+                    BigDecimal preco = precoService.precoEfetivo(i.getProduto());
+                    return new CestaItemResponse(
+                            i.getId(),
+                            i.getProduto().getId(),
+                            i.getProduto().getTitulo(),
+                            i.getProduto().getAutor(),
+                            preco,
+                            i.getProduto().getPreco(),
+                            i.getQuantidade(),
+                            preco.multiply(BigDecimal.valueOf(i.getQuantidade())),
+                            i.getProduto().getEstoque(),
+                            i.getProduto().getCondicao(),
+                            i.getProduto().getFotoUrl());
+                })
                 .toList();
     }
 

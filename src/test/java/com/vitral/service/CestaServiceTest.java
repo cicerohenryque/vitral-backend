@@ -40,6 +40,9 @@ class CestaServiceTest {
     @Mock
     private ProdutoRepository produtoRepository;
 
+    @Mock
+    private PrecoService precoService;
+
     @InjectMocks
     private CestaService cestaService;
 
@@ -136,6 +139,7 @@ class CestaServiceTest {
         CestaItem cestaItem = CestaItem.builder().account(account).produto(produto).quantidade(2).build();
         when(cestaItemRepository.findByAccountIdComProdutoESebo(account.getId()))
                 .thenReturn(List.of(cestaItem));
+        when(precoService.precoEfetivo(produto)).thenReturn(new BigDecimal("29.90"));
 
         List<CestaItemResponse> resultado = cestaService.listarCesta(account);
 
@@ -144,6 +148,22 @@ class CestaServiceTest {
         assertThat(resultado.getFirst().preco()).isEqualByComparingTo("29.90");
         assertThat(resultado.getFirst().quantidade()).isEqualTo(2);
         assertThat(resultado.getFirst().subtotal()).isEqualByComparingTo("59.80");
+    }
+
+    @Test
+    @DisplayName("Deve usar o preco promocional da oferta vigente na cesta")
+    void listarCesta_comOfertaVigente_usaPrecoPromocional() {
+        Account account = buildUsuario();
+        Produto produto = buildProduto();
+        CestaItem cestaItem = CestaItem.builder().account(account).produto(produto).quantidade(2).build();
+        when(cestaItemRepository.findByAccountIdComProdutoESebo(account.getId()))
+                .thenReturn(List.of(cestaItem));
+        when(precoService.precoEfetivo(produto)).thenReturn(new BigDecimal("12.00"));
+
+        List<CestaItemResponse> resultado = cestaService.listarCesta(account);
+
+        assertThat(resultado.getFirst().preco()).isEqualByComparingTo("12.00");
+        assertThat(resultado.getFirst().subtotal()).isEqualByComparingTo("24.00");
     }
 
     @Test

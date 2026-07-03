@@ -42,6 +42,15 @@ public class OfertaController {
         return ResponseEntity.ok(PageResponse.from(ofertaService.listarAtivas(pageable)));
     }
 
+    @GetMapping("/minhas")
+    @PreAuthorize("hasRole('SEBO')")
+    @Operation(summary = "Lista as ofertas do sebo autenticado (ativas e inativas)")
+    public ResponseEntity<PageResponse<OfertaResponse>> listarMinhas(
+            @AuthenticationPrincipal AccountUserDetails principal,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(PageResponse.from(ofertaService.listarDoSebo(principal.getAccount(), pageable)));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('SEBO')")
     @Operation(summary = "Cria oferta para produto do sebo autenticado")

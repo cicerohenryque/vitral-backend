@@ -142,6 +142,28 @@ class OfertaServiceTest {
     }
 
     @Test
+    @DisplayName("Deve listar as ofertas do sebo autenticado")
+    void listarDoSebo_retornaPagina() {
+        Oferta oferta = Oferta.builder()
+                .produto(produto)
+                .precoPromocional(new BigDecimal("29.90"))
+                .ativa(false)
+                .build();
+        var pageable = PageRequest.of(0, 20);
+        when(ofertaRepository.findDoSebo(1L, pageable))
+                .thenReturn(new PageImpl<>(List.of(oferta), pageable, 1));
+
+        var resultado = ofertaService.listarDoSebo(contaSebo, pageable);
+
+        assertThat(resultado.getContent()).singleElement()
+                .satisfies(item -> {
+                    assertThat(item.produtoId()).isEqualTo(10L);
+                    assertThat(item.ativa()).isFalse();
+                });
+        verify(ofertaRepository).findDoSebo(1L, pageable);
+    }
+
+    @Test
     @DisplayName("Deve desativar oferta do proprio sebo")
     void remover_sucesso_desativaOferta() {
         Oferta oferta = Oferta.builder().produto(produto).ativa(true).build();

@@ -9,10 +9,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+
+import com.vitral.dto.ConfirmarPedidoRequest;
 import com.vitral.dto.PageResponse;
 import com.vitral.dto.PedidoResponse;
 import com.vitral.enumerations.StatusPedido;
@@ -33,11 +37,12 @@ public class PedidoController {
 
     @PostMapping
     @PreAuthorize("hasRole('USUARIO')")
-    @Operation(summary = "Confirma o pedido com os itens atuais da cesta (usuario)")
+    @Operation(summary = "Confirma o pedido e paga (mock) com os itens atuais da cesta (usuario)")
     public ResponseEntity<PedidoResponse> confirmarPedido(
-            @AuthenticationPrincipal AccountUserDetails principal) {
+            @AuthenticationPrincipal AccountUserDetails principal,
+            @Valid @RequestBody ConfirmarPedidoRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(pedidoService.confirmarPedido(principal.getAccount()));
+                .body(pedidoService.confirmarPedido(principal.getAccount(), request));
     }
 
     @PutMapping("/{id}/status")

@@ -58,11 +58,11 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
-        String emailKey = "login:email:" + normalize(request.email());
+        String loginKey = "login:id:" + normalize(request.login());
         rateLimitService.check("login:ip:" + clientIp(httpRequest), 30, Duration.ofMinutes(15));
-        rateLimitService.check(emailKey, 5, Duration.ofMinutes(15));
+        rateLimitService.check(loginKey, 5, Duration.ofMinutes(15));
         AuthResponse response = authService.login(request);
-        rateLimitService.reset(emailKey);
+        rateLimitService.reset(loginKey);
         return ResponseEntity.ok(response);
     }
 

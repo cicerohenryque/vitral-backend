@@ -38,6 +38,23 @@ public class EmailService {
         mailSender.send(mensagem);
     }
 
+    public void enviarNotificacaoNovoPedido(String destinatario, Long pedidoId, String comprador,
+            java.math.BigDecimal total) {
+        if (!mailEnabled || mailSender == null) {
+            return;
+        }
+        SimpleMailMessage mensagem = new SimpleMailMessage();
+        mensagem.setFrom(remetente);
+        mensagem.setTo(destinatario);
+        mensagem.setSubject("Vitral — Novo pedido recebido");
+        mensagem.setText("Voce recebeu um novo pedido no Vitral"
+                + (pedidoId != null ? " (#" + pedidoId + ")" : "")
+                + " de " + comprador + " no valor de R$ " + total + "."
+                + "\n\nO pagamento ja foi aprovado. Acesse o painel para confirmar a entrega:\n\n"
+                + frontendUrl + "/vendas\n");
+        mailSender.send(mensagem);
+    }
+
     public void enviarRecuperacaoSenha(String destinatario, String token) {
         if (!mailEnabled || mailSender == null) {
             return;

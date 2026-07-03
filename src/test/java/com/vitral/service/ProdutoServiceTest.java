@@ -2,6 +2,8 @@ package com.vitral.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -9,6 +11,7 @@ import static org.mockito.Mockito.when;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +57,9 @@ class ProdutoServiceTest {
 
     @Mock
     private CategoriaService categoriaService;
+
+    @Mock
+    private PrecoService precoService;
 
     @InjectMocks
     private ProdutoService produtoService;
@@ -106,11 +112,12 @@ class ProdutoServiceTest {
     @DisplayName("Deve criar produto vinculado ao sebo da conta autenticada com ativo igual a true")
     void shouldCreateProductLinkedToOwnerSeboWithAtivoTrue() {
         ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, null, null, request.titulo(), request.autor(),
-                request.descricao(), request.preco(), request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
+                request.descricao(), request.preco(), null, request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
 
         when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
         when(produtoRepository.save(produtoCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(produtoMapper.toResponse(produtoCaptor.capture())).thenReturn(responseEsperado);
+        when(precoService.precoPromocionalVigente(any())).thenReturn(Optional.empty());
+        when(produtoMapper.toResponse(produtoCaptor.capture(), any())).thenReturn(responseEsperado);
 
         ProdutoResponse resultado = produtoService.criar(contaDona, request);
 
@@ -147,10 +154,11 @@ class ProdutoServiceTest {
                 .build();
         setId(produto, 50L);
         ProdutoResponse esperado = new ProdutoResponse(50L, 1L, null, null, request.titulo(), request.autor(),
-                request.descricao(), request.preco(), request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
+                request.descricao(), request.preco(), null, request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
 
         when(produtoRepository.findById(50L)).thenReturn(Optional.of(produto));
-        when(produtoMapper.toResponse(produto)).thenReturn(esperado);
+        when(precoService.precoPromocionalVigente(any())).thenReturn(Optional.empty());
+        when(produtoMapper.toResponse(eq(produto), any())).thenReturn(esperado);
 
         ProdutoResponse resultado = produtoService.atualizar(contaDona, 50L, request);
 
@@ -220,10 +228,11 @@ class ProdutoServiceTest {
         Produto produto = Produto.builder().sebo(seboDono).ativo(Boolean.TRUE).build();
         setId(produto, 5L);
         ProdutoResponse esperado = new ProdutoResponse(5L, 1L, null, null, "T", null, null,
-                BigDecimal.TEN, 1, CondicaoProduto.NOVO, null, Boolean.TRUE);
+                BigDecimal.TEN, null, 1, CondicaoProduto.NOVO, null, Boolean.TRUE);
 
         when(produtoRepository.findByIdAndAtivoTrue(5L)).thenReturn(Optional.of(produto));
-        when(produtoMapper.toResponse(produto)).thenReturn(esperado);
+        when(precoService.precoPromocionalVigente(any())).thenReturn(Optional.empty());
+        when(produtoMapper.toResponse(eq(produto), any())).thenReturn(esperado);
 
         ProdutoResponse resultado = produtoService.buscarPorId(5L);
 
@@ -249,12 +258,13 @@ class ProdutoServiceTest {
         setId(p2, 2L);
         Pageable pageable = PageRequest.of(0, 10);
         Page<Produto> pagina = new PageImpl<>(List.of(p1, p2), pageable, 2);
-        ProdutoResponse r1 = new ProdutoResponse(1L, 1L, null, null, "A", null, null, BigDecimal.ONE, 1, CondicaoProduto.NOVO, null, true);
-        ProdutoResponse r2 = new ProdutoResponse(2L, 1L, null, null, "B", null, null, BigDecimal.ONE, 1, CondicaoProduto.NOVO, null, true);
+        ProdutoResponse r1 = new ProdutoResponse(1L, 1L, null, null, "A", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
+        ProdutoResponse r2 = new ProdutoResponse(2L, 1L, null, null, "B", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
 
         when(produtoRepository.findBySeboIdAndAtivoTrue(1L, pageable)).thenReturn(pagina);
-        when(produtoMapper.toResponse(p1)).thenReturn(r1);
-        when(produtoMapper.toResponse(p2)).thenReturn(r2);
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
+        when(produtoMapper.toResponse(eq(p1), any())).thenReturn(r1);
+        when(produtoMapper.toResponse(eq(p2), any())).thenReturn(r2);
 
         Page<ProdutoResponse> resultado = produtoService.listarPorSebo(1L, pageable);
 
@@ -271,11 +281,12 @@ class ProdutoServiceTest {
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
         ProdutoResponse response = new ProdutoResponse(1L, 1L, 7L, "Romance", "A", null, null,
-                BigDecimal.ONE, 1, CondicaoProduto.NOVO, null, true);
+                BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
         when(categoriaService.buscarEntidade(7L)).thenReturn(categoria);
         when(produtoRepository.findByCategoriaIdAndAtivoTrue(7L, pageable))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
-        when(produtoMapper.toResponse(produto)).thenReturn(response);
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
+        when(produtoMapper.toResponse(eq(produto), any())).thenReturn(response);
 
         Page<ProdutoResponse> resultado = produtoService.listarPorCategoria(7L, pageable);
 
@@ -290,10 +301,11 @@ class ProdutoServiceTest {
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
         ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Lancamento", null, null,
-                BigDecimal.TEN, 2, CondicaoProduto.NOVO, null, true);
+                BigDecimal.TEN, null, 2, CondicaoProduto.NOVO, null, true);
         when(produtoRepository.findByAtivoTrue(pageable))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
-        when(produtoMapper.toResponse(produto)).thenReturn(response);
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
+        when(produtoMapper.toResponse(eq(produto), any())).thenReturn(response);
 
         Page<ProdutoResponse> resultado = produtoService.listarLancamentos(pageable);
 
@@ -308,10 +320,11 @@ class ProdutoServiceTest {
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
         ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Classico", null, null,
-                BigDecimal.TEN, 1, CondicaoProduto.USADO, null, true);
+                BigDecimal.TEN, null, 1, CondicaoProduto.USADO, null, true);
         when(produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
-        when(produtoMapper.toResponse(produto)).thenReturn(response);
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
+        when(produtoMapper.toResponse(eq(produto), any())).thenReturn(response);
 
         Page<ProdutoResponse> resultado = produtoService.listarClassicos(pageable);
 

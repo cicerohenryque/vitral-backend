@@ -2,20 +2,28 @@ package com.vitral.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.vitral.dto.ConfirmarPedidoRequest;
 import com.vitral.dto.PedidoItemResponse;
 import com.vitral.dto.PedidoResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.CestaItem;
 import com.vitral.entity.Pedido;
 import com.vitral.entity.PedidoItem;
+import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
+import com.vitral.enumerations.FormaPagamento;
+import com.vitral.enumerations.StatusPagamento;
 import com.vitral.enumerations.StatusPedido;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
@@ -29,12 +37,16 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PedidoService {
 
+    private static final Logger log = LoggerFactory.getLogger(PedidoService.class);
+
     private final PedidoRepository pedidoRepository;
     private final CestaItemRepository cestaItemRepository;
     private final SeboRepository seboRepository;
+    private final EmailService emailService;
+    private final PrecoService precoService;
 
     @Transactional
-    public PedidoResponse confirmarPedido(Account account) {
+    public PedidoResponse confirmarPedido(Account account, ConfirmarPedidoRequest pagamento) {
         List<CestaItem> itens = cestaItemRepository.findByAccountIdComProdutoESebo(account.getId());
         if (itens.isEmpty()) {
             throw new BusinessException("A cesta esta vazia", HttpStatus.BAD_REQUEST);
@@ -59,17 +71,30 @@ public class PedidoService {
 
         itens.forEach(this::validarQuantidadeDisponivel);
 
+        if (!pagamentoAprovado(pagamento)) {
+            throw new BusinessException(
+                    "Pagamento recusado. Verifique os dados do cartao e tente novamente.",
+                    HttpStatus.PAYMENT_REQUIRED);
+        }
+
         Sebo sebo = seboRepository.findById(seboId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado"));
 
+        Map<Long, BigDecimal> precoEfetivoPorProduto = itens.stream()
+                .map(CestaItem::getProduto)
+                .collect(Collectors.toMap(Produto::getId, precoService::precoEfetivo, (a, b) -> a));
+
         BigDecimal total = itens.stream()
-                .map(i -> i.getProduto().getPreco().multiply(BigDecimal.valueOf(i.getQuantidade())))
+                .map(i -> precoEfetivoPorProduto.get(i.getProduto().getId())
+                        .multiply(BigDecimal.valueOf(i.getQuantidade())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         Pedido pedido = Pedido.builder()
                 .account(account)
                 .sebo(sebo)
                 .status(StatusPedido.AGUARDANDO_CONFIRMACAO)
+                .formaPagamento(pagamento.formaPagamento())
+                .statusPagamento(StatusPagamento.APROVADO)
                 .total(total)
                 .build();
 
@@ -78,7 +103,7 @@ public class PedidoService {
                         .pedido(pedido)
                         .produto(i.getProduto())
                         .tituloSnapshot(i.getProduto().getTitulo())
-                        .precoSnapshot(i.getProduto().getPreco())
+                        .precoSnapshot(precoEfetivoPorProduto.get(i.getProduto().getId()))
                         .quantidade(i.getQuantidade())
                         .build())
                 .toList();
@@ -86,7 +111,30 @@ public class PedidoService {
         pedido.getItens().addAll(pedidoItens);
         Pedido salvo = pedidoRepository.save(pedido);
         cestaItemRepository.deleteByAccountId(account.getId());
+        notificarSeboNovoPedido(salvo);
         return toResponse(salvo);
+    }
+
+    private boolean pagamentoAprovado(ConfirmarPedidoRequest pagamento) {
+        if (pagamento.formaPagamento() == FormaPagamento.CARTAO) {
+            String numero = pagamento.numeroCartao() == null
+                    ? ""
+                    : pagamento.numeroCartao().replaceAll("\\D", "");
+            return !numero.endsWith("0000");
+        }
+        return true;
+    }
+
+    private void notificarSeboNovoPedido(Pedido pedido) {
+        try {
+            emailService.enviarNotificacaoNovoPedido(
+                    pedido.getSebo().getAccount().getEmail(),
+                    pedido.getId(),
+                    pedido.getAccount().getName(),
+                    pedido.getTotal());
+        } catch (RuntimeException exception) {
+            log.warn("Falha ao notificar o sebo sobre o novo pedido {}", pedido.getId(), exception);
+        }
     }
 
     @Transactional
@@ -190,6 +238,8 @@ public class PedidoService {
                 pedido.getAccount().getId(),
                 pedido.getSebo().getId(),
                 pedido.getStatus(),
+                pedido.getFormaPagamento(),
+                pedido.getStatusPagamento(),
                 pedido.getTotal(),
                 pedido.getCreatedAt(),
                 itensResponse);

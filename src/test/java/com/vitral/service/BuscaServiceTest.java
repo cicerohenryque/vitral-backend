@@ -1,12 +1,14 @@
 package com.vitral.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +23,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.vitral.dto.ProdutoResponse;
 import com.vitral.dto.SeboResponse;
@@ -48,6 +51,9 @@ class BuscaServiceTest {
 
     @Mock
     private ProdutoMapper produtoMapper;
+
+    @Mock
+    private PrecoService precoService;
 
     @InjectMocks
     private BuscaService buscaService;
@@ -85,9 +91,10 @@ class BuscaServiceTest {
                 .condicao(CondicaoProduto.USADO)
                 .ativo(true)
                 .build();
+        ReflectionTestUtils.setField(produto, "id", 1L);
 
         produtoResponse = new ProdutoResponse(1L, 1L, null, null, "Dom Casmurro", null, null,
-                BigDecimal.valueOf(25.00), 1, CondicaoProduto.USADO, null, true);
+                BigDecimal.valueOf(25.00), null, 1, CondicaoProduto.USADO, null, true);
     }
 
     @Test
@@ -135,7 +142,8 @@ class BuscaServiceTest {
     void shouldSearchActiveProductsByTitleWhenTermoProvided() {
         Page<Produto> pageResult = new PageImpl<>(List.of(produto));
         when(produtoRepository.findAll(anyProdutoSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(produtoMapper.toResponse(produto)).thenReturn(produtoResponse);
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
+        when(produtoMapper.toResponse(eq(produto), any())).thenReturn(produtoResponse);
 
         Page<ProdutoResponse> resultado = buscaService.buscarProdutos("Dom", null, null, null, null, pageable);
 
@@ -149,7 +157,8 @@ class BuscaServiceTest {
     void shouldFilterProductsBySeboWhenSeboIdProvided() {
         Page<Produto> pageResult = new PageImpl<>(List.of(produto));
         when(produtoRepository.findAll(anyProdutoSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(produtoMapper.toResponse(produto)).thenReturn(produtoResponse);
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
+        when(produtoMapper.toResponse(eq(produto), any())).thenReturn(produtoResponse);
 
         Page<ProdutoResponse> resultado = buscaService.buscarProdutos(null, 1L, null, null, null, pageable);
 
@@ -162,7 +171,8 @@ class BuscaServiceTest {
     void shouldFilterProductsByCondicaoWhenCondicaoProvided() {
         Page<Produto> pageResult = new PageImpl<>(List.of(produto));
         when(produtoRepository.findAll(anyProdutoSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(produtoMapper.toResponse(produto)).thenReturn(produtoResponse);
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
+        when(produtoMapper.toResponse(eq(produto), any())).thenReturn(produtoResponse);
 
         Page<ProdutoResponse> resultado = buscaService.buscarProdutos(null, null, CondicaoProduto.USADO, null, null, pageable);
 
@@ -175,7 +185,8 @@ class BuscaServiceTest {
     void shouldFilterProductsByPriceRangeWhenBothLimitsProvided() {
         Page<Produto> pageResult = new PageImpl<>(List.of(produto));
         when(produtoRepository.findAll(anyProdutoSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(produtoMapper.toResponse(produto)).thenReturn(produtoResponse);
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
+        when(produtoMapper.toResponse(eq(produto), any())).thenReturn(produtoResponse);
 
         Page<ProdutoResponse> resultado = buscaService.buscarProdutos(
                 null, null, null, BigDecimal.valueOf(10), BigDecimal.valueOf(50), pageable);
@@ -189,7 +200,8 @@ class BuscaServiceTest {
     void shouldListAllActiveProductsWhenNoFiltersProvided() {
         Page<Produto> pageResult = new PageImpl<>(List.of(produto));
         when(produtoRepository.findAll(anyProdutoSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(produtoMapper.toResponse(produto)).thenReturn(produtoResponse);
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
+        when(produtoMapper.toResponse(eq(produto), any())).thenReturn(produtoResponse);
 
         Page<ProdutoResponse> resultado = buscaService.buscarProdutos(null, null, null, null, null, pageable);
 

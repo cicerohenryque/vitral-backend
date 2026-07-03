@@ -132,6 +132,46 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("Deve lancar ConflictException quando o nome de usuario ja esta cadastrado")
+    void shouldThrowConflictWhenUsernameAlreadyExists() {
+        RegisterRequest request = new RegisterRequest("Maria", "maria@vitral.com", "senha1234", AccountType.USUARIO);
+        when(accountRepository.existsByEmail("maria@vitral.com")).thenReturn(false);
+        when(accountRepository.existsByName("Maria")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.register(request))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("Nome de usuario ja cadastrado");
+
+        verify(accountRepository, never()).save(any(Account.class));
+        verify(emailService, never()).enviarConfirmacaoCadastro(any(), any());
+    }
+
+    @Test
+    @DisplayName("Deve autenticar por nome de usuario quando o identificador nao for e-mail")
+    void shouldLoginWithUsernameWhenIdentifierIsNotEmail() {
+        LoginRequest request = new LoginRequest("maria", "senha1234");
+        Account account = Account.builder()
+                .name("maria")
+                .email("maria@vitral.com")
+                .passwordHash("hash")
+                .type(AccountType.USUARIO)
+                .emailVerificado(true)
+                .build();
+        AccountResponse accountResponse = new AccountResponse(1L, "maria", "maria@vitral.com", AccountType.USUARIO, null);
+
+        when(accountRepository.findFirstByNameOrderByIdAsc("maria")).thenReturn(Optional.of(account));
+        when(jwtService.generateToken("maria@vitral.com", "USUARIO", 0)).thenReturn("token-jwt");
+        when(jwtService.getExpiration()).thenReturn(86400000L);
+        when(accountMapper.toResponse(account)).thenReturn(accountResponse);
+
+        AuthResponse result = authService.login(request);
+
+        assertThat(result.token()).isEqualTo("token-jwt");
+        verify(authenticationManager).authenticate(
+                new UsernamePasswordAuthenticationToken("maria@vitral.com", "senha1234"));
+    }
+
+    @Test
     @DisplayName("Deve autenticar e retornar token quando e-mail estiver confirmado")
     void shouldLoginSuccessfullyWhenEmailIsVerified() {
         LoginRequest request = new LoginRequest("maria@vitral.com", "senha1234");

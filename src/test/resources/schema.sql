@@ -144,6 +144,8 @@ CREATE TABLE pedido (
     account_id BIGINT         NOT NULL,
     sebo_id    BIGINT         NOT NULL,
     status     VARCHAR(30)    NOT NULL DEFAULT 'AGUARDANDO_CONFIRMACAO',
+    forma_pagamento  VARCHAR(20),
+    status_pagamento VARCHAR(20) NOT NULL DEFAULT 'PENDENTE',
     total      NUMERIC(12, 2) NOT NULL,
     created_at TIMESTAMP      NOT NULL,
     updated_at TIMESTAMP      NOT NULL,
