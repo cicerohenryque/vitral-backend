@@ -10,6 +10,7 @@ public record FavoritoResponse(
         String titulo,
         String autor,
         BigDecimal preco,
+        BigDecimal precoPromocional,
         CondicaoProduto condicao,
         String fotoUrl) {
 }

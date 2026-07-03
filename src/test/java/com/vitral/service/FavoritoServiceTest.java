@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.vitral.dto.FavoritoResponse;
 import com.vitral.dto.MensagemResponse;
@@ -39,6 +41,9 @@ class FavoritoServiceTest {
 
     @Mock
     private ProdutoRepository produtoRepository;
+
+    @Mock
+    private PrecoService precoService;
 
     @InjectMocks
     private FavoritoService favoritoService;
@@ -117,14 +122,33 @@ class FavoritoServiceTest {
     void listarFavoritos_comFavoritos_retornaListaMapeada() {
         Account account = buildUsuario();
         Produto produto = buildProduto();
+        ReflectionTestUtils.setField(produto, "id", 1L);
         Favorito favorito = Favorito.builder().account(account).produto(produto).build();
         when(favoritoRepository.findByAccountId(account.getId())).thenReturn(List.of(favorito));
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
 
         List<FavoritoResponse> resultado = favoritoService.listarFavoritos(account);
 
         assertThat(resultado).hasSize(1);
         assertThat(resultado.getFirst().titulo()).isEqualTo("Grande Sertão: Veredas");
         assertThat(resultado.getFirst().preco()).isEqualByComparingTo("45.00");
+        assertThat(resultado.getFirst().precoPromocional()).isNull();
+    }
+
+    @Test
+    @DisplayName("Deve usar o preco promocional da oferta vigente no favorito")
+    void listarFavoritos_comOfertaVigente_usaPrecoPromocional() {
+        Account account = buildUsuario();
+        Produto produto = buildProduto();
+        ReflectionTestUtils.setField(produto, "id", 1L);
+        Favorito favorito = Favorito.builder().account(account).produto(produto).build();
+        when(favoritoRepository.findByAccountId(account.getId())).thenReturn(List.of(favorito));
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of(1L, new BigDecimal("30.00")));
+
+        List<FavoritoResponse> resultado = favoritoService.listarFavoritos(account);
+
+        assertThat(resultado.getFirst().preco()).isEqualByComparingTo("45.00");
+        assertThat(resultado.getFirst().precoPromocional()).isEqualByComparingTo("30.00");
     }
 
     @Test

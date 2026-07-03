@@ -1,6 +1,8 @@
 package com.vitral.service;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ public class FavoritoService {
 
     private final FavoritoRepository favoritoRepository;
     private final ProdutoRepository produtoRepository;
+    private final PrecoService precoService;
 
     @Transactional
     public MensagemResponse favoritar(Account account, Long produtoId) {
@@ -41,13 +44,17 @@ public class FavoritoService {
 
     @Transactional(readOnly = true)
     public List<FavoritoResponse> listarFavoritos(Account account) {
-        return favoritoRepository.findByAccountId(account.getId()).stream()
+        List<Favorito> favoritos = favoritoRepository.findByAccountId(account.getId());
+        List<Long> ids = favoritos.stream().map(f -> f.getProduto().getId()).toList();
+        Map<Long, BigDecimal> promocionais = precoService.precosPromocionaisVigentes(ids);
+        return favoritos.stream()
                 .map(f -> new FavoritoResponse(
                         f.getId(),
                         f.getProduto().getId(),
                         f.getProduto().getTitulo(),
                         f.getProduto().getAutor(),
                         f.getProduto().getPreco(),
+                        promocionais.get(f.getProduto().getId()),
                         f.getProduto().getCondicao(),
                         f.getProduto().getFotoUrl()))
                 .toList();
