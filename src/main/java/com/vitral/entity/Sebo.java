@@ -6,6 +6,10 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import java.time.OffsetDateTime;
+import com.vitral.enumerations.StatusVerificacaoSebo;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import lombok.AllArgsConstructor;
@@ -33,6 +37,17 @@ public class Sebo extends BaseEntity {
 
     @Column(length = 20)
     private String telefone;
+
+    @Column(length = 14, unique = true)
+    private String cnpj;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_verificacao", nullable = false, length = 20)
+    @Builder.Default
+    private StatusVerificacaoSebo statusVerificacao = StatusVerificacaoSebo.PENDENTE;
+
+    @Column(name = "verificado_em")
+    private OffsetDateTime verificadoEm;
 
     @Column(length = 9)
     private String cep;

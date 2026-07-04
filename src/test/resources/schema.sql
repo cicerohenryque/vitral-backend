@@ -23,7 +23,7 @@ CREATE TABLE account (
     created_at       TIMESTAMP    NOT NULL,
     updated_at       TIMESTAMP    NOT NULL,
     CONSTRAINT uk_account_email UNIQUE (email),
-    CONSTRAINT ck_account_type CHECK (type IN ('SEBO', 'USUARIO'))
+    CONSTRAINT ck_account_type CHECK (type IN ('SEBO', 'USUARIO', 'ADMIN'))
 );
 
 CREATE TABLE sebo (
@@ -31,6 +31,9 @@ CREATE TABLE sebo (
     account_id             BIGINT       NOT NULL,
     descricao              VARCHAR(2000),
     telefone               VARCHAR(20),
+    cnpj                   VARCHAR(14),
+    status_verificacao     VARCHAR(20) NOT NULL DEFAULT 'VERIFICADO',
+    verificado_em          TIMESTAMP,
     cep                    VARCHAR(9),
     logradouro             VARCHAR(255),
     cidade                 VARCHAR(120),

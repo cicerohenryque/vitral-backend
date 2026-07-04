@@ -32,6 +32,7 @@ import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.enumerations.StatusVerificacaoSebo;
 import com.vitral.mapper.ProdutoMapper;
 import com.vitral.mapper.SeboMapper;
 import com.vitral.repository.ProdutoRepository;
@@ -82,7 +83,7 @@ class BuscaServiceTest {
                 .build();
 
         seboResponse = new SeboResponse(1L, 1L, "Livraria Leitura", "livraria@email.com",
-                null, null, null);
+                null, null, "12345678000199", StatusVerificacaoSebo.VERIFICADO, null);
 
         produto = Produto.builder()
                 .sebo(sebo)

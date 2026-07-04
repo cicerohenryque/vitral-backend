@@ -20,6 +20,7 @@ import com.vitral.dto.ReenviarConfirmacaoRequest;
 import com.vitral.entity.Account;
 import com.vitral.entity.TokenVerificacaoEmail;
 import com.vitral.entity.TokenRecuperacaoSenha;
+import com.vitral.enumerations.AccountType;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
@@ -46,6 +47,9 @@ public class AuthService {
 
     @Transactional
     public MensagemResponse register(RegisterRequest request) {
+        if (request.type() == AccountType.ADMIN) {
+            throw new BusinessException("Tipo de conta invalido para cadastro publico", HttpStatus.BAD_REQUEST);
+        }
         if (accountRepository.existsByEmail(request.email())) {
             throw new ConflictException("Email ja cadastrado");
         }

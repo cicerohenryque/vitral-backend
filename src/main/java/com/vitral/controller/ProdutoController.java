@@ -20,6 +20,8 @@ import com.vitral.dto.PageResponse;
 import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
 import com.vitral.dto.VendaFisicaRequest;
+import com.vitral.dto.VendedorProdutoResponse;
+import java.util.List;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.service.ProdutoService;
 
@@ -75,6 +77,12 @@ public class ProdutoController {
     @Operation(summary = "Consulta publica de um produto ativo pelo id")
     public ResponseEntity<ProdutoResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(produtoService.buscarPorId(id));
+    }
+
+    @GetMapping("/{id}/vendedores")
+    @Operation(summary = "Lista vendedores verificados com o mesmo produto ativo, do menor preco para o maior")
+    public ResponseEntity<List<VendedorProdutoResponse>> listarVendedores(@PathVariable Long id) {
+        return ResponseEntity.ok(produtoService.listarVendedores(id));
     }
 
     @GetMapping("/sebo/{seboId}")

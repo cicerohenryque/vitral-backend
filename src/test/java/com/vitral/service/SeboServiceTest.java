@@ -25,6 +25,7 @@ import com.vitral.dto.MensagemResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
+import com.vitral.enumerations.StatusVerificacaoSebo;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
@@ -75,6 +76,7 @@ class SeboServiceTest {
         request = new SeboRequest(
                 "Sebo familiar com livros raros",
                 "8399999-0000",
+                "12345678000199",
                 "https://cdn/foto.jpg");
     }
 
@@ -82,7 +84,8 @@ class SeboServiceTest {
     @DisplayName("Deve criar sebo para conta do tipo SEBO ainda sem perfil cadastrado")
     void shouldCreateSeboWhenAccountIsSeboAndHasNoProfileYet() {
         SeboResponse responseEsperado = new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
-                request.descricao(), request.telefone(), request.fotoUrl());
+                request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
+                request.fotoUrl());
 
         when(seboRepository.existsByAccountId(10L)).thenReturn(false);
         when(seboRepository.save(seboCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -131,7 +134,8 @@ class SeboServiceTest {
                 .uf("PB")
                 .build();
         SeboResponse responseEsperado = new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
-                request.descricao(), request.telefone(), request.fotoUrl());
+                request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
+                request.fotoUrl());
 
         when(seboRepository.findByAccountId(10L)).thenReturn(Optional.of(existente));
         when(seboMapper.toResponse(existente)).thenReturn(responseEsperado);
@@ -160,9 +164,10 @@ class SeboServiceTest {
     void shouldReturnSeboWhenIdExists() {
         Sebo sebo = Sebo.builder().account(contaSebo).cidade("Recife").build();
         SeboResponse responseEsperado = new SeboResponse(7L, 10L, "Sebo do Joao", "sebo@vitral.com",
-                null, null, null);
+                null, null, "12345678000199", StatusVerificacaoSebo.VERIFICADO, null);
 
-        when(seboRepository.findByIdAndAccountAtivoTrue(7L)).thenReturn(Optional.of(sebo));
+        when(seboRepository.findByIdAndAccountAtivoTrueAndStatusVerificacao(
+                7L, StatusVerificacaoSebo.VERIFICADO)).thenReturn(Optional.of(sebo));
         when(seboMapper.toResponse(sebo)).thenReturn(responseEsperado);
 
         SeboResponse resultado = seboService.buscarPorId(7L);
@@ -173,7 +178,8 @@ class SeboServiceTest {
     @Test
     @DisplayName("Deve lancar ResourceNotFoundException ao buscar sebo por id inexistente")
     void shouldThrowNotFoundWhenSeboIdDoesNotExist() {
-        when(seboRepository.findByIdAndAccountAtivoTrue(99L)).thenReturn(Optional.empty());
+        when(seboRepository.findByIdAndAccountAtivoTrueAndStatusVerificacao(
+                99L, StatusVerificacaoSebo.VERIFICADO)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> seboService.buscarPorId(99L))
                 .isInstanceOf(ResourceNotFoundException.class)

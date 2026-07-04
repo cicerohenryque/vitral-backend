@@ -10,6 +10,10 @@ import com.vitral.dto.SeboResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
+import com.vitral.enumerations.StatusVerificacaoSebo;
+import java.time.OffsetDateTime;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
@@ -37,10 +41,15 @@ public class SeboService {
         if (seboRepository.existsByAccountId(account.getId())) {
             throw new ConflictException("Sebo ja cadastrado para esta conta");
         }
+        if (seboRepository.existsByCnpj(request.cnpj())) {
+            throw new ConflictException("CNPJ ja cadastrado");
+        }
         Sebo sebo = Sebo.builder()
                 .account(account)
                 .descricao(request.descricao())
                 .telefone(request.telefone())
+                .cnpj(request.cnpj())
+                .statusVerificacao(StatusVerificacaoSebo.PENDENTE)
                 .fotoUrl(request.fotoUrl())
                 .build();
         Sebo salvo = seboRepository.save(sebo);
@@ -53,13 +62,22 @@ public class SeboService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
         sebo.setDescricao(request.descricao());
         sebo.setTelefone(request.telefone());
+        if (!java.util.Objects.equals(sebo.getCnpj(), request.cnpj())) {
+            if (seboRepository.existsByCnpj(request.cnpj())) {
+                throw new ConflictException("CNPJ ja cadastrado");
+            }
+            sebo.setCnpj(request.cnpj());
+            sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
+            sebo.setVerificadoEm(null);
+        }
         sebo.setFotoUrl(request.fotoUrl());
         return seboMapper.toResponse(sebo);
     }
 
     @Transactional(readOnly = true)
     public SeboResponse buscarPorId(Long id) {
-        Sebo sebo = seboRepository.findByIdAndAccountAtivoTrue(id)
+        Sebo sebo = seboRepository.findByIdAndAccountAtivoTrueAndStatusVerificacao(
+                id, StatusVerificacaoSebo.VERIFICADO)
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado"));
         return seboMapper.toResponse(sebo);
     }
@@ -73,6 +91,27 @@ public class SeboService {
     public Sebo buscarEntidadePorAccount(Long accountId) {
         return seboRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SeboResponse> listarPendentes(Pageable pageable) {
+        return seboRepository.findByStatusVerificacao(StatusVerificacaoSebo.PENDENTE, pageable)
+                .map(seboMapper::toResponse);
+    }
+
+    @Transactional
+    public SeboResponse revisarVerificacao(Long seboId, StatusVerificacaoSebo status) {
+        if (status == StatusVerificacaoSebo.PENDENTE) {
+            throw new BusinessException("Use VERIFICADO ou REJEITADO", HttpStatus.BAD_REQUEST);
+        }
+        Sebo sebo = seboRepository.findById(seboId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado"));
+        sebo.setStatusVerificacao(status);
+        sebo.setVerificadoEm(status == StatusVerificacaoSebo.VERIFICADO ? OffsetDateTime.now() : null);
+        if (status == StatusVerificacaoSebo.REJEITADO) {
+            produtoRepository.desativarCatalogoDoSebo(seboId);
+        }
+        return seboMapper.toResponse(sebo);
     }
 
     @Transactional

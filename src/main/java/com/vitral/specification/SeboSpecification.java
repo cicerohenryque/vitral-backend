@@ -12,7 +12,10 @@ public class SeboSpecification {
     }
 
     public static Specification<Sebo> ativo() {
-        return (root, query, cb) -> cb.isTrue(root.join("account", JoinType.INNER).get("ativo"));
+        return (root, query, cb) -> cb.and(
+                cb.isTrue(root.join("account", JoinType.INNER).get("ativo")),
+                cb.equal(root.get("statusVerificacao"),
+                        com.vitral.enumerations.StatusVerificacaoSebo.VERIFICADO));
     }
 
     public static Specification<Sebo> nomeContem(String termo) {

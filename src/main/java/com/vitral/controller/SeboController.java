@@ -12,6 +12,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.data.domain.Pageable;
+import com.vitral.dto.PageResponse;
+import com.vitral.enumerations.StatusVerificacaoSebo;
 
 import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.SeboRequest;
@@ -60,6 +64,22 @@ public class SeboController {
     @Operation(summary = "Consulta o perfil do sebo vinculado a conta autenticada")
     public ResponseEntity<SeboResponse> buscarMeuSebo(@AuthenticationPrincipal AccountUserDetails principal) {
         return ResponseEntity.ok(seboService.buscarMeuSebo(principal.getAccount()));
+    }
+
+    @GetMapping("/verificacao/pendentes")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Lista sebos aguardando verificacao")
+    public ResponseEntity<PageResponse<SeboResponse>> listarPendentes(Pageable pageable) {
+        return ResponseEntity.ok(PageResponse.from(seboService.listarPendentes(pageable)));
+    }
+
+    @PutMapping("/{id}/verificacao")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Aprova ou rejeita a verificacao de um sebo")
+    public ResponseEntity<SeboResponse> revisarVerificacao(
+            @PathVariable Long id,
+            @RequestParam StatusVerificacaoSebo status) {
+        return ResponseEntity.ok(seboService.revisarVerificacao(id, status));
     }
 
     @DeleteMapping("/me")

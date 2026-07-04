@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import java.util.List;
 
 import com.vitral.entity.Produto;
 
@@ -29,4 +30,14 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long>, JpaSpec
     @Modifying
     @Query("update Produto p set p.ativo = false where p.sebo.id = :seboId")
     int desativarCatalogoDoSebo(@Param("seboId") Long seboId);
+
+    @Query("""
+            select p from Produto p
+            where lower(trim(p.titulo)) = lower(trim(:titulo))
+              and p.ativo = true
+              and p.estoque > 0
+              and p.sebo.account.ativo = true
+              and p.sebo.statusVerificacao = com.vitral.enumerations.StatusVerificacaoSebo.VERIFICADO
+            """)
+    List<Produto> vendedoresAtivosPorTitulo(@Param("titulo") String titulo);
 }

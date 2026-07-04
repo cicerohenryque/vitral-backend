@@ -31,6 +31,7 @@ import org.springframework.http.HttpStatus;
 
 import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
+import com.vitral.dto.VendedorProdutoResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.BaseEntity;
 import com.vitral.entity.Categoria;
@@ -38,6 +39,7 @@ import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.enumerations.StatusVerificacaoSebo;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.ProdutoMapper;
@@ -91,10 +93,12 @@ class ProdutoServiceTest {
                 .build();
         setId(contaOutroSebo, 200L);
 
-        seboDono = Sebo.builder().account(contaDona).cidade("Campina Grande").build();
+        seboDono = Sebo.builder().account(contaDona).cidade("Campina Grande")
+                .statusVerificacao(StatusVerificacaoSebo.VERIFICADO).build();
         setId(seboDono, 1L);
 
-        seboOutro = Sebo.builder().account(contaOutroSebo).cidade("Recife").build();
+        seboOutro = Sebo.builder().account(contaOutroSebo).cidade("Recife")
+                .statusVerificacao(StatusVerificacaoSebo.VERIFICADO).build();
         setId(seboOutro, 2L);
 
         request = new ProdutoRequest(
@@ -250,6 +254,28 @@ class ProdutoServiceTest {
     }
 
     @Test
+    @DisplayName("Deve listar vendedores verificados do mesmo produto pelo menor preco efetivo")
+    void shouldListVerifiedSellersByEffectivePrice() {
+        Produto referencia = Produto.builder().sebo(seboDono).titulo("Dom Casmurro")
+                .preco(new BigDecimal("50.00")).estoque(2).condicao(CondicaoProduto.USADO).ativo(true).build();
+        setId(referencia, 10L);
+        Produto concorrente = Produto.builder().sebo(seboOutro).titulo("dom casmurro")
+                .preco(new BigDecimal("40.00")).estoque(1).condicao(CondicaoProduto.SEMINOVO).ativo(true).build();
+        setId(concorrente, 11L);
+
+        when(produtoRepository.findByIdAndAtivoTrue(10L)).thenReturn(Optional.of(referencia));
+        when(produtoRepository.vendedoresAtivosPorTitulo("Dom Casmurro"))
+                .thenReturn(List.of(referencia, concorrente));
+        when(precoService.precoPromocionalVigente(referencia)).thenReturn(Optional.of(new BigDecimal("45.00")));
+        when(precoService.precoPromocionalVigente(concorrente)).thenReturn(Optional.empty());
+
+        List<VendedorProdutoResponse> vendedores = produtoService.listarVendedores(10L);
+
+        assertThat(vendedores).extracting(VendedorProdutoResponse::produtoId).containsExactly(11L, 10L);
+        assertThat(vendedores.getFirst().precoEfetivo()).isEqualByComparingTo("40.00");
+    }
+
+    @Test
     @DisplayName("Deve listar produtos ativos de um sebo de forma paginada")
     void shouldListActiveProductsBySeboPaged() {
         Produto p1 = Produto.builder().sebo(seboDono).ativo(Boolean.TRUE).build();
@@ -261,7 +287,8 @@ class ProdutoServiceTest {
         ProdutoResponse r1 = new ProdutoResponse(1L, 1L, null, null, "A", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
         ProdutoResponse r2 = new ProdutoResponse(2L, 1L, null, null, "B", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
 
-        when(produtoRepository.findBySeboIdAndAtivoTrue(1L, pageable)).thenReturn(pagina);
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+                .thenReturn(pagina);
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(eq(p1), any())).thenReturn(r1);
         when(produtoMapper.toResponse(eq(p2), any())).thenReturn(r2);
@@ -283,7 +310,7 @@ class ProdutoServiceTest {
         ProdutoResponse response = new ProdutoResponse(1L, 1L, 7L, "Romance", "A", null, null,
                 BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
         when(categoriaService.buscarEntidade(7L)).thenReturn(categoria);
-        when(produtoRepository.findByCategoriaIdAndAtivoTrue(7L, pageable))
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(eq(produto), any())).thenReturn(response);
@@ -302,7 +329,7 @@ class ProdutoServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Lancamento", null, null,
                 BigDecimal.TEN, null, 2, CondicaoProduto.NOVO, null, true);
-        when(produtoRepository.findByAtivoTrue(pageable))
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(eq(produto), any())).thenReturn(response);
@@ -310,7 +337,7 @@ class ProdutoServiceTest {
         Page<ProdutoResponse> resultado = produtoService.listarLancamentos(pageable);
 
         assertThat(resultado.getContent()).containsExactly(response);
-        verify(produtoRepository).findByAtivoTrue(pageable);
+        verify(produtoRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
     }
 
     @Test
@@ -321,7 +348,7 @@ class ProdutoServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Classico", null, null,
                 BigDecimal.TEN, null, 1, CondicaoProduto.USADO, null, true);
-        when(produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable))
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(eq(produto), any())).thenReturn(response);
@@ -329,21 +356,21 @@ class ProdutoServiceTest {
         Page<ProdutoResponse> resultado = produtoService.listarClassicos(pageable);
 
         assertThat(resultado.getContent()).containsExactly(response);
-        verify(produtoRepository).findByAtivoTrueOrderByCreatedAtAsc(pageable);
+        verify(produtoRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
     }
 
     @Test
     @DisplayName("Deve retornar pagina vazia quando nao existem produtos classicos ativos")
     void listarClassicos_semProdutos_retornaPaginaVazia() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable))
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         Page<ProdutoResponse> resultado = produtoService.listarClassicos(pageable);
 
         assertThat(resultado.getContent()).isEmpty();
         assertThat(resultado.getTotalElements()).isZero();
-        verify(produtoRepository).findByAtivoTrueOrderByCreatedAtAsc(pageable);
+        verify(produtoRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
     }
 
     private void setId(Object entity, Long id) {
