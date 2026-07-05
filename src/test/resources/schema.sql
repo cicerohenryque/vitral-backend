@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS pedido;
 DROP TABLE IF EXISTS movimentacao_estoque;
 DROP TABLE IF EXISTS auditoria_verificacao_sebo;
 DROP TABLE IF EXISTS documento_verificacao_sebo;
+DROP TABLE IF EXISTS documento_upload;
 DROP TABLE IF EXISTS mensagem;
 DROP TABLE IF EXISTS cesta_item;
 DROP TABLE IF EXISTS favoritos;
@@ -77,6 +78,18 @@ CREATE TABLE auditoria_verificacao_sebo (
     updated_at TIMESTAMP NOT NULL,
     CONSTRAINT fk_auditoria_sebo FOREIGN KEY (sebo_id) REFERENCES sebo(id),
     CONSTRAINT fk_auditoria_admin FOREIGN KEY (analisado_por) REFERENCES account(id)
+);
+
+CREATE TABLE documento_upload (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    sebo_id BIGINT NOT NULL,
+    nome_interno VARCHAR(80) NOT NULL UNIQUE,
+    nome_original VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(50) NOT NULL,
+    tamanho_bytes BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_documento_upload_sebo FOREIGN KEY (sebo_id) REFERENCES sebo(id)
 );
 
 CREATE TABLE categoria (

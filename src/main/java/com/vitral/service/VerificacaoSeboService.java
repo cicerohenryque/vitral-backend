@@ -24,6 +24,7 @@ import com.vitral.repository.AuditoriaVerificacaoSeboRepository;
 import com.vitral.repository.DocumentoVerificacaoSeboRepository;
 import com.vitral.repository.ProdutoRepository;
 import com.vitral.repository.SeboRepository;
+import com.vitral.repository.DocumentoUploadRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -34,10 +35,17 @@ public class VerificacaoSeboService {
     private final AuditoriaVerificacaoSeboRepository auditoriaRepository;
     private final ProdutoRepository produtoRepository;
     private final SeboMapper seboMapper;
+    private final DocumentoUploadRepository uploadRepository;
+
+    private static final String PREFIXO_DOCUMENTO = "/api/v1/uploads/documents/";
 
     @Transactional
     public DocumentoVerificacaoSeboResponse enviarDocumento(Account account, DocumentoVerificacaoSeboRequest request) {
         Sebo sebo = buscarPorAccount(account);
+        String nomeInterno = extrairNomeInterno(request.arquivoUrl());
+        if (!uploadRepository.existsByNomeInternoAndSeboAccountId(nomeInterno, account.getId())) {
+            throw new BusinessException("O arquivo informado nao pertence ao sebo autenticado", HttpStatus.FORBIDDEN);
+        }
         DocumentoVerificacaoSebo documento = DocumentoVerificacaoSebo.builder()
                 .sebo(sebo).tipoDocumento(request.tipoDocumento()).arquivoUrl(request.arquivoUrl())
                 .status(StatusDocumentoSebo.PENDENTE).enviadoEm(OffsetDateTime.now()).build();
@@ -115,5 +123,16 @@ public class VerificacaoSeboService {
     private DocumentoVerificacaoSeboResponse toResponse(DocumentoVerificacaoSebo d) {
         return new DocumentoVerificacaoSeboResponse(d.getId(), d.getTipoDocumento(), d.getArquivoUrl(), d.getStatus(),
                 d.getEnviadoEm(), d.getAnalisadoEm(), d.getAnalisadoPor() == null ? null : d.getAnalisadoPor().getId(), d.getMotivoRejeicao());
+    }
+
+    private String extrairNomeInterno(String url) {
+        if (url == null || !url.startsWith(PREFIXO_DOCUMENTO)) {
+            throw new BusinessException("Use uma URL de documento gerada pelo backend", HttpStatus.BAD_REQUEST);
+        }
+        String nome = url.substring(PREFIXO_DOCUMENTO.length());
+        if (nome.isBlank() || nome.contains("/") || nome.contains("\\") || nome.contains("..")) {
+            throw new BusinessException("URL de documento invalida", HttpStatus.BAD_REQUEST);
+        }
+        return nome;
     }
 }

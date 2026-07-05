@@ -507,6 +507,8 @@ class PedidoServiceTest {
         assertThat(resultado.get(2).vendasOnline()).isEqualByComparingTo("100.00");
         assertThat(resultado.get(2).vendasFisicas()).isEqualByComparingTo("40.00");
         assertThat(resultado.get(2).reembolsos()).isEqualByComparingTo("25.00");
+        assertThat(resultado.get(2).estornosReembolsos()).isEqualByComparingTo("25.00");
+        assertThat(resultado.get(2).total()).isEqualByComparingTo("115.00");
         assertThat(resultado.get(2).totalLiquido()).isEqualByComparingTo("115.00");
         assertThat(resultado.get(3).estornos()).isEqualByComparingTo("10.00");
         assertThat(resultado.get(3).totalLiquido()).isEqualByComparingTo("-10.00");

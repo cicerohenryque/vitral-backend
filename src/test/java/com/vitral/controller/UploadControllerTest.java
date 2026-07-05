@@ -18,6 +18,9 @@ import org.springframework.mock.web.MockMultipartFile;
 import com.vitral.dto.UploadResponse;
 import com.vitral.service.UploadService;
 import com.vitral.service.DocumentoUploadService;
+import com.vitral.entity.Account;
+import com.vitral.enumerations.AccountType;
+import com.vitral.security.AccountUserDetails;
 
 @ExtendWith(MockitoExtension.class)
 class UploadControllerTest {
@@ -66,25 +69,29 @@ class UploadControllerTest {
 
     @Test
     void uploadDocument_retornaUrlPrivada() {
+        Account account = Account.builder().type(AccountType.SEBO).build();
+        AccountUserDetails principal = new AccountUserDetails(account);
         MockMultipartFile file = new MockMultipartFile("file", "contrato.pdf", "application/pdf", "%PDF-1.7".getBytes());
         String url = "/api/v1/uploads/documents/documento.pdf";
-        when(documentoUploadService.armazenar(file)).thenReturn(url);
+        when(documentoUploadService.armazenar(account, file)).thenReturn(url);
 
-        var response = uploadController.uploadDocument(file);
+        var response = uploadController.uploadDocument(principal, file);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isEqualTo(new UploadResponse(url));
-        verify(documentoUploadService).armazenar(file);
+        verify(documentoUploadService).armazenar(account, file);
     }
 
     @Test
     void getDocument_impedeCachePublico() {
+        Account account = Account.builder().type(AccountType.ADMIN).build();
+        AccountUserDetails principal = new AccountUserDetails(account);
         String filename = "documento.pdf";
         ByteArrayResource document = new ByteArrayResource("%PDF-1.7".getBytes());
-        when(documentoUploadService.carregar(filename)).thenReturn(document);
+        when(documentoUploadService.carregar(account, filename)).thenReturn(document);
         when(documentoUploadService.contentType(filename)).thenReturn("application/pdf");
 
-        var response = uploadController.getDocument(filename);
+        var response = uploadController.getDocument(principal, filename);
 
         assertThat(response.getHeaders().getContentType().toString()).isEqualTo("application/pdf");
         assertThat(response.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL)).isEqualTo("private, no-store");

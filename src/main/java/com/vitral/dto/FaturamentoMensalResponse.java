@@ -9,5 +9,7 @@ public record FaturamentoMensalResponse(
         BigDecimal vendasFisicas,
         BigDecimal estornos,
         BigDecimal reembolsos,
+        BigDecimal estornosReembolsos,
+        BigDecimal total,
         BigDecimal totalLiquido) {
 }

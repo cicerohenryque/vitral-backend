@@ -256,9 +256,10 @@ public class PedidoService {
                     BigDecimal vendasFisicas = fisicas.getOrDefault(mes, BigDecimal.ZERO);
                     BigDecimal valorEstornos = estornos.getOrDefault(mes, BigDecimal.ZERO);
                     BigDecimal valorReembolsos = reembolsos.getOrDefault(mes, BigDecimal.ZERO);
-                    BigDecimal liquido = vendasOnline.add(vendasFisicas).subtract(valorEstornos).subtract(valorReembolsos);
+                    BigDecimal deducoes = valorEstornos.add(valorReembolsos);
+                    BigDecimal liquido = vendasOnline.add(vendasFisicas).subtract(deducoes);
                     return new FaturamentoMensalResponse(ano, mes, vendasOnline, vendasFisicas,
-                            valorEstornos, valorReembolsos, liquido);
+                            valorEstornos, valorReembolsos, deducoes, liquido, liquido);
                 })
                 .toList();
     }

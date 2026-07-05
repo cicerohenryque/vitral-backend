@@ -15,28 +15,44 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.annotation.Transactional;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
+import com.vitral.entity.Account;
+import com.vitral.entity.DocumentoUpload;
+import com.vitral.entity.Sebo;
+import com.vitral.enumerations.AccountType;
+import com.vitral.repository.DocumentoUploadRepository;
+import com.vitral.repository.SeboRepository;
 
 @Service
 public class DocumentoUploadService {
     private static final Set<String> TIPOS_PERMITIDOS = Set.of(
-            "application/pdf", "image/jpeg", "image/png", "image/webp");
+            "application/pdf", "image/jpeg", "image/png");
     private static final Map<String, String> EXTENSOES = Map.of(
-            "application/pdf", ".pdf", "image/jpeg", ".jpg", "image/png", ".png", "image/webp", ".webp");
+            "application/pdf", ".pdf", "image/jpeg", ".jpg", "image/png", ".png");
 
     private final Path diretorio;
     private final long tamanhoMaximo;
+    private final SeboRepository seboRepository;
+    private final DocumentoUploadRepository metadataRepository;
 
     public DocumentoUploadService(
             @Value("${app.upload.document-dir:uploads/documents}") String diretorio,
-            @Value("${app.upload.document-max-size-bytes:10485760}") long tamanhoMaximo) {
+            @Value("${app.upload.document-max-size-bytes:10485760}") long tamanhoMaximo,
+            SeboRepository seboRepository,
+            DocumentoUploadRepository metadataRepository) {
         this.diretorio = Path.of(diretorio).toAbsolutePath().normalize();
         this.tamanhoMaximo = tamanhoMaximo;
+        this.seboRepository = seboRepository;
+        this.metadataRepository = metadataRepository;
     }
 
-    public String armazenar(MultipartFile arquivo) {
+    @Transactional
+    public String armazenar(Account account, MultipartFile arquivo) {
         String tipo = validar(arquivo);
+        Sebo sebo = seboRepository.findByAccountId(account.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
         try {
             Files.createDirectories(diretorio);
             String nome = UUID.randomUUID() + EXTENSOES.get(tipo);
@@ -45,13 +61,23 @@ public class DocumentoUploadService {
             try (InputStream input = arquivo.getInputStream()) {
                 Files.copy(input, destino, StandardCopyOption.REPLACE_EXISTING);
             }
+            metadataRepository.save(DocumentoUpload.builder().sebo(sebo).nomeInterno(nome)
+                    .nomeOriginal(nomeOriginal(arquivo)).mimeType(tipo).tamanhoBytes(arquivo.getSize()).build());
             return "/api/v1/uploads/documents/" + nome;
         } catch (IOException e) {
             throw erro("Nao foi possivel salvar o documento.");
         }
     }
 
-    public Resource carregar(String nome) {
+    @Transactional(readOnly = true)
+    public Resource carregar(Account account, String nome) {
+        DocumentoUpload metadata = metadataRepository.findByNomeInterno(nome)
+                .orElseThrow(() -> new ResourceNotFoundException("Documento nao encontrado."));
+        boolean admin = account.getType() == AccountType.ADMIN;
+        boolean proprietario = metadata.getSebo().getAccount().getId().equals(account.getId());
+        if (!admin && !proprietario) {
+            throw new BusinessException("Acesso negado ao documento", HttpStatus.FORBIDDEN);
+        }
         try {
             Path arquivo = diretorio.resolve(nome).normalize();
             if (!arquivo.startsWith(diretorio) || !Files.isRegularFile(arquivo)) {
@@ -68,7 +94,6 @@ public class DocumentoUploadService {
         if (n.endsWith(".pdf")) return "application/pdf";
         if (n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image/jpeg";
         if (n.endsWith(".png")) return "image/png";
-        if (n.endsWith(".webp")) return "image/webp";
         return "application/octet-stream";
     }
 
@@ -76,8 +101,9 @@ public class DocumentoUploadService {
         if (arquivo == null || arquivo.isEmpty()) throw erro("Selecione um documento para upload.");
         if (arquivo.getSize() > tamanhoMaximo) throw erro("O documento excede o tamanho maximo permitido.");
         if (!TIPOS_PERMITIDOS.contains(arquivo.getContentType())) {
-            throw erro("Formato invalido. Use PDF, JPG, PNG ou WEBP.");
+            throw erro("Formato invalido. Use PDF, JPG, JPEG ou PNG.");
         }
+        validarExtensao(arquivo.getOriginalFilename(), arquivo.getContentType());
         try {
             byte[] inicio = arquivo.getInputStream().readNBytes(12);
             String detectado = detectarTipo(inicio);
@@ -97,7 +123,24 @@ public class DocumentoUploadService {
                 && b[4] == 0x0d && b[5] == 0x0a && b[6] == 0x1a && b[7] == 0x0a) return "image/png";
         if (b.length >= 12 && b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F'
                 && b[8] == 'W' && b[9] == 'E' && b[10] == 'B' && b[11] == 'P') return "image/webp";
-        throw erro("Conteudo de arquivo invalido. Use PDF, JPG, PNG ou WEBP.");
+        throw erro("Conteudo de arquivo invalido. Use PDF, JPG, JPEG ou PNG.");
+    }
+
+    private void validarExtensao(String nome, String tipo) {
+        String n = nome == null ? "" : nome.toLowerCase(Locale.ROOT);
+        boolean valida = switch (tipo) {
+            case "application/pdf" -> n.endsWith(".pdf");
+            case "image/jpeg" -> n.endsWith(".jpg") || n.endsWith(".jpeg");
+            case "image/png" -> n.endsWith(".png");
+            default -> false;
+        };
+        if (!valida) throw erro("A extensao do arquivo nao corresponde ao formato informado.");
+    }
+
+    private String nomeOriginal(MultipartFile arquivo) {
+        String nome = arquivo.getOriginalFilename();
+        if (nome == null || nome.isBlank()) return "documento" + EXTENSOES.get(arquivo.getContentType());
+        return Path.of(nome).getFileName().toString();
     }
 
     private BusinessException erro(String mensagem) {
