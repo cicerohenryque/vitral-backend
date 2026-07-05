@@ -17,12 +17,16 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import com.vitral.dto.UploadResponse;
 import com.vitral.service.UploadService;
+import com.vitral.service.DocumentoUploadService;
 
 @ExtendWith(MockitoExtension.class)
 class UploadControllerTest {
 
     @Mock
     private UploadService uploadService;
+
+    @Mock
+    private DocumentoUploadService documentoUploadService;
 
     @InjectMocks
     private UploadController uploadController;
@@ -58,5 +62,32 @@ class UploadControllerTest {
         assertThat(response.getBody()).isSameAs(image);
         verify(uploadService).loadImage(filename);
         verify(uploadService).contentType(filename);
+    }
+
+    @Test
+    void uploadDocument_retornaUrlPrivada() {
+        MockMultipartFile file = new MockMultipartFile("file", "contrato.pdf", "application/pdf", "%PDF-1.7".getBytes());
+        String url = "/api/v1/uploads/documents/documento.pdf";
+        when(documentoUploadService.armazenar(file)).thenReturn(url);
+
+        var response = uploadController.uploadDocument(file);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(new UploadResponse(url));
+        verify(documentoUploadService).armazenar(file);
+    }
+
+    @Test
+    void getDocument_impedeCachePublico() {
+        String filename = "documento.pdf";
+        ByteArrayResource document = new ByteArrayResource("%PDF-1.7".getBytes());
+        when(documentoUploadService.carregar(filename)).thenReturn(document);
+        when(documentoUploadService.contentType(filename)).thenReturn("application/pdf");
+
+        var response = uploadController.getDocument(filename);
+
+        assertThat(response.getHeaders().getContentType().toString()).isEqualTo("application/pdf");
+        assertThat(response.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL)).isEqualTo("private, no-store");
+        assertThat(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION)).contains("inline");
     }
 }

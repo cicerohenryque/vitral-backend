@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.vitral.dto.UploadResponse;
 import com.vitral.service.UploadService;
+import com.vitral.service.DocumentoUploadService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class UploadController {
 
     private final UploadService uploadService;
+    private final DocumentoUploadService documentoUploadService;
 
     @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("isAuthenticated()")
@@ -43,5 +45,24 @@ public class UploadController {
                 .header(HttpHeaders.CACHE_CONTROL, "public, max-age=31536000, immutable")
                 .contentType(MediaType.parseMediaType(uploadService.contentType(filename)))
                 .body(image);
+    }
+
+    @PostMapping(value = "/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('SEBO')")
+    @Operation(summary = "Faz upload privado de documento PDF, JPG, PNG ou WEBP")
+    public ResponseEntity<UploadResponse> uploadDocument(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(new UploadResponse(documentoUploadService.armazenar(file)));
+    }
+
+    @GetMapping("/documents/{filename}")
+    @PreAuthorize("hasAnyRole('SEBO','ADMIN')")
+    @Operation(summary = "Consulta autenticada de documento de verificacao")
+    public ResponseEntity<Resource> getDocument(@PathVariable String filename) {
+        Resource document = documentoUploadService.carregar(filename);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType(documentoUploadService.contentType(filename)))
+                .body(document);
     }
 }

@@ -14,18 +14,25 @@ public interface MovimentacaoEstoqueRepository extends JpaRepository<Movimentaca
     Page<MovimentacaoEstoque> findBySeboAccountIdOrderByCreatedAtDesc(Long accountId, Pageable pageable);
 
     @Query("""
-            select month(m.createdAt),
-                   coalesce(sum(case when m.tipo = com.vitral.enumerations.TipoMovimentacaoEstoque.VENDA_FISICA
-                       then m.valorTotal else -m.valorTotal end), 0)
+            select month(m.createdAt), coalesce(sum(m.valorTotal), 0)
             from MovimentacaoEstoque m
             where m.sebo.id = :seboId
               and year(m.createdAt) = :ano
-              and m.tipo in (com.vitral.enumerations.TipoMovimentacaoEstoque.VENDA_FISICA,
-                             com.vitral.enumerations.TipoMovimentacaoEstoque.ESTORNO)
-              and (m.tipo <> com.vitral.enumerations.TipoMovimentacaoEstoque.ESTORNO
-                   or m.movimentacaoOrigem.tipo = com.vitral.enumerations.TipoMovimentacaoEstoque.VENDA_FISICA)
+              and m.tipo = com.vitral.enumerations.TipoMovimentacaoEstoque.VENDA_FISICA
             group by month(m.createdAt)
             order by month(m.createdAt)
             """)
-    List<Object[]> faturamentoFisicoMensal(@Param("seboId") Long seboId, @Param("ano") int ano);
+    List<Object[]> vendasFisicasMensais(@Param("seboId") Long seboId, @Param("ano") int ano);
+
+    @Query("""
+            select month(m.createdAt), coalesce(sum(m.valorTotal), 0)
+            from MovimentacaoEstoque m
+            where m.sebo.id = :seboId
+              and year(m.createdAt) = :ano
+              and m.tipo = com.vitral.enumerations.TipoMovimentacaoEstoque.ESTORNO
+              and m.movimentacaoOrigem.tipo = com.vitral.enumerations.TipoMovimentacaoEstoque.VENDA_FISICA
+            group by month(m.createdAt)
+            order by month(m.createdAt)
+            """)
+    List<Object[]> estornosFisicosMensais(@Param("seboId") Long seboId, @Param("ano") int ano);
 }

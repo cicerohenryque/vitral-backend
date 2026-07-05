@@ -492,17 +492,23 @@ class PedidoServiceTest {
         Account seboAccount = buildSeboAccount(1L);
         Sebo sebo = buildSebo(seboAccount, 5L);
         when(seboRepository.findByAccountId(1L)).thenReturn(Optional.of(sebo));
-        when(pedidoRepository.faturamentoMensal(5L, 2026))
+        when(pedidoRepository.vendasOnlineMensais(5L, 2026))
                 .thenReturn(List.<Object[]>of(new Object[] { 3, new BigDecimal("100.00") }));
-        when(movimentacaoEstoqueRepository.faturamentoFisicoMensal(5L, 2026))
-                .thenReturn(List.<Object[]>of(
-                        new Object[] { 3, new BigDecimal("40.00") },
-                        new Object[] { 4, new BigDecimal("-10.00") }));
+        when(movimentacaoEstoqueRepository.vendasFisicasMensais(5L, 2026))
+                .thenReturn(List.<Object[]>of(new Object[] { 3, new BigDecimal("40.00") }));
+        when(movimentacaoEstoqueRepository.estornosFisicosMensais(5L, 2026))
+                .thenReturn(List.<Object[]>of(new Object[] { 4, new BigDecimal("10.00") }));
+        when(pedidoRepository.reembolsosMensais(5L, 2026))
+                .thenReturn(List.<Object[]>of(new Object[] { 3, new BigDecimal("25.00") }));
 
         List<FaturamentoMensalResponse> resultado = pedidoService.faturamentoMensal(seboAccount, 2026);
 
         assertThat(resultado).hasSize(12);
-        assertThat(resultado.get(2).total()).isEqualByComparingTo("140.00");
-        assertThat(resultado.get(3).total()).isEqualByComparingTo("-10.00");
+        assertThat(resultado.get(2).vendasOnline()).isEqualByComparingTo("100.00");
+        assertThat(resultado.get(2).vendasFisicas()).isEqualByComparingTo("40.00");
+        assertThat(resultado.get(2).reembolsos()).isEqualByComparingTo("25.00");
+        assertThat(resultado.get(2).totalLiquido()).isEqualByComparingTo("115.00");
+        assertThat(resultado.get(3).estornos()).isEqualByComparingTo("10.00");
+        assertThat(resultado.get(3).totalLiquido()).isEqualByComparingTo("-10.00");
     }
 }

@@ -246,13 +246,26 @@ public class PedidoService {
         }
         Sebo sebo = seboRepository.findByAccountId(account.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
-        Map<Integer, BigDecimal> totais = pedidoRepository.faturamentoMensal(sebo.getId(), ano).stream()
-                .collect(Collectors.toMap(row -> ((Number) row[0]).intValue(), row -> (BigDecimal) row[1]));
-        movimentacaoEstoqueRepository.faturamentoFisicoMensal(sebo.getId(), ano).forEach(row ->
-                totais.merge(((Number) row[0]).intValue(), (BigDecimal) row[1], BigDecimal::add));
+        Map<Integer, BigDecimal> online = porMes(pedidoRepository.vendasOnlineMensais(sebo.getId(), ano));
+        Map<Integer, BigDecimal> fisicas = porMes(movimentacaoEstoqueRepository.vendasFisicasMensais(sebo.getId(), ano));
+        Map<Integer, BigDecimal> estornos = porMes(movimentacaoEstoqueRepository.estornosFisicosMensais(sebo.getId(), ano));
+        Map<Integer, BigDecimal> reembolsos = porMes(pedidoRepository.reembolsosMensais(sebo.getId(), ano));
         return java.util.stream.IntStream.rangeClosed(1, 12)
-                .mapToObj(mes -> new FaturamentoMensalResponse(ano, mes, totais.getOrDefault(mes, BigDecimal.ZERO)))
+                .mapToObj(mes -> {
+                    BigDecimal vendasOnline = online.getOrDefault(mes, BigDecimal.ZERO);
+                    BigDecimal vendasFisicas = fisicas.getOrDefault(mes, BigDecimal.ZERO);
+                    BigDecimal valorEstornos = estornos.getOrDefault(mes, BigDecimal.ZERO);
+                    BigDecimal valorReembolsos = reembolsos.getOrDefault(mes, BigDecimal.ZERO);
+                    BigDecimal liquido = vendasOnline.add(vendasFisicas).subtract(valorEstornos).subtract(valorReembolsos);
+                    return new FaturamentoMensalResponse(ano, mes, vendasOnline, vendasFisicas,
+                            valorEstornos, valorReembolsos, liquido);
+                })
                 .toList();
+    }
+
+    private Map<Integer, BigDecimal> porMes(List<Object[]> valores) {
+        return valores.stream().collect(Collectors.toMap(
+                row -> ((Number) row[0]).intValue(), row -> (BigDecimal) row[1], BigDecimal::add));
     }
 
     private PedidoResponse toResponse(Pedido pedido) {
