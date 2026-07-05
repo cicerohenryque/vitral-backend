@@ -1,6 +1,8 @@
 DROP TABLE IF EXISTS pedido_item;
 DROP TABLE IF EXISTS pedido;
 DROP TABLE IF EXISTS movimentacao_estoque;
+DROP TABLE IF EXISTS auditoria_verificacao_sebo;
+DROP TABLE IF EXISTS documento_verificacao_sebo;
 DROP TABLE IF EXISTS mensagem;
 DROP TABLE IF EXISTS cesta_item;
 DROP TABLE IF EXISTS favoritos;
@@ -36,6 +38,7 @@ CREATE TABLE sebo (
     cnpj                   VARCHAR(14),
     status_verificacao     VARCHAR(20) NOT NULL DEFAULT 'VERIFICADO',
     verificado_em          TIMESTAMP,
+    motivo_rejeicao        VARCHAR(500),
     cep                    VARCHAR(9),
     logradouro             VARCHAR(255),
     cidade                 VARCHAR(120),
@@ -46,6 +49,35 @@ CREATE TABLE sebo (
     updated_at             TIMESTAMP    NOT NULL,
     CONSTRAINT uk_sebo_account UNIQUE (account_id),
     CONSTRAINT fk_sebo_account FOREIGN KEY (account_id) REFERENCES account (id) ON DELETE CASCADE
+);
+
+CREATE TABLE documento_verificacao_sebo (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    sebo_id BIGINT NOT NULL,
+    tipo_documento VARCHAR(30) NOT NULL,
+    arquivo_url VARCHAR(500) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    enviado_em TIMESTAMP NOT NULL,
+    analisado_em TIMESTAMP,
+    analisado_por BIGINT,
+    motivo_rejeicao VARCHAR(500),
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_documento_sebo FOREIGN KEY (sebo_id) REFERENCES sebo(id),
+    CONSTRAINT fk_documento_admin FOREIGN KEY (analisado_por) REFERENCES account(id)
+);
+
+CREATE TABLE auditoria_verificacao_sebo (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    sebo_id BIGINT NOT NULL,
+    analisado_por BIGINT NOT NULL,
+    status_anterior VARCHAR(20) NOT NULL,
+    novo_status VARCHAR(20) NOT NULL,
+    motivo VARCHAR(500),
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_auditoria_sebo FOREIGN KEY (sebo_id) REFERENCES sebo(id),
+    CONSTRAINT fk_auditoria_admin FOREIGN KEY (analisado_por) REFERENCES account(id)
 );
 
 CREATE TABLE categoria (

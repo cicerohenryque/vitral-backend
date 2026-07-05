@@ -20,8 +20,13 @@ import com.vitral.enumerations.StatusVerificacaoSebo;
 import com.vitral.dto.MensagemResponse;
 import com.vitral.dto.SeboRequest;
 import com.vitral.dto.SeboResponse;
+import com.vitral.dto.DocumentoVerificacaoSeboRequest;
+import com.vitral.dto.DocumentoVerificacaoSeboResponse;
+import com.vitral.dto.AuditoriaVerificacaoSeboResponse;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.service.SeboService;
+import com.vitral.service.VerificacaoSeboService;
+import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,6 +40,7 @@ import lombok.RequiredArgsConstructor;
 public class SeboController {
 
     private final SeboService seboService;
+    private final VerificacaoSeboService verificacaoSeboService;
 
     @PostMapping
     @PreAuthorize("hasRole('SEBO')")
@@ -78,8 +84,35 @@ public class SeboController {
     @Operation(summary = "Aprova ou rejeita a verificacao de um sebo")
     public ResponseEntity<SeboResponse> revisarVerificacao(
             @PathVariable Long id,
-            @RequestParam StatusVerificacaoSebo status) {
-        return ResponseEntity.ok(seboService.revisarVerificacao(id, status));
+            @RequestParam StatusVerificacaoSebo status,
+            @RequestParam(required = false) String motivo,
+            @AuthenticationPrincipal AccountUserDetails principal) {
+        return ResponseEntity.ok(verificacaoSeboService.revisar(principal.getAccount(), id, status, motivo));
+    }
+
+    @PostMapping("/me/documentos")
+    @PreAuthorize("hasRole('SEBO')")
+    public ResponseEntity<DocumentoVerificacaoSeboResponse> enviarDocumento(
+            @AuthenticationPrincipal AccountUserDetails principal, @Valid @RequestBody DocumentoVerificacaoSeboRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(verificacaoSeboService.enviarDocumento(principal.getAccount(), request));
+    }
+
+    @GetMapping("/me/documentos")
+    @PreAuthorize("hasRole('SEBO')")
+    public ResponseEntity<List<DocumentoVerificacaoSeboResponse>> listarMeusDocumentos(@AuthenticationPrincipal AccountUserDetails principal) {
+        return ResponseEntity.ok(verificacaoSeboService.listarMeusDocumentos(principal.getAccount()));
+    }
+
+    @GetMapping("/{id}/documentos")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<DocumentoVerificacaoSeboResponse>> listarDocumentos(@PathVariable Long id) {
+        return ResponseEntity.ok(verificacaoSeboService.listarDocumentos(id));
+    }
+
+    @GetMapping("/{id}/verificacao/auditoria")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AuditoriaVerificacaoSeboResponse>> listarAuditoria(@PathVariable Long id) {
+        return ResponseEntity.ok(verificacaoSeboService.listarAuditoria(id));
     }
 
     @DeleteMapping("/me")

@@ -49,6 +49,9 @@ public class Sebo extends BaseEntity {
     @Column(name = "verificado_em")
     private OffsetDateTime verificadoEm;
 
+    @Column(name = "motivo_rejeicao", length = 500)
+    private String motivoRejeicao;
+
     @Column(length = 9)
     private String cep;
 

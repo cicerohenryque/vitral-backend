@@ -11,5 +11,6 @@ public record SeboResponse(
         String telefone,
         String cnpj,
         StatusVerificacaoSebo statusVerificacao,
+        String motivoRejeicao,
         String fotoUrl) {
 }

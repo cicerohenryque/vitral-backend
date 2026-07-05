@@ -11,7 +11,6 @@ import com.vitral.entity.Account;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.StatusVerificacaoSebo;
-import java.time.OffsetDateTime;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import com.vitral.exception.BusinessException;
@@ -97,21 +96,6 @@ public class SeboService {
     public Page<SeboResponse> listarPendentes(Pageable pageable) {
         return seboRepository.findByStatusVerificacao(StatusVerificacaoSebo.PENDENTE, pageable)
                 .map(seboMapper::toResponse);
-    }
-
-    @Transactional
-    public SeboResponse revisarVerificacao(Long seboId, StatusVerificacaoSebo status) {
-        if (status == StatusVerificacaoSebo.PENDENTE) {
-            throw new BusinessException("Use VERIFICADO ou REJEITADO", HttpStatus.BAD_REQUEST);
-        }
-        Sebo sebo = seboRepository.findById(seboId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado"));
-        sebo.setStatusVerificacao(status);
-        sebo.setVerificadoEm(status == StatusVerificacaoSebo.VERIFICADO ? OffsetDateTime.now() : null);
-        if (status == StatusVerificacaoSebo.REJEITADO) {
-            produtoRepository.desativarCatalogoDoSebo(seboId);
-        }
-        return seboMapper.toResponse(sebo);
     }
 
     @Transactional
