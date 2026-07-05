@@ -45,6 +45,7 @@ import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.ProdutoMapper;
 import com.vitral.repository.ProdutoRepository;
+import com.vitral.repository.PedidoRepository;
 
 @ExtendWith(MockitoExtension.class)
 class ProdutoServiceTest {
@@ -66,6 +67,12 @@ class ProdutoServiceTest {
 
     @Mock
     private CatalogoLivroService catalogoLivroService;
+
+    @Mock
+    private PedidoRepository pedidoRepository;
+
+    @Mock
+    private MovimentacaoEstoqueService movimentacaoEstoqueService;
 
     @InjectMocks
     private ProdutoService produtoService;

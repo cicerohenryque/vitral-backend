@@ -1,5 +1,6 @@
 DROP TABLE IF EXISTS pedido_item;
 DROP TABLE IF EXISTS pedido;
+DROP TABLE IF EXISTS movimentacao_estoque;
 DROP TABLE IF EXISTS mensagem;
 DROP TABLE IF EXISTS cesta_item;
 DROP TABLE IF EXISTS favoritos;
@@ -93,6 +94,27 @@ CREATE TABLE produto (
     CONSTRAINT ck_produto_condicao CHECK (condicao IN ('NOVO', 'USADO', 'SEMINOVO')),
     CONSTRAINT ck_produto_preco CHECK (preco >= 0),
     CONSTRAINT ck_produto_estoque CHECK (estoque >= 0)
+);
+
+CREATE TABLE movimentacao_estoque (
+    id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    produto_id BIGINT NOT NULL,
+    sebo_id BIGINT NOT NULL,
+    operador_id BIGINT NOT NULL,
+    movimentacao_origem_id BIGINT,
+    tipo VARCHAR(20) NOT NULL,
+    quantidade INTEGER NOT NULL,
+    estoque_antes INTEGER NOT NULL,
+    estoque_depois INTEGER NOT NULL,
+    valor_unitario NUMERIC(12, 2),
+    valor_total NUMERIC(12, 2),
+    observacao VARCHAR(500),
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_mov_produto FOREIGN KEY (produto_id) REFERENCES produto(id),
+    CONSTRAINT fk_mov_sebo FOREIGN KEY (sebo_id) REFERENCES sebo(id),
+    CONSTRAINT fk_mov_operador FOREIGN KEY (operador_id) REFERENCES account(id),
+    CONSTRAINT fk_mov_origem FOREIGN KEY (movimentacao_origem_id) REFERENCES movimentacao_estoque(id)
 );
 
 CREATE TABLE oferta (

@@ -18,6 +18,8 @@ import com.vitral.enumerations.StatusVerificacaoSebo;
 import java.util.Comparator;
 import org.springframework.data.jpa.domain.Specification;
 import com.vitral.specification.ProdutoSpecification;
+import com.vitral.dto.RegistrarVendaFisicaRequest;
+import com.vitral.enumerations.TipoMovimentacaoEstoque;
 import com.vitral.entity.Account;
 import com.vitral.entity.Categoria;
 import com.vitral.entity.Produto;
@@ -40,6 +42,7 @@ public class ProdutoService {
     private final PrecoService precoService;
     private final com.vitral.repository.PedidoRepository pedidoRepository;
     private final CatalogoLivroService catalogoLivroService;
+    private final MovimentacaoEstoqueService movimentacaoEstoqueService;
 
     @Transactional
     public ProdutoResponse criar(Account account, ProdutoRequest request) {
@@ -59,6 +62,10 @@ public class ProdutoService {
                 .ativo(normalizarEstoque(request.estoque()) > 0)
                 .build();
         Produto salvo = produtoRepository.save(produto);
+        if (salvo.getEstoque() > 0) {
+            movimentacaoEstoqueService.registrarAlteracao(salvo, account, TipoMovimentacaoEstoque.ENTRADA,
+                    salvo.getEstoque(), 0, salvo.getEstoque(), salvo.getPreco(), "Estoque inicial");
+        }
         return toResponse(salvo);
     }
 
@@ -71,10 +78,17 @@ public class ProdutoService {
         produto.setAutor(request.autor());
         produto.setDescricao(request.descricao());
         produto.setPreco(request.preco());
-        produto.setEstoque(normalizarEstoque(request.estoque()));
+        int estoqueAntes = produto.getEstoque();
+        int estoqueDepois = normalizarEstoque(request.estoque());
+        produto.setEstoque(estoqueDepois);
         produto.setCondicao(request.condicao());
         produto.setFotoUrl(request.fotoUrl());
         produto.setAtivo(produto.getEstoque() > 0);
+        if (estoqueAntes != estoqueDepois) {
+            movimentacaoEstoqueService.registrarAlteracao(produto, account, TipoMovimentacaoEstoque.AJUSTE,
+                    Math.abs(estoqueDepois - estoqueAntes), estoqueAntes, estoqueDepois, produto.getPreco(),
+                    "Ajuste no cadastro do produto");
+        }
         return toResponse(produto);
     }
 
@@ -87,15 +101,9 @@ public class ProdutoService {
     @Transactional
     public ProdutoResponse registrarVendaFisica(Account account, Long produtoId, VendaFisicaRequest request) {
         Produto produto = obterProdutoDoDono(account, produtoId);
-        long reservado = pedidoRepository.sumQuantidadeReservadaEmPedidosPendentes(produtoId);
-        int disponivel = produto.getEstoque() - Math.toIntExact(reservado);
-        if (request.quantidade() > disponivel) {
-            throw new BusinessException("Estoque insuficiente: existem unidades reservadas em pedidos online",
-                    HttpStatus.BAD_REQUEST);
-        }
-        int novoEstoque = produto.getEstoque() - request.quantidade();
-        produto.setEstoque(novoEstoque);
-        produto.setAtivo(novoEstoque > 0);
+        BigDecimal valor = precoService.precoEfetivo(produto);
+        movimentacaoEstoqueService.registrarVendaFisica(account,
+                new RegistrarVendaFisicaRequest(produtoId, request.quantidade(), valor, "Venda fisica (endpoint legado)"));
         return toResponse(produto);
     }
 

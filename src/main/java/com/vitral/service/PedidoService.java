@@ -26,6 +26,7 @@ import com.vitral.entity.Sebo;
 import com.vitral.enumerations.FormaPagamento;
 import com.vitral.enumerations.StatusPagamento;
 import com.vitral.enumerations.StatusPedido;
+import com.vitral.enumerations.TipoMovimentacaoEstoque;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.repository.CestaItemRepository;
@@ -45,6 +46,7 @@ public class PedidoService {
     private final SeboRepository seboRepository;
     private final EmailService emailService;
     private final PrecoService precoService;
+    private final MovimentacaoEstoqueService movimentacaoEstoqueService;
 
     @Transactional
     public PedidoResponse confirmarPedido(Account account, ConfirmarPedidoRequest pagamento) {
@@ -164,6 +166,9 @@ public class PedidoService {
                 int novoEstoque = estoqueAtual - item.getQuantidade();
                 item.getProduto().setEstoque(novoEstoque);
                 item.getProduto().setAtivo(novoEstoque > 0);
+                movimentacaoEstoqueService.registrarAlteracao(item.getProduto(), account,
+                        TipoMovimentacaoEstoque.VENDA_ONLINE, item.getQuantidade(), estoqueAtual, novoEstoque,
+                        item.getPrecoSnapshot(), "Pedido online #" + pedido.getId());
             });
         }
         return toResponse(pedido);

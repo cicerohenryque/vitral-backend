@@ -62,6 +62,9 @@ class PedidoServiceTest {
     @Mock
     private PrecoService precoService;
 
+    @Mock
+    private MovimentacaoEstoqueService movimentacaoEstoqueService;
+
     @InjectMocks
     private PedidoService pedidoService;
 
