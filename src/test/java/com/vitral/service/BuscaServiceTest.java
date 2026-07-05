@@ -81,7 +81,8 @@ class BuscaServiceTest {
                 .build();
 
         seboResponse = new SeboResponse(1L, 1L, "Livraria Leitura", "livraria@email.com",
-                null, null, "12345678000199", StatusVerificacaoSebo.VERIFICADO, null, null);
+                null, null, "12345678000199", StatusVerificacaoSebo.VERIFICADO, null,
+                null, null, null, null, null);
 
         produto = Produto.builder()
                 .sebo(sebo)

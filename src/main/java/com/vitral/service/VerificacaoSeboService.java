@@ -16,6 +16,7 @@ import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.StatusDocumentoSebo;
 import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.StatusConsultaCnpj;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.SeboMapper;
@@ -81,6 +82,9 @@ public class VerificacaoSeboService {
         List<DocumentoVerificacaoSebo> documentos = documentoRepository.findBySeboIdOrderByEnviadoEmDesc(seboId);
         if (status == StatusVerificacaoSebo.VERIFICADO && documentos.isEmpty()) {
             throw new BusinessException("Envie ao menos um documento antes da aprovacao", HttpStatus.BAD_REQUEST);
+        }
+        if (status == StatusVerificacaoSebo.VERIFICADO && sebo.getStatusConsultaCnpj() != StatusConsultaCnpj.ATIVA) {
+            throw new BusinessException("O CNPJ precisa estar ativo na consulta oficial antes da aprovacao", HttpStatus.BAD_REQUEST);
         }
         StatusVerificacaoSebo anterior = sebo.getStatusVerificacao();
         OffsetDateTime agora = OffsetDateTime.now();

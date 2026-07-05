@@ -10,6 +10,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import java.time.OffsetDateTime;
 import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.StatusConsultaCnpj;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import lombok.AllArgsConstructor;
@@ -51,6 +52,20 @@ public class Sebo extends BaseEntity {
 
     @Column(name = "motivo_rejeicao", length = 500)
     private String motivoRejeicao;
+
+    @Column(name = "razao_social_receita", length = 255)
+    private String razaoSocialReceita;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_consulta_cnpj", nullable = false, length = 20)
+    @Builder.Default
+    private StatusConsultaCnpj statusConsultaCnpj = StatusConsultaCnpj.NAO_CONSULTADO;
+
+    @Column(name = "cnpj_consultado_em")
+    private OffsetDateTime cnpjConsultadoEm;
+
+    @Column(name = "mensagem_consulta_cnpj", length = 500)
+    private String mensagemConsultaCnpj;
 
     @Column(name = "foto_url", length = 500)
     private String fotoUrl;

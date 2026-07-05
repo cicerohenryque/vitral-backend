@@ -23,9 +23,11 @@ import com.vitral.dto.SeboResponse;
 import com.vitral.dto.DocumentoVerificacaoSeboRequest;
 import com.vitral.dto.DocumentoVerificacaoSeboResponse;
 import com.vitral.dto.AuditoriaVerificacaoSeboResponse;
+import com.vitral.dto.ConsultaCnpjResponse;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.service.SeboService;
 import com.vitral.service.VerificacaoSeboService;
+import com.vitral.service.CnpjConsultaService;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,6 +43,7 @@ public class SeboController {
 
     private final SeboService seboService;
     private final VerificacaoSeboService verificacaoSeboService;
+    private final CnpjConsultaService cnpjConsultaService;
 
     @PostMapping
     @PreAuthorize("hasRole('SEBO')")
@@ -113,6 +116,13 @@ public class SeboController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<AuditoriaVerificacaoSeboResponse>> listarAuditoria(@PathVariable Long id) {
         return ResponseEntity.ok(verificacaoSeboService.listarAuditoria(id));
+    }
+
+    @PostMapping("/me/verificacao/consultar-cnpj")
+    @PreAuthorize("hasRole('SEBO')")
+    @Operation(summary = "Refaz a consulta automatica do CNPJ do sebo autenticado")
+    public ResponseEntity<ConsultaCnpjResponse> consultarCnpj(@AuthenticationPrincipal AccountUserDetails principal) {
+        return ResponseEntity.ok(cnpjConsultaService.consultarMeuSebo(principal.getAccount()));
     }
 
     @DeleteMapping("/me")

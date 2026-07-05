@@ -28,6 +28,7 @@ public class SeboService {
     private final SeboRepository seboRepository;
     private final SeboMapper seboMapper;
     private final AnonimizacaoContaService anonimizacaoContaService;
+    private final CnpjConsultaService cnpjConsultaService;
 
     @Transactional
     public SeboResponse criar(Account account, SeboRequest request) {
@@ -49,6 +50,7 @@ public class SeboService {
                 .fotoUrl(request.fotoUrl())
                 .build();
         Sebo salvo = seboRepository.save(sebo);
+        cnpjConsultaService.consultar(salvo);
         return seboMapper.toResponse(salvo);
     }
 
@@ -65,6 +67,7 @@ public class SeboService {
             sebo.setCnpj(request.cnpj());
             sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
             sebo.setVerificadoEm(null);
+            cnpjConsultaService.consultar(sebo);
         }
         sebo.setFotoUrl(request.fotoUrl());
         return seboMapper.toResponse(sebo);

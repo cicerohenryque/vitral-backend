@@ -44,6 +44,9 @@ class SeboServiceTest {
     @Mock
     private AnonimizacaoContaService anonimizacaoContaService;
 
+    @Mock
+    private CnpjConsultaService cnpjConsultaService;
+
     @InjectMocks
     private SeboService seboService;
 
@@ -84,7 +87,7 @@ class SeboServiceTest {
     void shouldCreateSeboWhenAccountIsSeboAndHasNoProfileYet() {
         SeboResponse responseEsperado = new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
-                null, request.fotoUrl());
+                null, null, null, null, null, request.fotoUrl());
 
         when(seboRepository.existsByAccountId(10L)).thenReturn(false);
         when(seboRepository.save(seboCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -132,7 +135,7 @@ class SeboServiceTest {
                 .build();
         SeboResponse responseEsperado = new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
-                null, request.fotoUrl());
+                null, null, null, null, null, request.fotoUrl());
 
         when(seboRepository.findByAccountId(10L)).thenReturn(Optional.of(existente));
         when(seboMapper.toResponse(existente)).thenReturn(responseEsperado);
@@ -160,7 +163,8 @@ class SeboServiceTest {
     void shouldReturnSeboWhenIdExists() {
         Sebo sebo = Sebo.builder().account(contaSebo).build();
         SeboResponse responseEsperado = new SeboResponse(7L, 10L, "Sebo do Joao", "sebo@vitral.com",
-                null, null, "12345678000199", StatusVerificacaoSebo.VERIFICADO, null, null);
+                null, null, "12345678000199", StatusVerificacaoSebo.VERIFICADO, null,
+                null, null, null, null, null);
 
         when(seboRepository.findByIdAndAccountAtivoTrueAndStatusVerificacao(
                 7L, StatusVerificacaoSebo.VERIFICADO)).thenReturn(Optional.of(sebo));

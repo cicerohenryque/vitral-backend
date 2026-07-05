@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.vitral.entity.Account;
 import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.StatusConsultaCnpj;
 import com.vitral.repository.ProdutoRepository;
 import com.vitral.repository.SeboRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,10 @@ public class AnonimizacaoContaService {
             sebo.setFotoUrl(null);
             sebo.setVerificadoEm(null);
             sebo.setMotivoRejeicao(null);
+            sebo.setRazaoSocialReceita(null);
+            sebo.setCnpjConsultadoEm(null);
+            sebo.setMensagemConsultaCnpj(null);
+            sebo.setStatusConsultaCnpj(StatusConsultaCnpj.NAO_CONSULTADO);
             sebo.setStatusVerificacao(StatusVerificacaoSebo.REJEITADO);
         });
         anonimizarConta(account);
