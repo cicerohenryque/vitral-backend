@@ -67,6 +67,15 @@ public class PedidoController {
         return ResponseEntity.ok(pedidoService.cancelarPedidoUsuario(principal.getAccount(), id));
     }
 
+    @PutMapping("/{id}/reembolsar")
+    @PreAuthorize("hasRole('SEBO')")
+    @Operation(summary = "Reembolsa integralmente um pedido confirmado e repoe o estoque")
+    public ResponseEntity<PedidoResponse> reembolsarPedido(
+            @AuthenticationPrincipal AccountUserDetails principal,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(pedidoService.reembolsarPedido(principal.getAccount(), id));
+    }
+
     @GetMapping("/meus-pedidos")
     @PreAuthorize("hasRole('USUARIO')")
     @Operation(summary = "Historico de pedidos do usuario autenticado")

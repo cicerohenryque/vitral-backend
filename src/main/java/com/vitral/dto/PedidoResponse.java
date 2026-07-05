@@ -17,5 +17,9 @@ public record PedidoResponse(
         StatusPagamento statusPagamento,
         BigDecimal total,
         OffsetDateTime createdAt,
+        OffsetDateTime confirmadoEm,
+        OffsetDateTime pagoEm,
+        OffsetDateTime canceladoEm,
+        OffsetDateTime reembolsadoEm,
         List<PedidoItemResponse> itens) {
 }

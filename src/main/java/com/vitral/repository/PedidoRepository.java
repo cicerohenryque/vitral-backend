@@ -45,14 +45,15 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     Long sumQuantidadeReservadaEmPedidosPendentes(@Param("produtoId") Long produtoId);
 
     @Query("""
-            select month(p.createdAt), coalesce(sum(p.total), 0)
+            select month(coalesce(p.pagoEm, p.confirmadoEm)), coalesce(sum(p.total), 0)
             from Pedido p
             where p.sebo.id = :seboId
-              and year(p.createdAt) = :ano
+              and year(coalesce(p.pagoEm, p.confirmadoEm)) = :ano
               and p.status = com.vitral.enumerations.StatusPedido.CONFIRMADO
               and p.statusPagamento = com.vitral.enumerations.StatusPagamento.APROVADO
-            group by month(p.createdAt)
-            order by month(p.createdAt)
+              and p.reembolsadoEm is null
+            group by month(coalesce(p.pagoEm, p.confirmadoEm))
+            order by month(coalesce(p.pagoEm, p.confirmadoEm))
             """)
     List<Object[]> faturamentoMensal(@Param("seboId") Long seboId, @Param("ano") int ano);
 }

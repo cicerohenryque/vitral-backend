@@ -26,6 +26,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.vitral.dto.ConfirmarPedidoRequest;
+import com.vitral.dto.FaturamentoMensalResponse;
 import com.vitral.dto.PedidoResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.CestaItem;
@@ -43,6 +44,7 @@ import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.repository.CestaItemRepository;
 import com.vitral.repository.PedidoRepository;
 import com.vitral.repository.SeboRepository;
+import com.vitral.repository.MovimentacaoEstoqueRepository;
 
 @ExtendWith(MockitoExtension.class)
 class PedidoServiceTest {
@@ -64,6 +66,9 @@ class PedidoServiceTest {
 
     @Mock
     private MovimentacaoEstoqueService movimentacaoEstoqueService;
+
+    @Mock
+    private MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
 
     @InjectMocks
     private PedidoService pedidoService;
@@ -188,6 +193,7 @@ class PedidoServiceTest {
         assertThat(response.status()).isEqualTo(StatusPedido.AGUARDANDO_CONFIRMACAO);
         assertThat(response.formaPagamento()).isEqualTo(FormaPagamento.PIX);
         assertThat(response.statusPagamento()).isEqualTo(StatusPagamento.APROVADO);
+        assertThat(response.pagoEm()).isNotNull();
         assertThat(response.total()).isEqualByComparingTo("25.00");
         assertThat(response.itens()).hasSize(1);
         assertThat(response.itens().getFirst().tituloSnapshot()).isEqualTo("O Cortiço");
@@ -350,6 +356,7 @@ class PedidoServiceTest {
 
         assertThat(response.status()).isEqualTo(StatusPedido.CONFIRMADO);
         assertThat(pedido.getStatus()).isEqualTo(StatusPedido.CONFIRMADO);
+        assertThat(pedido.getConfirmadoEm()).isNotNull();
         assertThat(produto.getAtivo()).isFalse();
     }
 
@@ -398,6 +405,7 @@ class PedidoServiceTest {
 
         assertThat(response.status()).isEqualTo(StatusPedido.CANCELADO);
         assertThat(pedido.getStatus()).isEqualTo(StatusPedido.CANCELADO);
+        assertThat(pedido.getCanceladoEm()).isNotNull();
     }
 
     @Test
@@ -476,5 +484,25 @@ class PedidoServiceTest {
 
         assertThat(resultado).isEmpty();
         verify(pedidoRepository).findBySeboIdOrderByCreatedAtDesc(5L, pageable);
+    }
+
+    @Test
+    @DisplayName("Faturamento mensal deve consolidar vendas online, fisicas e estornos")
+    void faturamentoMensal_consolidaOrigens() {
+        Account seboAccount = buildSeboAccount(1L);
+        Sebo sebo = buildSebo(seboAccount, 5L);
+        when(seboRepository.findByAccountId(1L)).thenReturn(Optional.of(sebo));
+        when(pedidoRepository.faturamentoMensal(5L, 2026))
+                .thenReturn(List.<Object[]>of(new Object[] { 3, new BigDecimal("100.00") }));
+        when(movimentacaoEstoqueRepository.faturamentoFisicoMensal(5L, 2026))
+                .thenReturn(List.<Object[]>of(
+                        new Object[] { 3, new BigDecimal("40.00") },
+                        new Object[] { 4, new BigDecimal("-10.00") }));
+
+        List<FaturamentoMensalResponse> resultado = pedidoService.faturamentoMensal(seboAccount, 2026);
+
+        assertThat(resultado).hasSize(12);
+        assertThat(resultado.get(2).total()).isEqualByComparingTo("140.00");
+        assertThat(resultado.get(3).total()).isEqualByComparingTo("-10.00");
     }
 }
