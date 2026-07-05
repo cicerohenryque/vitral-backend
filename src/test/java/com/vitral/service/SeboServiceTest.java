@@ -30,7 +30,6 @@ import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.SeboMapper;
-import com.vitral.repository.AccountRepository;
 import com.vitral.repository.SeboRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,7 +42,7 @@ class SeboServiceTest {
     private SeboMapper seboMapper;
 
     @Mock
-    private AccountRepository accountRepository;
+    private AnonimizacaoContaService anonimizacaoContaService;
 
     @InjectMocks
     private SeboService seboService;
@@ -130,8 +129,6 @@ class SeboServiceTest {
         Sebo existente = Sebo.builder()
                 .account(contaSebo)
                 .descricao("Antiga")
-                .cidade("Joao Pessoa")
-                .uf("PB")
                 .build();
         SeboResponse responseEsperado = new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
@@ -144,7 +141,6 @@ class SeboServiceTest {
 
         assertThat(resultado).isEqualTo(responseEsperado);
         assertThat(existente.getDescricao()).isEqualTo(request.descricao());
-        assertThat(existente.getCidade()).isEqualTo("Joao Pessoa");
         assertThat(existente.getTelefone()).isEqualTo(request.telefone());
         assertThat(existente.getFotoUrl()).isEqualTo(request.fotoUrl());
     }
@@ -162,7 +158,7 @@ class SeboServiceTest {
     @Test
     @DisplayName("Deve retornar resposta mapeada ao buscar sebo por id existente")
     void shouldReturnSeboWhenIdExists() {
-        Sebo sebo = Sebo.builder().account(contaSebo).cidade("Recife").build();
+        Sebo sebo = Sebo.builder().account(contaSebo).build();
         SeboResponse responseEsperado = new SeboResponse(7L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 null, null, "12345678000199", StatusVerificacaoSebo.VERIFICADO, null, null);
 
@@ -212,10 +208,7 @@ class SeboServiceTest {
     void excluirConta_desativaAccount() {
         MensagemResponse response = seboService.excluirConta(contaSebo);
 
-        assertThat(contaSebo.getAtivo()).isFalse();
-        assertThat(contaSebo.getEmail()).endsWith("@invalid.local");
-        assertThat(contaSebo.getAuthVersion()).isEqualTo(1);
-        verify(accountRepository, never()).delete(contaSebo);
+        verify(anonimizacaoContaService).anonimizarSebo(contaSebo);
         assertThat(response.mensagem()).isEqualTo("Conta do sebo excluida com sucesso");
     }
 

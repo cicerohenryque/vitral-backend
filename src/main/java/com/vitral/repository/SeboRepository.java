@@ -24,7 +24,4 @@ public interface SeboRepository extends JpaRepository<Sebo, Long>, JpaSpecificat
 
     Page<Sebo> findByAccountNameContainingIgnoreCase(String termo, Pageable pageable);
 
-    Page<Sebo> findByAccountNameContainingIgnoreCaseAndCidadeIgnoreCase(String termo, String cidade, Pageable pageable);
-
-    Page<Sebo> findByCidadeIgnoreCase(String cidade, Pageable pageable);
 }

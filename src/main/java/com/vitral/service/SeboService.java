@@ -17,9 +17,7 @@ import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.SeboMapper;
-import com.vitral.repository.AccountRepository;
 import com.vitral.repository.SeboRepository;
-import com.vitral.repository.ProdutoRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,8 +27,7 @@ public class SeboService {
 
     private final SeboRepository seboRepository;
     private final SeboMapper seboMapper;
-    private final AccountRepository accountRepository;
-    private final ProdutoRepository produtoRepository;
+    private final AnonimizacaoContaService anonimizacaoContaService;
 
     @Transactional
     public SeboResponse criar(Account account, SeboRequest request) {
@@ -100,22 +97,7 @@ public class SeboService {
 
     @Transactional
     public MensagemResponse excluirConta(Account account) {
-        seboRepository.findByAccountId(account.getId()).ifPresent(sebo -> {
-            produtoRepository.desativarCatalogoDoSebo(sebo.getId());
-            sebo.setDescricao("Sebo desativado");
-            sebo.setTelefone(null);
-            sebo.setFotoUrl(null);
-        });
-        anonimizarEDesativar(account);
+        anonimizacaoContaService.anonimizarSebo(account);
         return new MensagemResponse("Conta do sebo excluida com sucesso");
-    }
-
-    private void anonimizarEDesativar(Account account) {
-        account.setAtivo(Boolean.FALSE);
-        account.setName("Conta excluida");
-        account.setEmail("excluida-" + account.getId() + "@invalid.local");
-        account.setPasswordHash("CONTA_DESATIVADA");
-        account.setFotoUrl(null);
-        account.setAuthVersion(account.getAuthVersion() + 1);
     }
 }

@@ -104,11 +104,11 @@ class ProdutoServiceTest {
                 .build();
         setId(contaOutroSebo, 200L);
 
-        seboDono = Sebo.builder().account(contaDona).cidade("Campina Grande")
+        seboDono = Sebo.builder().account(contaDona)
                 .statusVerificacao(StatusVerificacaoSebo.VERIFICADO).build();
         setId(seboDono, 1L);
 
-        seboOutro = Sebo.builder().account(contaOutroSebo).cidade("Recife")
+        seboOutro = Sebo.builder().account(contaOutroSebo)
                 .statusVerificacao(StatusVerificacaoSebo.VERIFICADO).build();
         setId(seboOutro, 2L);
 

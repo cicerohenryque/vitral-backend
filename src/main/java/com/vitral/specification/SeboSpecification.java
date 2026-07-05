@@ -24,15 +24,4 @@ public class SeboSpecification {
                 "%" + termo.toLowerCase() + "%");
     }
 
-    public static Specification<Sebo> daCidade(String cidade) {
-        return (root, query, cb) -> cb.equal(
-                cb.lower(root.get("cidade")),
-                cidade.toLowerCase());
-    }
-
-    public static Specification<Sebo> doEstado(String uf) {
-        return (root, query, cb) -> cb.equal(
-                cb.upper(root.get("uf")),
-                uf.toUpperCase());
-    }
 }

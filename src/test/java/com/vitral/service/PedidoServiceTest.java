@@ -106,7 +106,7 @@ class PedidoServiceTest {
     }
 
     private Sebo buildSebo(Account seboAccount, Long id) {
-        Sebo sebo = Sebo.builder().account(seboAccount).cidade("Recife").uf("PE").build();
+        Sebo sebo = Sebo.builder().account(seboAccount).build();
         setId(sebo, id);
         return sebo;
     }

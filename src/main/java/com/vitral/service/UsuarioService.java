@@ -18,6 +18,7 @@ public class UsuarioService {
 
     private final AccountRepository accountRepository;
     private final AccountMapper accountMapper;
+    private final AnonimizacaoContaService anonimizacaoContaService;
 
     @Transactional
     public AccountResponse atualizarPerfil(Account account, AtualizarPerfilRequest request) {
@@ -29,12 +30,7 @@ public class UsuarioService {
 
     @Transactional
     public MensagemResponse excluirConta(Account account) {
-        account.setAtivo(Boolean.FALSE);
-        account.setName("Conta excluida");
-        account.setEmail("excluida-" + account.getId() + "@invalid.local");
-        account.setPasswordHash("CONTA_DESATIVADA");
-        account.setFotoUrl(null);
-        account.setAuthVersion(account.getAuthVersion() + 1);
+        anonimizacaoContaService.anonimizarUsuario(account);
         return new MensagemResponse("Conta excluida com sucesso");
     }
 }

@@ -78,8 +78,6 @@ class BuscaServiceTest {
 
         sebo = Sebo.builder()
                 .account(conta)
-                .cidade("Campina Grande")
-                .uf("PB")
                 .build();
 
         seboResponse = new SeboResponse(1L, 1L, "Livraria Leitura", "livraria@email.com",

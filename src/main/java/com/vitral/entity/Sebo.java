@@ -52,21 +52,6 @@ public class Sebo extends BaseEntity {
     @Column(name = "motivo_rejeicao", length = 500)
     private String motivoRejeicao;
 
-    @Column(length = 9)
-    private String cep;
-
-    @Column(length = 255)
-    private String logradouro;
-
-    @Column(length = 120)
-    private String cidade;
-
-    @Column(length = 2)
-    private String uf;
-
-    @Column(name = "horario_funcionamento", length = 255)
-    private String horarioFuncionamento;
-
     @Column(name = "foto_url", length = 500)
     private String fotoUrl;
 }

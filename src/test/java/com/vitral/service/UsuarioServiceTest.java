@@ -31,6 +31,9 @@ class UsuarioServiceTest {
     @Mock
     private AccountMapper accountMapper;
 
+    @Mock
+    private AnonimizacaoContaService anonimizacaoContaService;
+
     @InjectMocks
     private UsuarioService usuarioService;
 
@@ -93,9 +96,7 @@ class UsuarioServiceTest {
 
         MensagemResponse response = usuarioService.excluirConta(account);
 
-        assertThat(account.getAtivo()).isFalse();
-        assertThat(account.getEmail()).endsWith("@invalid.local");
-        assertThat(account.getAuthVersion()).isEqualTo(1);
+        verify(anonimizacaoContaService).anonimizarUsuario(account);
         verify(accountRepository, never()).delete(account);
         assertThat(response.mensagem()).isEqualTo("Conta excluida com sucesso");
     }
