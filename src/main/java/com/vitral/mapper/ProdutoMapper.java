@@ -14,6 +14,8 @@ public interface ProdutoMapper {
     @Mapping(target = "seboId", source = "produto.sebo.id")
     @Mapping(target = "categoriaId", source = "produto.categoria.id")
     @Mapping(target = "categoriaNome", source = "produto.categoria.nome")
+    @Mapping(target = "catalogoLivroId", source = "produto.catalogoLivro.id")
+    @Mapping(target = "isbn", source = "produto.catalogoLivro.isbn")
     @Mapping(target = "precoPromocional", source = "precoPromocional")
     ProdutoResponse toResponse(Produto produto, BigDecimal precoPromocional);
 }

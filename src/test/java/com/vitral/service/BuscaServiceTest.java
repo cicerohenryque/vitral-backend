@@ -94,7 +94,7 @@ class BuscaServiceTest {
                 .build();
         ReflectionTestUtils.setField(produto, "id", 1L);
 
-        produtoResponse = new ProdutoResponse(1L, 1L, null, null, "Dom Casmurro", null, null,
+        produtoResponse = new ProdutoResponse(1L, 1L, null, null, null, null, "Dom Casmurro", null, null,
                 BigDecimal.valueOf(25.00), null, 1, CondicaoProduto.USADO, null, true);
     }
 

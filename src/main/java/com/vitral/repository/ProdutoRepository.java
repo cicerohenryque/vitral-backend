@@ -33,11 +33,11 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long>, JpaSpec
 
     @Query("""
             select p from Produto p
-            where lower(trim(p.titulo)) = lower(trim(:titulo))
+            where p.catalogoLivro.id = :catalogoLivroId
               and p.ativo = true
               and p.estoque > 0
               and p.sebo.account.ativo = true
               and p.sebo.statusVerificacao = com.vitral.enumerations.StatusVerificacaoSebo.VERIFICADO
             """)
-    List<Produto> vendedoresAtivosPorTitulo(@Param("titulo") String titulo);
+    List<Produto> vendedoresAtivosPorCatalogo(@Param("catalogoLivroId") Long catalogoLivroId);
 }

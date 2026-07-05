@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record ProdutoRequest(
+        @Size(max = 20) String isbn,
         @NotBlank @Size(max = 255) String titulo,
         Long categoriaId,
         @Size(max = 255) String autor,

@@ -9,6 +9,8 @@ public record ProdutoResponse(
         Long seboId,
         Long categoriaId,
         String categoriaNome,
+        Long catalogoLivroId,
+        String isbn,
         String titulo,
         String autor,
         String descricao,

@@ -35,6 +35,7 @@ import com.vitral.dto.VendedorProdutoResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.BaseEntity;
 import com.vitral.entity.Categoria;
+import com.vitral.entity.CatalogoLivro;
 import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
@@ -62,6 +63,9 @@ class ProdutoServiceTest {
 
     @Mock
     private PrecoService precoService;
+
+    @Mock
+    private CatalogoLivroService catalogoLivroService;
 
     @InjectMocks
     private ProdutoService produtoService;
@@ -102,6 +106,7 @@ class ProdutoServiceTest {
         setId(seboOutro, 2L);
 
         request = new ProdutoRequest(
+                null,
                 "Dom Casmurro",
                 null,
                 "Machado de Assis",
@@ -115,7 +120,7 @@ class ProdutoServiceTest {
     @Test
     @DisplayName("Deve criar produto vinculado ao sebo da conta autenticada com ativo igual a true")
     void shouldCreateProductLinkedToOwnerSeboWithAtivoTrue() {
-        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, null, null, request.titulo(), request.autor(),
+        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, null, null, null, null, request.titulo(), request.autor(),
                 request.descricao(), request.preco(), null, request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
 
         when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
@@ -157,7 +162,7 @@ class ProdutoServiceTest {
                 .ativo(Boolean.TRUE)
                 .build();
         setId(produto, 50L);
-        ProdutoResponse esperado = new ProdutoResponse(50L, 1L, null, null, request.titulo(), request.autor(),
+        ProdutoResponse esperado = new ProdutoResponse(50L, 1L, null, null, null, null, request.titulo(), request.autor(),
                 request.descricao(), request.preco(), null, request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
 
         when(produtoRepository.findById(50L)).thenReturn(Optional.of(produto));
@@ -231,7 +236,7 @@ class ProdutoServiceTest {
     void shouldReturnActiveProductWhenSearchedById() {
         Produto produto = Produto.builder().sebo(seboDono).ativo(Boolean.TRUE).build();
         setId(produto, 5L);
-        ProdutoResponse esperado = new ProdutoResponse(5L, 1L, null, null, "T", null, null,
+        ProdutoResponse esperado = new ProdutoResponse(5L, 1L, null, null, null, null, "T", null, null,
                 BigDecimal.TEN, null, 1, CondicaoProduto.NOVO, null, Boolean.TRUE);
 
         when(produtoRepository.findByIdAndAtivoTrue(5L)).thenReturn(Optional.of(produto));
@@ -256,15 +261,18 @@ class ProdutoServiceTest {
     @Test
     @DisplayName("Deve listar vendedores verificados do mesmo produto pelo menor preco efetivo")
     void shouldListVerifiedSellersByEffectivePrice() {
+        CatalogoLivro catalogo = CatalogoLivro.builder().isbn("9788535914849").titulo("Dom Casmurro").build();
+        setId(catalogo, 20L);
         Produto referencia = Produto.builder().sebo(seboDono).titulo("Dom Casmurro")
-                .preco(new BigDecimal("50.00")).estoque(2).condicao(CondicaoProduto.USADO).ativo(true).build();
+                .catalogoLivro(catalogo).preco(new BigDecimal("50.00")).estoque(2)
+                .condicao(CondicaoProduto.USADO).ativo(true).build();
         setId(referencia, 10L);
-        Produto concorrente = Produto.builder().sebo(seboOutro).titulo("dom casmurro")
+        Produto concorrente = Produto.builder().sebo(seboOutro).titulo("dom casmurro").catalogoLivro(catalogo)
                 .preco(new BigDecimal("40.00")).estoque(1).condicao(CondicaoProduto.SEMINOVO).ativo(true).build();
         setId(concorrente, 11L);
 
         when(produtoRepository.findByIdAndAtivoTrue(10L)).thenReturn(Optional.of(referencia));
-        when(produtoRepository.vendedoresAtivosPorTitulo("Dom Casmurro"))
+        when(produtoRepository.vendedoresAtivosPorCatalogo(20L))
                 .thenReturn(List.of(referencia, concorrente));
         when(precoService.precoPromocionalVigente(referencia)).thenReturn(Optional.of(new BigDecimal("45.00")));
         when(precoService.precoPromocionalVigente(concorrente)).thenReturn(Optional.empty());
@@ -284,8 +292,8 @@ class ProdutoServiceTest {
         setId(p2, 2L);
         Pageable pageable = PageRequest.of(0, 10);
         Page<Produto> pagina = new PageImpl<>(List.of(p1, p2), pageable, 2);
-        ProdutoResponse r1 = new ProdutoResponse(1L, 1L, null, null, "A", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
-        ProdutoResponse r2 = new ProdutoResponse(2L, 1L, null, null, "B", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
+        ProdutoResponse r1 = new ProdutoResponse(1L, 1L, null, null, null, null, "A", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
+        ProdutoResponse r2 = new ProdutoResponse(2L, 1L, null, null, null, null, "B", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
 
         when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
                 .thenReturn(pagina);
@@ -307,7 +315,7 @@ class ProdutoServiceTest {
         Produto produto = Produto.builder().sebo(seboDono).categoria(categoria).ativo(true).build();
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
-        ProdutoResponse response = new ProdutoResponse(1L, 1L, 7L, "Romance", "A", null, null,
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, 7L, "Romance", null, null, "A", null, null,
                 BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
         when(categoriaService.buscarEntidade(7L)).thenReturn(categoria);
         when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
@@ -327,7 +335,7 @@ class ProdutoServiceTest {
         Produto produto = Produto.builder().sebo(seboDono).ativo(true).build();
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
-        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Lancamento", null, null,
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, null, null, "Lancamento", null, null,
                 BigDecimal.TEN, null, 2, CondicaoProduto.NOVO, null, true);
         when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
@@ -346,7 +354,7 @@ class ProdutoServiceTest {
         Produto produto = Produto.builder().sebo(seboDono).ativo(true).build();
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
-        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Classico", null, null,
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, null, null, "Classico", null, null,
                 BigDecimal.TEN, null, 1, CondicaoProduto.USADO, null, true);
         when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));

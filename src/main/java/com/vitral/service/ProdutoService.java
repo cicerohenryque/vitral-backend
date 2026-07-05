@@ -39,6 +39,7 @@ public class ProdutoService {
     private final CategoriaService categoriaService;
     private final PrecoService precoService;
     private final com.vitral.repository.PedidoRepository pedidoRepository;
+    private final CatalogoLivroService catalogoLivroService;
 
     @Transactional
     public ProdutoResponse criar(Account account, ProdutoRequest request) {
@@ -47,6 +48,7 @@ public class ProdutoService {
         Produto produto = Produto.builder()
                 .sebo(sebo)
                 .categoria(categoria)
+                .catalogoLivro(catalogoLivroService.obterOuCriar(request))
                 .titulo(request.titulo())
                 .autor(request.autor())
                 .descricao(request.descricao())
@@ -64,6 +66,7 @@ public class ProdutoService {
     public ProdutoResponse atualizar(Account account, Long produtoId, ProdutoRequest request) {
         Produto produto = obterProdutoDoDono(account, produtoId);
         produto.setCategoria(obterCategoria(request.categoriaId()));
+        produto.setCatalogoLivro(catalogoLivroService.obterOuCriar(request));
         produto.setTitulo(request.titulo());
         produto.setAutor(request.autor());
         produto.setDescricao(request.descricao());
@@ -108,7 +111,10 @@ public class ProdutoService {
     public List<VendedorProdutoResponse> listarVendedores(Long produtoId) {
         Produto referencia = produtoRepository.findByIdAndAtivoTrue(produtoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
-        return produtoRepository.vendedoresAtivosPorTitulo(referencia.getTitulo()).stream()
+        List<Produto> candidatos = referencia.getCatalogoLivro() == null
+                ? List.of(referencia)
+                : produtoRepository.vendedoresAtivosPorCatalogo(referencia.getCatalogoLivro().getId());
+        return candidatos.stream()
                 .map(produto -> {
                     BigDecimal promocional = precoService.precoPromocionalVigente(produto).orElse(null);
                     BigDecimal efetivo = promocional == null ? produto.getPreco() : promocional;
