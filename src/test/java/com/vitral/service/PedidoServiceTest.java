@@ -460,6 +460,20 @@ class PedidoServiceTest {
     }
 
     @Test
+    @DisplayName("Deve filtrar histórico do usuário por status")
+    void historicoPedidosUsuario_comStatus_usaRepositorioFiltrado() {
+        Account account = buildUsuario();
+        Pageable pageable = PageRequest.of(0, 10);
+        when(pedidoRepository.findByAccountIdAndStatusOrderByCreatedAtDesc(10L, StatusPedido.CONFIRMADO, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        Page<PedidoResponse> resultado = pedidoService.historicoPedidosUsuario(account, StatusPedido.CONFIRMADO, pageable);
+
+        assertThat(resultado).isEmpty();
+        verify(pedidoRepository).findByAccountIdAndStatusOrderByCreatedAtDesc(10L, StatusPedido.CONFIRMADO, pageable);
+    }
+
+    @Test
     @DisplayName("Deve lançar ResourceNotFoundException quando sebo não encontrado no histórico de vendas")
     void historicoVendasSebo_seboNaoEncontrado_lancaResourceNotFoundException() {
         Account seboAccount = buildSeboAccount(1L);
@@ -484,6 +498,32 @@ class PedidoServiceTest {
 
         assertThat(resultado).isEmpty();
         verify(pedidoRepository).findBySeboIdOrderByCreatedAtDesc(5L, pageable);
+    }
+
+    @Test
+    @DisplayName("Deve filtrar histórico de vendas por status")
+    void historicoVendasSebo_comStatus_usaRepositorioFiltrado() {
+        Account seboAccount = buildSeboAccount(1L);
+        Sebo sebo = buildSebo(seboAccount, 5L);
+        Pageable pageable = PageRequest.of(0, 10);
+        when(seboRepository.findByAccountId(1L)).thenReturn(Optional.of(sebo));
+        when(pedidoRepository.findBySeboIdAndStatusOrderByCreatedAtDesc(5L, StatusPedido.CANCELADO, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        Page<PedidoResponse> resultado = pedidoService.historicoVendasSebo(seboAccount, StatusPedido.CANCELADO, pageable);
+
+        assertThat(resultado).isEmpty();
+        verify(pedidoRepository).findBySeboIdAndStatusOrderByCreatedAtDesc(5L, StatusPedido.CANCELADO, pageable);
+    }
+
+    @Test
+    @DisplayName("Faturamento mensal deve rejeitar ano fora do intervalo")
+    void faturamentoMensal_anoInvalido_lancaBadRequest() {
+        Account seboAccount = buildSeboAccount(1L);
+
+        assertThatThrownBy(() -> pedidoService.faturamentoMensal(seboAccount, 1999))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Ano invalido");
     }
 
     @Test

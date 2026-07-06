@@ -41,6 +41,7 @@ import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.CondicaoProduto;
 import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.TipoMovimentacaoEstoque;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.ProdutoMapper;
@@ -145,6 +146,30 @@ class ProdutoServiceTest {
         assertThat(persistido.getEstoque()).isEqualTo(3);
         assertThat(persistido.getCondicao()).isEqualTo(CondicaoProduto.USADO);
         assertThat(persistido.getAtivo()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Deve criar produto com estoque padrao e categoria quando estoque vier nulo")
+    void criar_estoqueNulo_usaPadraoECategoria() {
+        Categoria categoria = Categoria.builder().nome("Romance").slug("romance").build();
+        setId(categoria, 7L);
+        ProdutoRequest requestSemEstoque = new ProdutoRequest(null, "Dom Casmurro", 7L, "Machado",
+                "Descricao", BigDecimal.TEN, null, CondicaoProduto.USADO, null);
+        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, 7L, "Romance", null, null,
+                "Dom Casmurro", "Machado", "Descricao", BigDecimal.TEN, null, 1, CondicaoProduto.USADO, null, true);
+
+        when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
+        when(categoriaService.buscarEntidade(7L)).thenReturn(categoria);
+        when(produtoRepository.save(produtoCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(precoService.precoPromocionalVigente(any())).thenReturn(Optional.empty());
+        when(produtoMapper.toResponse(produtoCaptor.capture(), any())).thenReturn(responseEsperado);
+
+        ProdutoResponse resultado = produtoService.criar(contaDona, requestSemEstoque);
+
+        assertThat(resultado).isSameAs(responseEsperado);
+        assertThat(produtoCaptor.getAllValues().get(0).getEstoque()).isEqualTo(1);
+        verify(movimentacaoEstoqueService).registrarAlteracao(any(), eq(contaDona), eq(TipoMovimentacaoEstoque.ENTRADA),
+                eq(1), eq(0), eq(1), eq(BigDecimal.TEN), eq("Estoque inicial"));
     }
 
     @Test
@@ -256,6 +281,20 @@ class ProdutoServiceTest {
     }
 
     @Test
+    @DisplayName("Deve esconder produto quando o sebo nao estiver verificado")
+    void buscarPorId_seboNaoVerificado_lancaNotFound() {
+        Sebo seboPendente = Sebo.builder().account(contaDona)
+                .statusVerificacao(StatusVerificacaoSebo.PENDENTE).build();
+        Produto produto = Produto.builder().sebo(seboPendente).ativo(Boolean.TRUE).build();
+        setId(produto, 5L);
+        when(produtoRepository.findByIdAndAtivoTrue(5L)).thenReturn(Optional.of(produto));
+
+        assertThatThrownBy(() -> produtoService.buscarPorId(5L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Produto nao encontrado");
+    }
+
+    @Test
     @DisplayName("Deve lancar ResourceNotFoundException ao buscar produto inativo ou inexistente")
     void shouldThrowNotFoundWhenSearchingInactiveOrMissingProduct() {
         when(produtoRepository.findByIdAndAtivoTrue(123L)).thenReturn(Optional.empty());
@@ -288,6 +327,44 @@ class ProdutoServiceTest {
 
         assertThat(vendedores).extracting(VendedorProdutoResponse::produtoId).containsExactly(11L, 10L);
         assertThat(vendedores.getFirst().precoEfetivo()).isEqualByComparingTo("40.00");
+    }
+
+    @Test
+    @DisplayName("Deve listar apenas o produto de referencia quando nao ha catalogo")
+    void listarVendedores_semCatalogo_retornaReferencia() {
+        Produto referencia = Produto.builder().sebo(seboDono).titulo("Avulso")
+                .preco(new BigDecimal("30.00")).estoque(2).condicao(CondicaoProduto.USADO)
+                .ativo(true).build();
+        setId(referencia, 10L);
+        when(produtoRepository.findByIdAndAtivoTrue(10L)).thenReturn(Optional.of(referencia));
+        when(precoService.precoPromocionalVigente(referencia)).thenReturn(Optional.empty());
+
+        List<VendedorProdutoResponse> vendedores = produtoService.listarVendedores(10L);
+
+        assertThat(vendedores).hasSize(1);
+        assertThat(vendedores.getFirst().produtoId()).isEqualTo(10L);
+        assertThat(vendedores.getFirst().precoEfetivo()).isEqualByComparingTo("30.00");
+    }
+
+    @Test
+    @DisplayName("Deve registrar venda fisica pelo endpoint legado")
+    void registrarVendaFisica_delegaParaMovimentacaoEstoque() {
+        Produto produto = Produto.builder().sebo(seboDono).preco(new BigDecimal("50.00")).ativo(true).build();
+        setId(produto, 10L);
+        ProdutoResponse esperado = new ProdutoResponse(10L, 1L, null, null, null, null, "Dom", null, null,
+                BigDecimal.TEN, null, 2, CondicaoProduto.USADO, null, true);
+        when(produtoRepository.findById(10L)).thenReturn(Optional.of(produto));
+        when(precoService.precoEfetivo(produto)).thenReturn(new BigDecimal("45.00"));
+        when(precoService.precoPromocionalVigente(produto)).thenReturn(Optional.of(new BigDecimal("45.00")));
+        when(produtoMapper.toResponse(produto, new BigDecimal("45.00"))).thenReturn(esperado);
+
+        ProdutoResponse response = produtoService.registrarVendaFisica(contaDona, 10L, new com.vitral.dto.VendaFisicaRequest(2));
+
+        assertThat(response).isSameAs(esperado);
+        verify(movimentacaoEstoqueService).registrarVendaFisica(eq(contaDona),
+                org.mockito.ArgumentMatchers.argThat(req -> req.produtoId().equals(10L)
+                        && req.quantidade().equals(2)
+                        && req.valorUnitario().compareTo(new BigDecimal("45.00")) == 0));
     }
 
     @Test

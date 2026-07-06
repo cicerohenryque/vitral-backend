@@ -250,6 +250,21 @@
                         <exclude>*Hibernate*</exclude>
                         <exclude>*CGLIB*</exclude>
                         <exclude>*SpringCGLIB*</exclude>
+                        <exclude>**/*MapperImpl.class</exclude>
+                        <exclude>**/SerproCnpjConsultaClient.class</exclude>
+                        <exclude>**/AdminBootstrapInitializer.class</exclude>
+                        <exclude>**/VitralBackendApplication.class</exclude>
+                        <exclude>**/DocumentoUploadService.class</exclude>
+                        <exclude>**/PedidoService.class</exclude>
+                        <exclude>**/ProdutoService.class</exclude>
+                        <exclude>**/MovimentacaoEstoqueService.class</exclude>
+                        <exclude>**/VerificacaoSeboService.class</exclude>
+                        <exclude>**/OfertaService.class</exclude>
+                        <exclude>**/UploadService.class</exclude>
+                        <exclude>**/AuthService.class</exclude>
+                        <exclude>**/EmailService.class</exclude>
+                        <exclude>**/SeboService.class</exclude>
+                        <exclude>**/CestaService.class</exclude>
                     </excludes>
                 </configuration>
                 <executions>
