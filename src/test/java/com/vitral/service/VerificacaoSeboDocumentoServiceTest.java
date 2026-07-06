@@ -3,6 +3,7 @@ package com.vitral.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
 import java.util.List;
@@ -129,6 +130,90 @@ class VerificacaoSeboDocumentoServiceTest {
         service.revisar(admin, 10L, StatusVerificacaoSebo.VERIFICADO, null);
 
         assertThat(sebo.getConfirmado()).isTrue();
+    }
+
+    @Test
+    void rejeitarVerificacaoExigeMotivo() {
+        Account admin = Account.builder().type(AccountType.ADMIN).build();
+        setId(admin, 99L);
+
+        assertThatThrownBy(() -> service.revisar(admin, 10L, StatusVerificacaoSebo.REJEITADO, " "))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("motivo");
+    }
+
+    @Test
+    void aprovarVerificacaoExigeDocumentoEConsultaCnpjAtiva() {
+        Account admin = Account.builder().type(AccountType.ADMIN).build();
+        setId(admin, 99L);
+        Sebo sebo = Sebo.builder().account(account).statusVerificacao(StatusVerificacaoSebo.PENDENTE)
+                .statusConsultaCnpj(StatusConsultaCnpj.INATIVA).build();
+        setId(sebo, 10L);
+
+        when(seboRepository.findById(10L)).thenReturn(Optional.of(sebo));
+        when(documentoRepository.findBySeboIdOrderByEnviadoEmDesc(10L)).thenReturn(List.of());
+        assertThatThrownBy(() -> service.revisar(admin, 10L, StatusVerificacaoSebo.VERIFICADO, null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("ao menos um documento");
+
+        when(documentoRepository.findBySeboIdOrderByEnviadoEmDesc(10L))
+                .thenReturn(List.of(DocumentoVerificacaoSebo.builder().sebo(sebo).status(StatusDocumentoSebo.PENDENTE).build()));
+        assertThatThrownBy(() -> service.revisar(admin, 10L, StatusVerificacaoSebo.VERIFICADO, null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("CNPJ precisa estar ativo");
+    }
+
+    @Test
+    void rejeitarVerificacaoMarcaDocumentosEDesativaCatalogo() {
+        Account admin = Account.builder().type(AccountType.ADMIN).build();
+        setId(admin, 99L);
+        Sebo sebo = Sebo.builder().account(account).statusVerificacao(StatusVerificacaoSebo.PENDENTE)
+                .statusConsultaCnpj(StatusConsultaCnpj.ATIVA).build();
+        setId(sebo, 10L);
+        DocumentoVerificacaoSebo documento = DocumentoVerificacaoSebo.builder()
+                .sebo(sebo).status(StatusDocumentoSebo.PENDENTE).build();
+        setId(documento, 5L);
+        SeboResponse response = new SeboResponse(10L, 1L, "Sebo", "sebo@vitral.com", null, null, null,
+                StatusVerificacaoSebo.REJEITADO, "Documento vencido", null, StatusConsultaCnpj.ATIVA, null, null, null, null, false);
+
+        when(seboRepository.findById(10L)).thenReturn(Optional.of(sebo));
+        when(documentoRepository.findBySeboIdOrderByEnviadoEmDesc(10L)).thenReturn(List.of(documento));
+        when(seboMapper.toResponse(sebo)).thenReturn(response);
+
+        var result = service.revisar(admin, 10L, StatusVerificacaoSebo.REJEITADO, " Documento vencido ");
+
+        assertThat(result).isSameAs(response);
+        assertThat(sebo.getStatusVerificacao()).isEqualTo(StatusVerificacaoSebo.REJEITADO);
+        assertThat(sebo.getMotivoRejeicao()).isEqualTo("Documento vencido");
+        assertThat(sebo.getConfirmado()).isFalse();
+        assertThat(documento.getStatus()).isEqualTo(StatusDocumentoSebo.REJEITADO);
+        assertThat(documento.getMotivoRejeicao()).isEqualTo("Documento vencido");
+        verify(produtoRepository).desativarCatalogoDoSebo(10L);
+    }
+
+    @Test
+    void listarDocumentosIncluiMetadadosDoUpload() {
+        DocumentoVerificacaoSebo documento = DocumentoVerificacaoSebo.builder()
+                .sebo(sebo)
+                .tipoDocumento(TipoDocumentoSebo.CONTRATO_SOCIAL)
+                .arquivoUrl("/api/v1/uploads/documents/contrato.pdf")
+                .status(StatusDocumentoSebo.APROVADO)
+                .enviadoEm(java.time.OffsetDateTime.now())
+                .build();
+        setId(documento, 7L);
+        DocumentoUpload metadata = DocumentoUpload.builder().sebo(sebo).nomeInterno("contrato.pdf")
+                .nomeOriginal("Contrato Social.pdf").mimeType("application/pdf").tamanhoBytes(123L).build();
+
+        when(seboRepository.findById(10L)).thenReturn(Optional.of(sebo));
+        when(documentoRepository.findBySeboIdOrderByEnviadoEmDesc(10L)).thenReturn(List.of(documento));
+        when(uploadRepository.findByNomeInterno("contrato.pdf")).thenReturn(Optional.of(metadata));
+
+        var result = service.listarDocumentos(10L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).nomeArquivo()).isEqualTo("Contrato Social.pdf");
+        assertThat(result.get(0).contentType()).isEqualTo("application/pdf");
+        assertThat(result.get(0).tamanhoBytes()).isEqualTo(123L);
     }
 
     private void setId(Object entity, Long id) {
