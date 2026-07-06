@@ -40,7 +40,6 @@ public class ProdutoService {
     private final SeboService seboService;
     private final CategoriaService categoriaService;
     private final PrecoService precoService;
-    private final com.vitral.repository.PedidoRepository pedidoRepository;
     private final CatalogoLivroService catalogoLivroService;
     private final MovimentacaoEstoqueService movimentacaoEstoqueService;
 

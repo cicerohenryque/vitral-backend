@@ -27,6 +27,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 
 import com.vitral.dto.ProdutoRequest;
@@ -46,7 +47,6 @@ import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.ProdutoMapper;
 import com.vitral.repository.ProdutoRepository;
-import com.vitral.repository.PedidoRepository;
 
 @ExtendWith(MockitoExtension.class)
 class ProdutoServiceTest {
@@ -68,9 +68,6 @@ class ProdutoServiceTest {
 
     @Mock
     private CatalogoLivroService catalogoLivroService;
-
-    @Mock
-    private PedidoRepository pedidoRepository;
 
     @Mock
     private MovimentacaoEstoqueService movimentacaoEstoqueService;
@@ -379,7 +376,7 @@ class ProdutoServiceTest {
         ProdutoResponse r1 = new ProdutoResponse(1L, 1L, null, null, null, null, "A", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
         ProdutoResponse r2 = new ProdutoResponse(2L, 1L, null, null, null, null, "B", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
 
-        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+        when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(pagina);
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(eq(p1), any())).thenReturn(r1);
@@ -402,7 +399,7 @@ class ProdutoServiceTest {
         ProdutoResponse response = new ProdutoResponse(1L, 1L, 7L, "Romance", null, null, "A", null, null,
                 BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
         when(categoriaService.buscarEntidade(7L)).thenReturn(categoria);
-        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+        when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(eq(produto), any())).thenReturn(response);
@@ -421,7 +418,7 @@ class ProdutoServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, null, null, "Lancamento", null, null,
                 BigDecimal.TEN, null, 2, CondicaoProduto.NOVO, null, true);
-        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+        when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(eq(produto), any())).thenReturn(response);
@@ -429,7 +426,7 @@ class ProdutoServiceTest {
         Page<ProdutoResponse> resultado = produtoService.listarLancamentos(pageable);
 
         assertThat(resultado.getContent()).containsExactly(response);
-        verify(produtoRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
+        verify(produtoRepository).findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable));
     }
 
     @Test
@@ -440,7 +437,7 @@ class ProdutoServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, null, null, "Classico", null, null,
                 BigDecimal.TEN, null, 1, CondicaoProduto.USADO, null, true);
-        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+        when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(eq(produto), any())).thenReturn(response);
@@ -448,21 +445,21 @@ class ProdutoServiceTest {
         Page<ProdutoResponse> resultado = produtoService.listarClassicos(pageable);
 
         assertThat(resultado.getContent()).containsExactly(response);
-        verify(produtoRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
+        verify(produtoRepository).findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable));
     }
 
     @Test
     @DisplayName("Deve retornar pagina vazia quando nao existem produtos classicos ativos")
     void listarClassicos_semProdutos_retornaPaginaVazia() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+        when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         Page<ProdutoResponse> resultado = produtoService.listarClassicos(pageable);
 
         assertThat(resultado.getContent()).isEmpty();
         assertThat(resultado.getTotalElements()).isZero();
-        verify(produtoRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
+        verify(produtoRepository).findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable));
     }
 
     private void setId(Object entity, Long id) {
