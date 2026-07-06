@@ -35,6 +35,7 @@ public class AnonimizacaoContaService {
             sebo.setMensagemConsultaCnpj(null);
             sebo.setStatusConsultaCnpj(StatusConsultaCnpj.NAO_CONSULTADO);
             sebo.setStatusVerificacao(StatusVerificacaoSebo.REJEITADO);
+            sebo.setConfirmado(false);
         });
         anonimizarConta(account);
     }

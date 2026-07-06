@@ -2,6 +2,7 @@ package com.vitral.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,6 +27,7 @@ import com.vitral.entity.Account;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.TipoOperacaoSebo;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
@@ -79,7 +81,8 @@ class SeboServiceTest {
                 "Sebo familiar com livros raros",
                 "8399999-0000",
                 "12345678000199",
-                "https://cdn/foto.jpg");
+                "https://cdn/foto.jpg",
+                null);
     }
 
     @Test
@@ -87,7 +90,7 @@ class SeboServiceTest {
     void shouldCreateSeboWhenAccountIsSeboAndHasNoProfileYet() {
         SeboResponse responseEsperado = new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
-                null, null, null, null, null, request.fotoUrl());
+                null, null, null, null, null, request.fotoUrl(), TipoOperacaoSebo.VIRTUAL);
 
         when(seboRepository.existsByAccountId(10L)).thenReturn(false);
         when(seboRepository.save(seboCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -135,7 +138,7 @@ class SeboServiceTest {
                 .build();
         SeboResponse responseEsperado = new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
-                null, null, null, null, null, request.fotoUrl());
+                null, null, null, null, null, request.fotoUrl(), TipoOperacaoSebo.VIRTUAL);
 
         when(seboRepository.findByAccountId(10L)).thenReturn(Optional.of(existente));
         when(seboMapper.toResponse(existente)).thenReturn(responseEsperado);
@@ -164,7 +167,7 @@ class SeboServiceTest {
         Sebo sebo = Sebo.builder().account(contaSebo).build();
         SeboResponse responseEsperado = new SeboResponse(7L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 null, null, "12345678000199", StatusVerificacaoSebo.VERIFICADO, null,
-                null, null, null, null, null);
+                null, null, null, null, null, TipoOperacaoSebo.VIRTUAL);
 
         when(seboRepository.findByIdAndAccountAtivoTrueAndStatusVerificacao(
                 7L, StatusVerificacaoSebo.VERIFICADO)).thenReturn(Optional.of(sebo));
@@ -205,6 +208,43 @@ class SeboServiceTest {
         assertThatThrownBy(() -> seboService.buscarEntidadePorAccount(10L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("Sebo nao encontrado para esta conta");
+    }
+
+    @Test
+    @DisplayName("Deve assumir sebo virtual quando o tipo de operacao nao for informado")
+    void shouldDefaultToVirtualWhenTipoOperacaoIsNotProvided() {
+        when(seboRepository.existsByAccountId(10L)).thenReturn(false);
+        when(seboRepository.save(any(Sebo.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(seboMapper.toResponse(any(Sebo.class))).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
+                request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
+                null, null, null, null, null, request.fotoUrl(), TipoOperacaoSebo.VIRTUAL, false));
+
+        SeboResponse response = seboService.criar(contaSebo, request);
+
+        assertThat(response.tipoOperacao()).isEqualTo(TipoOperacaoSebo.VIRTUAL);
+    }
+
+    @Test
+    @DisplayName("Deve forcar modalidade virtual mesmo quando a requisicao enviar fisico ou hibrido")
+    void shouldForceVirtualModeRegardlessOfRequestedOperation() {
+        SeboRequest requestFisico = new SeboRequest(
+                "Sebo familiar com livros raros",
+                "8399999-0000",
+                "12345678000199",
+                "https://cdn/foto.jpg",
+                TipoOperacaoSebo.FISICO);
+
+        when(seboRepository.existsByAccountId(10L)).thenReturn(false);
+        when(seboRepository.existsByCnpj("12345678000199")).thenReturn(false);
+        when(seboRepository.save(any(Sebo.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(seboMapper.toResponse(any(Sebo.class))).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
+                requestFisico.descricao(), requestFisico.telefone(), requestFisico.cnpj(), StatusVerificacaoSebo.PENDENTE,
+                null, null, null, null, null, requestFisico.fotoUrl(), TipoOperacaoSebo.VIRTUAL, false));
+
+        seboService.criar(contaSebo, requestFisico);
+
+        verify(seboRepository).save(seboCaptor.capture());
+        assertThat(seboCaptor.getValue().getTipoOperacao()).isEqualTo(TipoOperacaoSebo.VIRTUAL);
     }
 
     @Test

@@ -13,6 +13,7 @@ import com.vitral.entity.Account;
 import com.vitral.entity.MovimentacaoEstoque;
 import com.vitral.entity.Produto;
 import com.vitral.enumerations.TipoMovimentacaoEstoque;
+import com.vitral.enumerations.TipoOperacaoSebo;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.repository.MovimentacaoEstoqueRepository;
@@ -31,6 +32,7 @@ public class MovimentacaoEstoqueService {
     @Transactional
     public MovimentacaoEstoqueResponse registrarVendaFisica(Account operador, RegistrarVendaFisicaRequest request) {
         Produto produto = produtoDoSebo(request.produtoId(), operador);
+        validarTipoOperacaoSebo(produto.getSebo());
         long reservado = pedidoRepository.sumQuantidadeReservadaEmPedidosPendentes(produto.getId());
         int disponivel = produto.getEstoque() - Math.toIntExact(reservado);
         if (request.quantidade() > disponivel) {
@@ -103,6 +105,12 @@ public class MovimentacaoEstoqueService {
             throw new BusinessException("Produto nao pertence ao sebo autenticado", HttpStatus.FORBIDDEN);
         }
         return produto;
+    }
+
+    private void validarTipoOperacaoSebo(com.vitral.entity.Sebo sebo) {
+        if (sebo.getTipoOperacao() == TipoOperacaoSebo.VIRTUAL) {
+            throw new BusinessException("Sebo virtual nao permite venda fisica", HttpStatus.BAD_REQUEST);
+        }
     }
 
     private MovimentacaoEstoqueResponse toResponse(MovimentacaoEstoque m) {

@@ -45,6 +45,8 @@ CREATE TABLE sebo (
     cnpj_consultado_em     TIMESTAMP,
     mensagem_consulta_cnpj VARCHAR(500),
     foto_url               VARCHAR(500),
+    tipo_operacao          VARCHAR(20) NOT NULL DEFAULT 'VIRTUAL',
+    confirmado             BOOLEAN     NOT NULL DEFAULT FALSE,
     created_at             TIMESTAMP    NOT NULL,
     updated_at             TIMESTAMP    NOT NULL,
     CONSTRAINT uk_sebo_account UNIQUE (account_id),

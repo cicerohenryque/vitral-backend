@@ -23,6 +23,7 @@ import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.TipoMovimentacaoEstoque;
+import com.vitral.enumerations.TipoOperacaoSebo;
 import com.vitral.exception.BusinessException;
 import com.vitral.repository.MovimentacaoEstoqueRepository;
 import com.vitral.repository.PedidoRepository;
@@ -43,7 +44,7 @@ class MovimentacaoEstoqueServiceTest {
     void setup() {
         operador = Account.builder().name("Sebo").email("sebo@test.com").type(AccountType.SEBO).build();
         ReflectionTestUtils.setField(operador, "id", 1L);
-        Sebo sebo = Sebo.builder().account(operador).build();
+        Sebo sebo = Sebo.builder().account(operador).tipoOperacao(TipoOperacaoSebo.FISICO).build();
         ReflectionTestUtils.setField(sebo, "id", 2L);
         produto = Produto.builder().sebo(sebo).estoque(5).ativo(true).preco(new BigDecimal("30.00")).build();
         ReflectionTestUtils.setField(produto, "id", 3L);
@@ -63,6 +64,18 @@ class MovimentacaoEstoqueServiceTest {
         assertThat(response.valorTotal()).isEqualByComparingTo("50.00");
         assertThat(response.estoqueAntes()).isEqualTo(5);
         assertThat(response.estoqueDepois()).isEqualTo(3);
+    }
+
+    @Test
+    void bloqueiaVendaFisicaParaSeboVirtual() {
+        produto.getSebo().setTipoOperacao(TipoOperacaoSebo.VIRTUAL);
+        when(produtoRepository.findById(3L)).thenReturn(Optional.of(produto));
+
+        assertThatThrownBy(() -> service.registrarVendaFisica(operador,
+                new RegistrarVendaFisicaRequest(3L, 1, BigDecimal.TEN, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("virtual");
+        assertThat(produto.getEstoque()).isEqualTo(5);
     }
 
     @Test

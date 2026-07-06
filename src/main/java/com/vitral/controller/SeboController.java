@@ -13,11 +13,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 import org.springframework.data.domain.Pageable;
 import com.vitral.dto.PageResponse;
 import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.TipoDocumentoSebo;
 
 import com.vitral.dto.MensagemResponse;
+import com.vitral.dto.RevisaoVerificacaoSeboRequest;
 import com.vitral.dto.SeboRequest;
 import com.vitral.dto.SeboResponse;
 import com.vitral.dto.DocumentoVerificacaoSeboRequest;
@@ -89,15 +93,28 @@ public class SeboController {
             @PathVariable Long id,
             @RequestParam StatusVerificacaoSebo status,
             @RequestParam(required = false) String motivo,
+            @RequestBody(required = false) RevisaoVerificacaoSeboRequest request,
             @AuthenticationPrincipal AccountUserDetails principal) {
-        return ResponseEntity.ok(verificacaoSeboService.revisar(principal.getAccount(), id, status, motivo));
+        String motivoRevisao = request != null && request.motivo() != null ? request.motivo() : motivo;
+        return ResponseEntity.ok(verificacaoSeboService.revisar(principal.getAccount(), id, status, motivoRevisao));
     }
 
-    @PostMapping("/me/documentos")
+    @PostMapping(value = "/me/documentos", consumes = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasRole('SEBO')")
     public ResponseEntity<DocumentoVerificacaoSeboResponse> enviarDocumento(
             @AuthenticationPrincipal AccountUserDetails principal, @Valid @RequestBody DocumentoVerificacaoSeboRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(verificacaoSeboService.enviarDocumento(principal.getAccount(), request));
+    }
+
+    @PostMapping(value = "/me/documentos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('SEBO')")
+    @Operation(summary = "Envia um documento de verificacao do sebo autenticado")
+    public ResponseEntity<DocumentoVerificacaoSeboResponse> enviarDocumentoMultipart(
+            @AuthenticationPrincipal AccountUserDetails principal,
+            @RequestParam("tipo") TipoDocumentoSebo tipo,
+            @RequestParam("arquivo") MultipartFile arquivo) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(verificacaoSeboService.enviarDocumento(principal.getAccount(), tipo, arquivo));
     }
 
     @GetMapping("/me/documentos")

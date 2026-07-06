@@ -5,18 +5,21 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import com.vitral.dto.AuditoriaVerificacaoSeboResponse;
 import com.vitral.dto.DocumentoVerificacaoSeboRequest;
 import com.vitral.dto.DocumentoVerificacaoSeboResponse;
 import com.vitral.dto.SeboResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.AuditoriaVerificacaoSebo;
+import com.vitral.entity.DocumentoUpload;
 import com.vitral.entity.DocumentoVerificacaoSebo;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.StatusDocumentoSebo;
 import com.vitral.enumerations.StatusVerificacaoSebo;
 import com.vitral.enumerations.StatusConsultaCnpj;
+import com.vitral.enumerations.TipoDocumentoSebo;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.SeboMapper;
@@ -36,6 +39,7 @@ public class VerificacaoSeboService {
     private final ProdutoRepository produtoRepository;
     private final SeboMapper seboMapper;
     private final DocumentoUploadRepository uploadRepository;
+    private final DocumentoUploadService documentoUploadService;
 
     private static final String PREFIXO_DOCUMENTO = "/api/v1/uploads/documents/";
 
@@ -52,7 +56,25 @@ public class VerificacaoSeboService {
         sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
         sebo.setVerificadoEm(null);
         sebo.setMotivoRejeicao(null);
-        return toResponse(documentoRepository.save(documento));
+        sebo.setConfirmado(false);
+        return toResponse(documentoRepository.save(documento), metadataPorNome(nomeInterno));
+    }
+
+    @Transactional
+    public DocumentoVerificacaoSeboResponse enviarDocumento(Account account, TipoDocumentoSebo tipo, MultipartFile arquivo) {
+        if (tipo == null) {
+            throw new BusinessException("Informe o tipo do documento", HttpStatus.BAD_REQUEST);
+        }
+        Sebo sebo = buscarPorAccount(account);
+        DocumentoUpload metadata = documentoUploadService.armazenarComMetadata(account, arquivo);
+        DocumentoVerificacaoSebo documento = DocumentoVerificacaoSebo.builder()
+                .sebo(sebo).tipoDocumento(tipo).arquivoUrl(documentoUploadService.arquivoUrl(metadata))
+                .status(StatusDocumentoSebo.PENDENTE).enviadoEm(OffsetDateTime.now()).build();
+        sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
+        sebo.setVerificadoEm(null);
+        sebo.setMotivoRejeicao(null);
+        sebo.setConfirmado(false);
+        return toResponse(documentoRepository.save(documento), metadata);
     }
 
     @Transactional(readOnly = true)
@@ -99,6 +121,7 @@ public class VerificacaoSeboService {
         sebo.setStatusVerificacao(status);
         sebo.setVerificadoEm(status == StatusVerificacaoSebo.VERIFICADO ? agora : null);
         sebo.setMotivoRejeicao(status == StatusVerificacaoSebo.REJEITADO ? motivo.trim() : null);
+        sebo.setConfirmado(status == StatusVerificacaoSebo.VERIFICADO);
         documentos.stream().filter(d -> d.getStatus() == StatusDocumentoSebo.PENDENTE).forEach(d -> {
             d.setStatus(status == StatusVerificacaoSebo.VERIFICADO ? StatusDocumentoSebo.APROVADO : StatusDocumentoSebo.REJEITADO);
             d.setAnalisadoEm(agora);
@@ -121,8 +144,28 @@ public class VerificacaoSeboService {
     }
 
     private DocumentoVerificacaoSeboResponse toResponse(DocumentoVerificacaoSebo d) {
-        return new DocumentoVerificacaoSeboResponse(d.getId(), d.getTipoDocumento(), d.getArquivoUrl(), d.getStatus(),
-                d.getEnviadoEm(), d.getAnalisadoEm(), d.getAnalisadoPor() == null ? null : d.getAnalisadoPor().getId(), d.getMotivoRejeicao());
+        return toResponse(d, metadataPorUrl(d.getArquivoUrl()));
+    }
+
+    private DocumentoVerificacaoSeboResponse toResponse(DocumentoVerificacaoSebo d, DocumentoUpload metadata) {
+        return new DocumentoVerificacaoSeboResponse(d.getId(), d.getTipoDocumento(), d.getArquivoUrl(),
+                metadata == null ? null : metadata.getNomeOriginal(),
+                metadata == null ? null : metadata.getMimeType(),
+                metadata == null ? null : metadata.getTamanhoBytes(),
+                d.getStatus(), d.getEnviadoEm(), d.getAnalisadoEm(),
+                d.getAnalisadoPor() == null ? null : d.getAnalisadoPor().getId(), d.getMotivoRejeicao());
+    }
+
+    private DocumentoUpload metadataPorUrl(String url) {
+        try {
+            return metadataPorNome(extrairNomeInterno(url));
+        } catch (BusinessException exception) {
+            return null;
+        }
+    }
+
+    private DocumentoUpload metadataPorNome(String nomeInterno) {
+        return uploadRepository.findByNomeInterno(nomeInterno).orElse(null);
     }
 
     private String extrairNomeInterno(String url) {

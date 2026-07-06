@@ -11,6 +11,7 @@ import com.vitral.entity.Account;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.TipoOperacaoSebo;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import com.vitral.exception.BusinessException;
@@ -48,6 +49,7 @@ public class SeboService {
                 .cnpj(request.cnpj())
                 .statusVerificacao(StatusVerificacaoSebo.PENDENTE)
                 .fotoUrl(request.fotoUrl())
+                .tipoOperacao(TipoOperacaoSebo.VIRTUAL)
                 .build();
         Sebo salvo = seboRepository.save(sebo);
         cnpjConsultaService.consultar(salvo);
@@ -67,9 +69,11 @@ public class SeboService {
             sebo.setCnpj(request.cnpj());
             sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
             sebo.setVerificadoEm(null);
+            sebo.setConfirmado(false);
             cnpjConsultaService.consultar(sebo);
         }
         sebo.setFotoUrl(request.fotoUrl());
+        sebo.setTipoOperacao(TipoOperacaoSebo.VIRTUAL);
         return seboMapper.toResponse(sebo);
     }
 

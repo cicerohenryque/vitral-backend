@@ -11,6 +11,7 @@ import jakarta.persistence.Enumerated;
 import java.time.OffsetDateTime;
 import com.vitral.enumerations.StatusVerificacaoSebo;
 import com.vitral.enumerations.StatusConsultaCnpj;
+import com.vitral.enumerations.TipoOperacaoSebo;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import lombok.AllArgsConstructor;
@@ -69,4 +70,13 @@ public class Sebo extends BaseEntity {
 
     @Column(name = "foto_url", length = 500)
     private String fotoUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_operacao", nullable = false, length = 20)
+    @Builder.Default
+    private TipoOperacaoSebo tipoOperacao = TipoOperacaoSebo.VIRTUAL;
+
+    @Column(name = "confirmado", nullable = false)
+    @Builder.Default
+    private Boolean confirmado = Boolean.FALSE;
 }

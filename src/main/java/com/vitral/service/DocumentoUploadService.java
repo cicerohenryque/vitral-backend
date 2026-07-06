@@ -50,6 +50,11 @@ public class DocumentoUploadService {
 
     @Transactional
     public String armazenar(Account account, MultipartFile arquivo) {
+        return arquivoUrl(armazenarComMetadata(account, arquivo));
+    }
+
+    @Transactional
+    public DocumentoUpload armazenarComMetadata(Account account, MultipartFile arquivo) {
         String tipo = validar(arquivo);
         Sebo sebo = seboRepository.findByAccountId(account.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
@@ -61,12 +66,17 @@ public class DocumentoUploadService {
             try (InputStream input = arquivo.getInputStream()) {
                 Files.copy(input, destino, StandardCopyOption.REPLACE_EXISTING);
             }
-            metadataRepository.save(DocumentoUpload.builder().sebo(sebo).nomeInterno(nome)
-                    .nomeOriginal(nomeOriginal(arquivo)).mimeType(tipo).tamanhoBytes(arquivo.getSize()).build());
-            return "/api/v1/uploads/documents/" + nome;
+            DocumentoUpload metadata = DocumentoUpload.builder().sebo(sebo).nomeInterno(nome)
+                    .nomeOriginal(nomeOriginal(arquivo)).mimeType(tipo).tamanhoBytes(arquivo.getSize()).build();
+            DocumentoUpload salvo = metadataRepository.save(metadata);
+            return salvo == null ? metadata : salvo;
         } catch (IOException e) {
             throw erro("Nao foi possivel salvar o documento.");
         }
+    }
+
+    public String arquivoUrl(DocumentoUpload metadata) {
+        return "/api/v1/uploads/documents/" + metadata.getNomeInterno();
     }
 
     @Transactional(readOnly = true)
