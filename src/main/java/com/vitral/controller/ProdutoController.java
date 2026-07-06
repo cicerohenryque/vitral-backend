@@ -19,6 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.vitral.dto.PageResponse;
 import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
+import com.vitral.dto.VendaFisicaRequest;
+import com.vitral.dto.VendedorProdutoResponse;
+import java.util.List;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.service.ProdutoService;
 
@@ -60,10 +63,26 @@ public class ProdutoController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/venda-fisica")
+    @PreAuthorize("hasRole('SEBO')")
+    @Operation(summary = "Registra uma venda presencial e sincroniza o estoque compartilhado")
+    public ResponseEntity<ProdutoResponse> registrarVendaFisica(
+            @AuthenticationPrincipal AccountUserDetails principal,
+            @PathVariable Long id,
+            @Valid @RequestBody VendaFisicaRequest request) {
+        return ResponseEntity.ok(produtoService.registrarVendaFisica(principal.getAccount(), id, request));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Consulta publica de um produto ativo pelo id")
     public ResponseEntity<ProdutoResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(produtoService.buscarPorId(id));
+    }
+
+    @GetMapping("/{id}/vendedores")
+    @Operation(summary = "Lista vendedores verificados com o mesmo produto ativo, do menor preco para o maior")
+    public ResponseEntity<List<VendedorProdutoResponse>> listarVendedores(@PathVariable Long id) {
+        return ResponseEntity.ok(produtoService.listarVendedores(id));
     }
 
     @GetMapping("/sebo/{seboId}")

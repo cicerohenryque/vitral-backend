@@ -11,8 +11,8 @@ VALUES (3, '11111111-1111-1111-1111-111111111111', DATEADD('HOUR', 1, CURRENT_TI
 INSERT INTO token_recuperacao_senha (account_id, token, expira_em, usado, created_at, updated_at)
 VALUES (2, '22222222-2222-2222-2222-222222222222', DATEADD('HOUR', 1, CURRENT_TIMESTAMP), FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
-INSERT INTO sebo (account_id, descricao, telefone, cidade, uf, horario_funcionamento, created_at, updated_at)
-VALUES (1, 'Sebo criado exclusivamente para os testes E2E.', '85999990000', 'Fortaleza', 'CE', '08h às 18h', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO sebo (account_id, descricao, telefone, created_at, updated_at)
+VALUES (1, 'Sebo criado exclusivamente para os testes E2E.', '85999990000', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 INSERT INTO categoria (nome, slug, descricao, created_at, updated_at)
 VALUES ('Romance E2E', 'romance-e2e', 'Categoria real do banco E2E.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);

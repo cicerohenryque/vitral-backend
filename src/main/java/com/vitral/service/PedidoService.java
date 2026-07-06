@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.time.OffsetDateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.vitral.dto.ConfirmarPedidoRequest;
+import com.vitral.dto.FaturamentoMensalResponse;
 import com.vitral.dto.PedidoItemResponse;
 import com.vitral.dto.PedidoResponse;
 import com.vitral.entity.Account;
@@ -25,11 +27,13 @@ import com.vitral.entity.Sebo;
 import com.vitral.enumerations.FormaPagamento;
 import com.vitral.enumerations.StatusPagamento;
 import com.vitral.enumerations.StatusPedido;
+import com.vitral.enumerations.TipoMovimentacaoEstoque;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.repository.CestaItemRepository;
 import com.vitral.repository.PedidoRepository;
 import com.vitral.repository.SeboRepository;
+import com.vitral.repository.MovimentacaoEstoqueRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -44,6 +48,8 @@ public class PedidoService {
     private final SeboRepository seboRepository;
     private final EmailService emailService;
     private final PrecoService precoService;
+    private final MovimentacaoEstoqueService movimentacaoEstoqueService;
+    private final MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
 
     @Transactional
     public PedidoResponse confirmarPedido(Account account, ConfirmarPedidoRequest pagamento) {
@@ -95,6 +101,7 @@ public class PedidoService {
                 .status(StatusPedido.AGUARDANDO_CONFIRMACAO)
                 .formaPagamento(pagamento.formaPagamento())
                 .statusPagamento(StatusPagamento.APROVADO)
+                .pagoEm(OffsetDateTime.now())
                 .total(total)
                 .build();
 
@@ -155,6 +162,7 @@ public class PedidoService {
 
         pedido.setStatus(novoStatus);
         if (novoStatus == StatusPedido.CONFIRMADO) {
+            pedido.setConfirmadoEm(OffsetDateTime.now());
             pedido.getItens().forEach(item -> {
                 int estoqueAtual = item.getProduto().getEstoque();
                 if (estoqueAtual < item.getQuantidade()) {
@@ -163,7 +171,12 @@ public class PedidoService {
                 int novoEstoque = estoqueAtual - item.getQuantidade();
                 item.getProduto().setEstoque(novoEstoque);
                 item.getProduto().setAtivo(novoEstoque > 0);
+                movimentacaoEstoqueService.registrarAlteracao(item.getProduto(), account,
+                        TipoMovimentacaoEstoque.VENDA_ONLINE, item.getQuantidade(), estoqueAtual, novoEstoque,
+                        item.getPrecoSnapshot(), "Pedido online #" + pedido.getId());
             });
+        } else {
+            pedido.setCanceladoEm(OffsetDateTime.now());
         }
         return toResponse(pedido);
     }
@@ -183,6 +196,7 @@ public class PedidoService {
         }
 
         pedido.setStatus(StatusPedido.CANCELADO);
+        pedido.setCanceladoEm(OffsetDateTime.now());
         return toResponse(pedido);
     }
 
@@ -201,6 +215,7 @@ public class PedidoService {
         }
 
         pedido.setStatus(StatusPedido.CANCELADO);
+        pedido.setCanceladoEm(OffsetDateTime.now());
         return toResponse(pedido);
     }
 
@@ -224,6 +239,36 @@ public class PedidoService {
                 .map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
+    public List<FaturamentoMensalResponse> faturamentoMensal(Account account, int ano) {
+        if (ano < 2000 || ano > 2100) {
+            throw new BusinessException("Ano invalido", HttpStatus.BAD_REQUEST);
+        }
+        Sebo sebo = seboRepository.findByAccountId(account.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
+        Map<Integer, BigDecimal> online = porMes(pedidoRepository.vendasOnlineMensais(sebo.getId(), ano));
+        Map<Integer, BigDecimal> fisicas = porMes(movimentacaoEstoqueRepository.vendasFisicasMensais(sebo.getId(), ano));
+        Map<Integer, BigDecimal> estornos = porMes(movimentacaoEstoqueRepository.estornosFisicosMensais(sebo.getId(), ano));
+        Map<Integer, BigDecimal> reembolsos = porMes(pedidoRepository.reembolsosMensais(sebo.getId(), ano));
+        return java.util.stream.IntStream.rangeClosed(1, 12)
+                .mapToObj(mes -> {
+                    BigDecimal vendasOnline = online.getOrDefault(mes, BigDecimal.ZERO);
+                    BigDecimal vendasFisicas = fisicas.getOrDefault(mes, BigDecimal.ZERO);
+                    BigDecimal valorEstornos = estornos.getOrDefault(mes, BigDecimal.ZERO);
+                    BigDecimal valorReembolsos = reembolsos.getOrDefault(mes, BigDecimal.ZERO);
+                    BigDecimal deducoes = valorEstornos.add(valorReembolsos);
+                    BigDecimal liquido = vendasOnline.add(vendasFisicas).subtract(deducoes);
+                    return new FaturamentoMensalResponse(ano, mes, vendasOnline, vendasFisicas,
+                            valorEstornos, valorReembolsos, deducoes, liquido, liquido);
+                })
+                .toList();
+    }
+
+    private Map<Integer, BigDecimal> porMes(List<Object[]> valores) {
+        return valores.stream().collect(Collectors.toMap(
+                row -> ((Number) row[0]).intValue(), row -> (BigDecimal) row[1], BigDecimal::add));
+    }
+
     private PedidoResponse toResponse(Pedido pedido) {
         List<PedidoItemResponse> itensResponse = pedido.getItens().stream()
                 .map(i -> new PedidoItemResponse(
@@ -242,7 +287,36 @@ public class PedidoService {
                 pedido.getStatusPagamento(),
                 pedido.getTotal(),
                 pedido.getCreatedAt(),
+                pedido.getConfirmadoEm(),
+                pedido.getPagoEm(),
+                pedido.getCanceladoEm(),
+                pedido.getReembolsadoEm(),
                 itensResponse);
+    }
+
+    @Transactional
+    public PedidoResponse reembolsarPedido(Account account, Long pedidoId) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido nao encontrado"));
+        if (!pedido.getSebo().getAccount().getId().equals(account.getId())) {
+            throw new BusinessException("Pedido nao pertence ao sebo da conta autenticada", HttpStatus.FORBIDDEN);
+        }
+        if (pedido.getStatus() != StatusPedido.CONFIRMADO || pedido.getReembolsadoEm() != null) {
+            throw new BusinessException("Apenas pedidos confirmados podem ser reembolsados", HttpStatus.BAD_REQUEST);
+        }
+        pedido.getItens().forEach(item -> {
+            Produto produto = item.getProduto();
+            int antes = produto.getEstoque();
+            int depois = antes + item.getQuantidade();
+            produto.setEstoque(depois);
+            produto.setAtivo(true);
+            movimentacaoEstoqueService.registrarAlteracao(produto, account, TipoMovimentacaoEstoque.ESTORNO,
+                    item.getQuantidade(), antes, depois, item.getPrecoSnapshot(),
+                    "Reembolso do pedido online #" + pedido.getId());
+        });
+        pedido.setStatus(StatusPedido.REEMBOLSADO);
+        pedido.setReembolsadoEm(OffsetDateTime.now());
+        return toResponse(pedido);
     }
 
     private void validarQuantidadeDisponivel(CestaItem item) {

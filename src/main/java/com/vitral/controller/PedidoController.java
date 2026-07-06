@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 
 import com.vitral.dto.ConfirmarPedidoRequest;
+import com.vitral.dto.FaturamentoMensalResponse;
+import java.util.List;
+import java.time.Year;
 import com.vitral.dto.PageResponse;
 import com.vitral.dto.PedidoResponse;
 import com.vitral.enumerations.StatusPedido;
@@ -64,6 +67,15 @@ public class PedidoController {
         return ResponseEntity.ok(pedidoService.cancelarPedidoUsuario(principal.getAccount(), id));
     }
 
+    @PutMapping("/{id}/reembolsar")
+    @PreAuthorize("hasRole('SEBO')")
+    @Operation(summary = "Reembolsa integralmente um pedido confirmado e repoe o estoque")
+    public ResponseEntity<PedidoResponse> reembolsarPedido(
+            @AuthenticationPrincipal AccountUserDetails principal,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(pedidoService.reembolsarPedido(principal.getAccount(), id));
+    }
+
     @GetMapping("/meus-pedidos")
     @PreAuthorize("hasRole('USUARIO')")
     @Operation(summary = "Historico de pedidos do usuario autenticado")
@@ -84,5 +96,15 @@ public class PedidoController {
             Pageable pageable) {
         return ResponseEntity.ok(PageResponse.from(
                 pedidoService.historicoVendasSebo(principal.getAccount(), status, pageable)));
+    }
+
+    @GetMapping("/faturamento-mensal")
+    @PreAuthorize("hasRole('SEBO')")
+    @Operation(summary = "Faturamento mensal de pedidos confirmados do sebo autenticado")
+    public ResponseEntity<List<FaturamentoMensalResponse>> faturamentoMensal(
+            @AuthenticationPrincipal AccountUserDetails principal,
+            @RequestParam(required = false) Integer ano) {
+        int anoConsulta = ano == null ? Year.now().getValue() : ano;
+        return ResponseEntity.ok(pedidoService.faturamentoMensal(principal.getAccount(), anoConsulta));
     }
 }

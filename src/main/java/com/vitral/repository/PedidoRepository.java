@@ -43,4 +43,28 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
               and p.status = com.vitral.enumerations.StatusPedido.AGUARDANDO_CONFIRMACAO
             """)
     Long sumQuantidadeReservadaEmPedidosPendentes(@Param("produtoId") Long produtoId);
+
+    @Query("""
+            select month(coalesce(p.pagoEm, p.confirmadoEm)), coalesce(sum(p.total), 0)
+            from Pedido p
+            where p.sebo.id = :seboId
+              and year(coalesce(p.pagoEm, p.confirmadoEm)) = :ano
+              and p.status in (com.vitral.enumerations.StatusPedido.CONFIRMADO,
+                               com.vitral.enumerations.StatusPedido.REEMBOLSADO)
+              and p.statusPagamento = com.vitral.enumerations.StatusPagamento.APROVADO
+            group by month(coalesce(p.pagoEm, p.confirmadoEm))
+            order by month(coalesce(p.pagoEm, p.confirmadoEm))
+            """)
+    List<Object[]> vendasOnlineMensais(@Param("seboId") Long seboId, @Param("ano") int ano);
+
+    @Query("""
+            select month(p.reembolsadoEm), coalesce(sum(p.total), 0)
+            from Pedido p
+            where p.sebo.id = :seboId
+              and year(p.reembolsadoEm) = :ano
+              and p.status = com.vitral.enumerations.StatusPedido.REEMBOLSADO
+            group by month(p.reembolsadoEm)
+            order by month(p.reembolsadoEm)
+            """)
+    List<Object[]> reembolsosMensais(@Param("seboId") Long seboId, @Param("ano") int ano);
 }

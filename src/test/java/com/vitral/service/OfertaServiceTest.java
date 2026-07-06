@@ -111,6 +111,17 @@ class OfertaServiceTest {
     }
 
     @Test
+    @DisplayName("Deve rejeitar oferta para produto inativo")
+    void criar_produtoInativo_lancaBadRequest() {
+        produto.setAtivo(false);
+        when(produtoRepository.findById(10L)).thenReturn(Optional.of(produto));
+
+        assertThatThrownBy(() -> ofertaService.criar(contaSebo, request(new BigDecimal("40.00"), null, null, true)))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getStatus()).isEqualTo(HttpStatus.BAD_REQUEST));
+    }
+
+    @Test
     @DisplayName("Deve rejeitar oferta cuja data final antecede o inicio")
     void criar_periodoInvalido_lancaBadRequest() {
         OffsetDateTime inicio = OffsetDateTime.now().plusDays(2);
@@ -172,6 +183,35 @@ class OfertaServiceTest {
         ofertaService.remover(contaSebo, 20L);
 
         assertThat(oferta.getAtiva()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Deve atualizar oferta e respeitar ativa false")
+    void atualizar_sucesso_comAtivaFalse() {
+        Oferta oferta = Oferta.builder().produto(produto).ativa(true).build();
+        ReflectionTestUtils.setField(oferta, "id", 20L);
+        when(ofertaRepository.findById(20L)).thenReturn(Optional.of(oferta));
+        when(produtoRepository.findById(10L)).thenReturn(Optional.of(produto));
+
+        var response = ofertaService.atualizar(contaSebo, 20L,
+                request(new BigDecimal("35.00"), OffsetDateTime.now(), OffsetDateTime.now().plusDays(2), false));
+
+        assertThat(response.precoPromocional()).isEqualByComparingTo("35.00");
+        assertThat(response.ativa()).isFalse();
+        assertThat(oferta.getAtiva()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Deve impedir remocao de oferta de outro sebo")
+    void remover_ofertaDeOutroSebo_lancaForbidden() {
+        Account outraConta = account(2L, "Outro", AccountType.SEBO);
+        Oferta oferta = Oferta.builder().produto(produto).ativa(true).build();
+        when(ofertaRepository.findById(20L)).thenReturn(Optional.of(oferta));
+
+        assertThatThrownBy(() -> ofertaService.remover(outraConta, 20L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getStatus()).isEqualTo(HttpStatus.FORBIDDEN));
+        assertThat(oferta.getAtiva()).isTrue();
     }
 
     private OfertaRequest request(BigDecimal preco, OffsetDateTime inicio, OffsetDateTime fim, Boolean ativa) {

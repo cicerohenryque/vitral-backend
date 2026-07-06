@@ -27,17 +27,22 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 
 import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
+import com.vitral.dto.VendedorProdutoResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.BaseEntity;
 import com.vitral.entity.Categoria;
+import com.vitral.entity.CatalogoLivro;
 import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.TipoMovimentacaoEstoque;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.ProdutoMapper;
@@ -60,6 +65,12 @@ class ProdutoServiceTest {
 
     @Mock
     private PrecoService precoService;
+
+    @Mock
+    private CatalogoLivroService catalogoLivroService;
+
+    @Mock
+    private MovimentacaoEstoqueService movimentacaoEstoqueService;
 
     @InjectMocks
     private ProdutoService produtoService;
@@ -91,13 +102,16 @@ class ProdutoServiceTest {
                 .build();
         setId(contaOutroSebo, 200L);
 
-        seboDono = Sebo.builder().account(contaDona).cidade("Campina Grande").build();
+        seboDono = Sebo.builder().account(contaDona)
+                .statusVerificacao(StatusVerificacaoSebo.VERIFICADO).build();
         setId(seboDono, 1L);
 
-        seboOutro = Sebo.builder().account(contaOutroSebo).cidade("Recife").build();
+        seboOutro = Sebo.builder().account(contaOutroSebo)
+                .statusVerificacao(StatusVerificacaoSebo.VERIFICADO).build();
         setId(seboOutro, 2L);
 
         request = new ProdutoRequest(
+                null,
                 "Dom Casmurro",
                 null,
                 "Machado de Assis",
@@ -111,7 +125,7 @@ class ProdutoServiceTest {
     @Test
     @DisplayName("Deve criar produto vinculado ao sebo da conta autenticada com ativo igual a true")
     void shouldCreateProductLinkedToOwnerSeboWithAtivoTrue() {
-        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, null, null, request.titulo(), request.autor(),
+        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, null, null, null, null, request.titulo(), request.autor(),
                 request.descricao(), request.preco(), null, request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
 
         when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
@@ -129,6 +143,30 @@ class ProdutoServiceTest {
         assertThat(persistido.getEstoque()).isEqualTo(3);
         assertThat(persistido.getCondicao()).isEqualTo(CondicaoProduto.USADO);
         assertThat(persistido.getAtivo()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Deve criar produto com estoque padrao e categoria quando estoque vier nulo")
+    void criar_estoqueNulo_usaPadraoECategoria() {
+        Categoria categoria = Categoria.builder().nome("Romance").slug("romance").build();
+        setId(categoria, 7L);
+        ProdutoRequest requestSemEstoque = new ProdutoRequest(null, "Dom Casmurro", 7L, "Machado",
+                "Descricao", BigDecimal.TEN, null, CondicaoProduto.USADO, null);
+        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, 7L, "Romance", null, null,
+                "Dom Casmurro", "Machado", "Descricao", BigDecimal.TEN, null, 1, CondicaoProduto.USADO, null, true);
+
+        when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
+        when(categoriaService.buscarEntidade(7L)).thenReturn(categoria);
+        when(produtoRepository.save(produtoCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(precoService.precoPromocionalVigente(any())).thenReturn(Optional.empty());
+        when(produtoMapper.toResponse(produtoCaptor.capture(), any())).thenReturn(responseEsperado);
+
+        ProdutoResponse resultado = produtoService.criar(contaDona, requestSemEstoque);
+
+        assertThat(resultado).isSameAs(responseEsperado);
+        assertThat(produtoCaptor.getAllValues().get(0).getEstoque()).isEqualTo(1);
+        verify(movimentacaoEstoqueService).registrarAlteracao(any(), eq(contaDona), eq(TipoMovimentacaoEstoque.ENTRADA),
+                eq(1), eq(0), eq(1), eq(BigDecimal.TEN), eq("Estoque inicial"));
     }
 
     @Test
@@ -153,7 +191,7 @@ class ProdutoServiceTest {
                 .ativo(Boolean.TRUE)
                 .build();
         setId(produto, 50L);
-        ProdutoResponse esperado = new ProdutoResponse(50L, 1L, null, null, request.titulo(), request.autor(),
+        ProdutoResponse esperado = new ProdutoResponse(50L, 1L, null, null, null, null, request.titulo(), request.autor(),
                 request.descricao(), request.preco(), null, request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
 
         when(produtoRepository.findById(50L)).thenReturn(Optional.of(produto));
@@ -227,7 +265,7 @@ class ProdutoServiceTest {
     void shouldReturnActiveProductWhenSearchedById() {
         Produto produto = Produto.builder().sebo(seboDono).ativo(Boolean.TRUE).build();
         setId(produto, 5L);
-        ProdutoResponse esperado = new ProdutoResponse(5L, 1L, null, null, "T", null, null,
+        ProdutoResponse esperado = new ProdutoResponse(5L, 1L, null, null, null, null, "T", null, null,
                 BigDecimal.TEN, null, 1, CondicaoProduto.NOVO, null, Boolean.TRUE);
 
         when(produtoRepository.findByIdAndAtivoTrue(5L)).thenReturn(Optional.of(produto));
@@ -237,6 +275,20 @@ class ProdutoServiceTest {
         ProdutoResponse resultado = produtoService.buscarPorId(5L);
 
         assertThat(resultado).isEqualTo(esperado);
+    }
+
+    @Test
+    @DisplayName("Deve esconder produto quando o sebo nao estiver verificado")
+    void buscarPorId_seboNaoVerificado_lancaNotFound() {
+        Sebo seboPendente = Sebo.builder().account(contaDona)
+                .statusVerificacao(StatusVerificacaoSebo.PENDENTE).build();
+        Produto produto = Produto.builder().sebo(seboPendente).ativo(Boolean.TRUE).build();
+        setId(produto, 5L);
+        when(produtoRepository.findByIdAndAtivoTrue(5L)).thenReturn(Optional.of(produto));
+
+        assertThatThrownBy(() -> produtoService.buscarPorId(5L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Produto nao encontrado");
     }
 
     @Test
@@ -250,6 +302,69 @@ class ProdutoServiceTest {
     }
 
     @Test
+    @DisplayName("Deve listar vendedores verificados do mesmo produto pelo menor preco efetivo")
+    void shouldListVerifiedSellersByEffectivePrice() {
+        CatalogoLivro catalogo = CatalogoLivro.builder().isbn("9788535914849").titulo("Dom Casmurro").build();
+        setId(catalogo, 20L);
+        Produto referencia = Produto.builder().sebo(seboDono).titulo("Dom Casmurro")
+                .catalogoLivro(catalogo).preco(new BigDecimal("50.00")).estoque(2)
+                .condicao(CondicaoProduto.USADO).ativo(true).build();
+        setId(referencia, 10L);
+        Produto concorrente = Produto.builder().sebo(seboOutro).titulo("dom casmurro").catalogoLivro(catalogo)
+                .preco(new BigDecimal("40.00")).estoque(1).condicao(CondicaoProduto.SEMINOVO).ativo(true).build();
+        setId(concorrente, 11L);
+
+        when(produtoRepository.findByIdAndAtivoTrue(10L)).thenReturn(Optional.of(referencia));
+        when(produtoRepository.vendedoresAtivosPorCatalogo(20L))
+                .thenReturn(List.of(referencia, concorrente));
+        when(precoService.precoPromocionalVigente(referencia)).thenReturn(Optional.of(new BigDecimal("45.00")));
+        when(precoService.precoPromocionalVigente(concorrente)).thenReturn(Optional.empty());
+
+        List<VendedorProdutoResponse> vendedores = produtoService.listarVendedores(10L);
+
+        assertThat(vendedores).extracting(VendedorProdutoResponse::produtoId).containsExactly(11L, 10L);
+        assertThat(vendedores.getFirst().precoEfetivo()).isEqualByComparingTo("40.00");
+    }
+
+    @Test
+    @DisplayName("Deve listar apenas o produto de referencia quando nao ha catalogo")
+    void listarVendedores_semCatalogo_retornaReferencia() {
+        Produto referencia = Produto.builder().sebo(seboDono).titulo("Avulso")
+                .preco(new BigDecimal("30.00")).estoque(2).condicao(CondicaoProduto.USADO)
+                .ativo(true).build();
+        setId(referencia, 10L);
+        when(produtoRepository.findByIdAndAtivoTrue(10L)).thenReturn(Optional.of(referencia));
+        when(precoService.precoPromocionalVigente(referencia)).thenReturn(Optional.empty());
+
+        List<VendedorProdutoResponse> vendedores = produtoService.listarVendedores(10L);
+
+        assertThat(vendedores).hasSize(1);
+        assertThat(vendedores.getFirst().produtoId()).isEqualTo(10L);
+        assertThat(vendedores.getFirst().precoEfetivo()).isEqualByComparingTo("30.00");
+    }
+
+    @Test
+    @DisplayName("Deve registrar venda fisica pelo endpoint legado")
+    void registrarVendaFisica_delegaParaMovimentacaoEstoque() {
+        Produto produto = Produto.builder().sebo(seboDono).preco(new BigDecimal("50.00")).ativo(true).build();
+        setId(produto, 10L);
+        ProdutoResponse esperado = new ProdutoResponse(10L, 1L, null, null, null, null, "Dom", null, null,
+                BigDecimal.TEN, null, 2, CondicaoProduto.USADO, null, true);
+        when(produtoRepository.findById(10L)).thenReturn(Optional.of(produto));
+        when(precoService.precoEfetivo(produto)).thenReturn(new BigDecimal("45.00"));
+        when(precoService.precoPromocionalVigente(produto)).thenReturn(Optional.of(new BigDecimal("45.00")));
+        when(produtoMapper.toResponse(produto, new BigDecimal("45.00"))).thenReturn(esperado);
+
+        ProdutoResponse response = produtoService.registrarVendaFisica(contaDona, 10L, new com.vitral.dto.VendaFisicaRequest(2));
+
+        assertThat(response).isSameAs(esperado);
+        verify(movimentacaoEstoqueService).registrarVendaFisica(eq(contaDona),
+                org.mockito.ArgumentMatchers.argThat(req -> req.produtoId().equals(10L)
+                        && req.quantidade().equals(2)
+                        && req.valorUnitario().compareTo(new BigDecimal("45.00")) == 0));
+    }
+
+    @Test
     @DisplayName("Deve listar produtos ativos de um sebo de forma paginada")
     void shouldListActiveProductsBySeboPaged() {
         Produto p1 = Produto.builder().sebo(seboDono).ativo(Boolean.TRUE).build();
@@ -258,10 +373,11 @@ class ProdutoServiceTest {
         setId(p2, 2L);
         Pageable pageable = PageRequest.of(0, 10);
         Page<Produto> pagina = new PageImpl<>(List.of(p1, p2), pageable, 2);
-        ProdutoResponse r1 = new ProdutoResponse(1L, 1L, null, null, "A", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
-        ProdutoResponse r2 = new ProdutoResponse(2L, 1L, null, null, "B", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
+        ProdutoResponse r1 = new ProdutoResponse(1L, 1L, null, null, null, null, "A", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
+        ProdutoResponse r2 = new ProdutoResponse(2L, 1L, null, null, null, null, "B", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
 
-        when(produtoRepository.findBySeboIdAndAtivoTrue(1L, pageable)).thenReturn(pagina);
+        when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
+                .thenReturn(pagina);
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(eq(p1), any())).thenReturn(r1);
         when(produtoMapper.toResponse(eq(p2), any())).thenReturn(r2);
@@ -280,10 +396,10 @@ class ProdutoServiceTest {
         Produto produto = Produto.builder().sebo(seboDono).categoria(categoria).ativo(true).build();
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
-        ProdutoResponse response = new ProdutoResponse(1L, 1L, 7L, "Romance", "A", null, null,
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, 7L, "Romance", null, null, "A", null, null,
                 BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
         when(categoriaService.buscarEntidade(7L)).thenReturn(categoria);
-        when(produtoRepository.findByCategoriaIdAndAtivoTrue(7L, pageable))
+        when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(eq(produto), any())).thenReturn(response);
@@ -300,9 +416,9 @@ class ProdutoServiceTest {
         Produto produto = Produto.builder().sebo(seboDono).ativo(true).build();
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
-        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Lancamento", null, null,
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, null, null, "Lancamento", null, null,
                 BigDecimal.TEN, null, 2, CondicaoProduto.NOVO, null, true);
-        when(produtoRepository.findByAtivoTrue(pageable))
+        when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(eq(produto), any())).thenReturn(response);
@@ -310,7 +426,7 @@ class ProdutoServiceTest {
         Page<ProdutoResponse> resultado = produtoService.listarLancamentos(pageable);
 
         assertThat(resultado.getContent()).containsExactly(response);
-        verify(produtoRepository).findByAtivoTrue(pageable);
+        verify(produtoRepository).findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable));
     }
 
     @Test
@@ -319,9 +435,9 @@ class ProdutoServiceTest {
         Produto produto = Produto.builder().sebo(seboDono).ativo(true).build();
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
-        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Classico", null, null,
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, null, null, "Classico", null, null,
                 BigDecimal.TEN, null, 1, CondicaoProduto.USADO, null, true);
-        when(produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable))
+        when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(eq(produto), any())).thenReturn(response);
@@ -329,21 +445,21 @@ class ProdutoServiceTest {
         Page<ProdutoResponse> resultado = produtoService.listarClassicos(pageable);
 
         assertThat(resultado.getContent()).containsExactly(response);
-        verify(produtoRepository).findByAtivoTrueOrderByCreatedAtAsc(pageable);
+        verify(produtoRepository).findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable));
     }
 
     @Test
     @DisplayName("Deve retornar pagina vazia quando nao existem produtos classicos ativos")
     void listarClassicos_semProdutos_retornaPaginaVazia() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable))
+        when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         Page<ProdutoResponse> resultado = produtoService.listarClassicos(pageable);
 
         assertThat(resultado.getContent()).isEmpty();
         assertThat(resultado.getTotalElements()).isZero();
-        verify(produtoRepository).findByAtivoTrueOrderByCreatedAtAsc(pageable);
+        verify(produtoRepository).findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable));
     }
 
     private void setId(Object entity, Long id) {

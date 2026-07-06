@@ -35,4 +35,9 @@ public class AccountUserDetails implements UserDetails {
     public String getUsername() {
         return account.getEmail();
     }
+
+    @Override
+    public boolean isEnabled() {
+        return Boolean.TRUE.equals(account.getAtivo());
+    }
 }

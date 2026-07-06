@@ -13,7 +13,11 @@ public class ProdutoSpecification {
     }
 
     public static Specification<Produto> ativo() {
-        return (root, query, cb) -> cb.isTrue(root.get("ativo"));
+        return (root, query, cb) -> cb.and(
+                cb.isTrue(root.get("ativo")),
+                cb.isTrue(root.get("sebo").get("account").get("ativo")),
+                cb.equal(root.get("sebo").get("statusVerificacao"),
+                        com.vitral.enumerations.StatusVerificacaoSebo.VERIFICADO));
     }
 
     public static Specification<Produto> tituloContem(String termo) {

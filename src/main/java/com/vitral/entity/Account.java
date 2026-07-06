@@ -44,4 +44,8 @@ public class Account extends BaseEntity {
     @Builder.Default
     @Column(name = "auth_version", nullable = false, columnDefinition = "integer default 0")
     private Integer authVersion = 0;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean ativo = Boolean.TRUE;
 }

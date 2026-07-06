@@ -6,6 +6,12 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import java.time.OffsetDateTime;
+import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.StatusConsultaCnpj;
+import com.vitral.enumerations.TipoOperacaoSebo;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import lombok.AllArgsConstructor;
@@ -34,7 +40,38 @@ public class Sebo extends BaseEntity {
     @Column(length = 20)
     private String telefone;
 
-    @Column(length = 9)
+    @Column(length = 14, unique = true)
+    private String cnpj;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_verificacao", nullable = false, length = 20)
+    @Builder.Default
+    private StatusVerificacaoSebo statusVerificacao = StatusVerificacaoSebo.PENDENTE;
+
+    @Column(name = "verificado_em")
+    private OffsetDateTime verificadoEm;
+
+    @Column(name = "motivo_rejeicao", length = 500)
+    private String motivoRejeicao;
+
+    @Column(name = "razao_social_receita", length = 255)
+    private String razaoSocialReceita;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_consulta_cnpj", nullable = false, length = 20)
+    @Builder.Default
+    private StatusConsultaCnpj statusConsultaCnpj = StatusConsultaCnpj.NAO_CONSULTADO;
+
+    @Column(name = "cnpj_consultado_em")
+    private OffsetDateTime cnpjConsultadoEm;
+
+    @Column(name = "mensagem_consulta_cnpj", length = 500)
+    private String mensagemConsultaCnpj;
+
+    @Column(name = "foto_url", length = 500)
+    private String fotoUrl;
+
+    @Column(length = 8)
     private String cep;
 
     @Column(length = 255)
@@ -49,6 +86,12 @@ public class Sebo extends BaseEntity {
     @Column(name = "horario_funcionamento", length = 255)
     private String horarioFuncionamento;
 
-    @Column(name = "foto_url", length = 500)
-    private String fotoUrl;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_operacao", nullable = false, length = 20)
+    @Builder.Default
+    private TipoOperacaoSebo tipoOperacao = TipoOperacaoSebo.VIRTUAL;
+
+    @Column(name = "confirmado", nullable = false)
+    @Builder.Default
+    private Boolean confirmado = Boolean.FALSE;
 }

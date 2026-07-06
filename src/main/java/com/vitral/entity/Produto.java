@@ -38,6 +38,10 @@ public class Produto extends BaseEntity {
     @JoinColumn(name = "categoria_id")
     private Categoria categoria;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "catalogo_livro_id")
+    private CatalogoLivro catalogoLivro;
+
     @Column(nullable = false, length = 255)
     private String titulo;
 

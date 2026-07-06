@@ -12,6 +12,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
+import com.vitral.dto.VendaFisicaRequest;
+import com.vitral.dto.VendedorProdutoResponse;
+import com.vitral.enumerations.StatusVerificacaoSebo;
+import java.util.Comparator;
+import org.springframework.data.jpa.domain.Specification;
+import com.vitral.specification.ProdutoSpecification;
+import com.vitral.dto.RegistrarVendaFisicaRequest;
+import com.vitral.enumerations.TipoMovimentacaoEstoque;
 import com.vitral.entity.Account;
 import com.vitral.entity.Categoria;
 import com.vitral.entity.Produto;
@@ -32,6 +40,8 @@ public class ProdutoService {
     private final SeboService seboService;
     private final CategoriaService categoriaService;
     private final PrecoService precoService;
+    private final CatalogoLivroService catalogoLivroService;
+    private final MovimentacaoEstoqueService movimentacaoEstoqueService;
 
     @Transactional
     public ProdutoResponse criar(Account account, ProdutoRequest request) {
@@ -40,6 +50,7 @@ public class ProdutoService {
         Produto produto = Produto.builder()
                 .sebo(sebo)
                 .categoria(categoria)
+                .catalogoLivro(catalogoLivroService.obterOuCriar(request))
                 .titulo(request.titulo())
                 .autor(request.autor())
                 .descricao(request.descricao())
@@ -50,6 +61,10 @@ public class ProdutoService {
                 .ativo(normalizarEstoque(request.estoque()) > 0)
                 .build();
         Produto salvo = produtoRepository.save(produto);
+        if (salvo.getEstoque() > 0) {
+            movimentacaoEstoqueService.registrarAlteracao(salvo, account, TipoMovimentacaoEstoque.ENTRADA,
+                    salvo.getEstoque(), 0, salvo.getEstoque(), salvo.getPreco(), "Estoque inicial");
+        }
         return toResponse(salvo);
     }
 
@@ -57,14 +72,22 @@ public class ProdutoService {
     public ProdutoResponse atualizar(Account account, Long produtoId, ProdutoRequest request) {
         Produto produto = obterProdutoDoDono(account, produtoId);
         produto.setCategoria(obterCategoria(request.categoriaId()));
+        produto.setCatalogoLivro(catalogoLivroService.obterOuCriar(request));
         produto.setTitulo(request.titulo());
         produto.setAutor(request.autor());
         produto.setDescricao(request.descricao());
         produto.setPreco(request.preco());
-        produto.setEstoque(normalizarEstoque(request.estoque()));
+        int estoqueAntes = produto.getEstoque();
+        int estoqueDepois = normalizarEstoque(request.estoque());
+        produto.setEstoque(estoqueDepois);
         produto.setCondicao(request.condicao());
         produto.setFotoUrl(request.fotoUrl());
         produto.setAtivo(produto.getEstoque() > 0);
+        if (estoqueAntes != estoqueDepois) {
+            movimentacaoEstoqueService.registrarAlteracao(produto, account, TipoMovimentacaoEstoque.AJUSTE,
+                    Math.abs(estoqueDepois - estoqueAntes), estoqueAntes, estoqueDepois, produto.getPreco(),
+                    "Ajuste no cadastro do produto");
+        }
         return toResponse(produto);
     }
 
@@ -74,32 +97,64 @@ public class ProdutoService {
         produto.setAtivo(Boolean.FALSE);
     }
 
-    @Transactional(readOnly = true)
-    public ProdutoResponse buscarPorId(Long id) {
-        Produto produto = produtoRepository.findByIdAndAtivoTrue(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
+    @Transactional
+    public ProdutoResponse registrarVendaFisica(Account account, Long produtoId, VendaFisicaRequest request) {
+        Produto produto = obterProdutoDoDono(account, produtoId);
+        BigDecimal valor = precoService.precoEfetivo(produto);
+        movimentacaoEstoqueService.registrarVendaFisica(account,
+                new RegistrarVendaFisicaRequest(produtoId, request.quantidade(), valor, "Venda fisica (endpoint legado)"));
         return toResponse(produto);
     }
 
     @Transactional(readOnly = true)
+    public ProdutoResponse buscarPorId(Long id) {
+        Produto produto = produtoRepository.findByIdAndAtivoTrue(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
+        validarSeboVerificado(produto);
+        return toResponse(produto);
+    }
+
+    @Transactional(readOnly = true)
+    public List<VendedorProdutoResponse> listarVendedores(Long produtoId) {
+        Produto referencia = produtoRepository.findByIdAndAtivoTrue(produtoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
+        List<Produto> candidatos = referencia.getCatalogoLivro() == null
+                ? List.of(referencia)
+                : produtoRepository.vendedoresAtivosPorCatalogo(referencia.getCatalogoLivro().getId());
+        return candidatos.stream()
+                .map(produto -> {
+                    BigDecimal promocional = precoService.precoPromocionalVigente(produto).orElse(null);
+                    BigDecimal efetivo = promocional == null ? produto.getPreco() : promocional;
+                    return new VendedorProdutoResponse(produto.getId(), produto.getSebo().getId(),
+                            produto.getSebo().getAccount().getName(), produto.getPreco(), promocional,
+                            efetivo, produto.getEstoque(), produto.getCondicao());
+                })
+                .sorted(Comparator.comparing(VendedorProdutoResponse::precoEfetivo))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public Page<ProdutoResponse> listarPorSebo(Long seboId, Pageable pageable) {
-        return toResponsePage(produtoRepository.findBySeboIdAndAtivoTrue(seboId, pageable));
+        return toResponsePage(produtoRepository.findAll(
+                ProdutoSpecification.ativo().and(ProdutoSpecification.doSebo(seboId)), pageable));
     }
 
     @Transactional(readOnly = true)
     public Page<ProdutoResponse> listarPorCategoria(Long categoriaId, Pageable pageable) {
         categoriaService.buscarEntidade(categoriaId);
-        return toResponsePage(produtoRepository.findByCategoriaIdAndAtivoTrue(categoriaId, pageable));
+        Specification<Produto> spec = ProdutoSpecification.ativo()
+                .and((root, query, cb) -> cb.equal(root.get("categoria").get("id"), categoriaId));
+        return toResponsePage(produtoRepository.findAll(spec, pageable));
     }
 
     @Transactional(readOnly = true)
     public Page<ProdutoResponse> listarLancamentos(Pageable pageable) {
-        return toResponsePage(produtoRepository.findByAtivoTrue(pageable));
+        return toResponsePage(produtoRepository.findAll(ProdutoSpecification.ativo(), pageable));
     }
 
     @Transactional(readOnly = true)
     public Page<ProdutoResponse> listarClassicos(Pageable pageable) {
-        return toResponsePage(produtoRepository.findByAtivoTrueOrderByCreatedAtAsc(pageable));
+        return toResponsePage(produtoRepository.findAll(ProdutoSpecification.ativo(), pageable));
     }
 
     private ProdutoResponse toResponse(Produto produto) {
@@ -130,5 +185,12 @@ public class ProdutoService {
 
     private int normalizarEstoque(Integer estoque) {
         return estoque == null ? 1 : estoque;
+    }
+
+    private void validarSeboVerificado(Produto produto) {
+        if (produto.getSebo().getStatusVerificacao() != StatusVerificacaoSebo.VERIFICADO
+                || !Boolean.TRUE.equals(produto.getSebo().getAccount().getAtivo())) {
+            throw new ResourceNotFoundException("Produto nao encontrado");
+        }
     }
 }

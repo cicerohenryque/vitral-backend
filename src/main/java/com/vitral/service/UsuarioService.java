@@ -18,6 +18,7 @@ public class UsuarioService {
 
     private final AccountRepository accountRepository;
     private final AccountMapper accountMapper;
+    private final AnonimizacaoContaService anonimizacaoContaService;
 
     @Transactional
     public AccountResponse atualizarPerfil(Account account, AtualizarPerfilRequest request) {
@@ -29,7 +30,7 @@ public class UsuarioService {
 
     @Transactional
     public MensagemResponse excluirConta(Account account) {
-        accountRepository.delete(account);
+        anonimizacaoContaService.anonimizarUsuario(account);
         return new MensagemResponse("Conta excluida com sucesso");
     }
 }

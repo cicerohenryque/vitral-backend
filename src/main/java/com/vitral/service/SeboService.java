@@ -10,11 +10,14 @@ import com.vitral.dto.SeboResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
+import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.TipoOperacaoSebo;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.SeboMapper;
-import com.vitral.repository.AccountRepository;
 import com.vitral.repository.SeboRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -25,7 +28,8 @@ public class SeboService {
 
     private final SeboRepository seboRepository;
     private final SeboMapper seboMapper;
-    private final AccountRepository accountRepository;
+    private final AnonimizacaoContaService anonimizacaoContaService;
+    private final CnpjConsultaService cnpjConsultaService;
 
     @Transactional
     public SeboResponse criar(Account account, SeboRequest request) {
@@ -35,18 +39,20 @@ public class SeboService {
         if (seboRepository.existsByAccountId(account.getId())) {
             throw new ConflictException("Sebo ja cadastrado para esta conta");
         }
+        if (seboRepository.existsByCnpj(request.cnpj())) {
+            throw new ConflictException("CNPJ ja cadastrado");
+        }
         Sebo sebo = Sebo.builder()
                 .account(account)
                 .descricao(request.descricao())
                 .telefone(request.telefone())
-                .cep(request.cep())
-                .logradouro(request.logradouro())
-                .cidade(request.cidade())
-                .uf(request.uf())
-                .horarioFuncionamento(request.horarioFuncionamento())
+                .cnpj(request.cnpj())
+                .statusVerificacao(StatusVerificacaoSebo.PENDENTE)
                 .fotoUrl(request.fotoUrl())
                 .build();
+        aplicarModalidade(sebo, request);
         Sebo salvo = seboRepository.save(sebo);
+        cnpjConsultaService.consultar(salvo);
         return seboMapper.toResponse(salvo);
     }
 
@@ -56,18 +62,25 @@ public class SeboService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
         sebo.setDescricao(request.descricao());
         sebo.setTelefone(request.telefone());
-        sebo.setCep(request.cep());
-        sebo.setLogradouro(request.logradouro());
-        sebo.setCidade(request.cidade());
-        sebo.setUf(request.uf());
-        sebo.setHorarioFuncionamento(request.horarioFuncionamento());
+        if (!java.util.Objects.equals(sebo.getCnpj(), request.cnpj())) {
+            if (seboRepository.existsByCnpj(request.cnpj())) {
+                throw new ConflictException("CNPJ ja cadastrado");
+            }
+            sebo.setCnpj(request.cnpj());
+            sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
+            sebo.setVerificadoEm(null);
+            sebo.setConfirmado(false);
+            cnpjConsultaService.consultar(sebo);
+        }
         sebo.setFotoUrl(request.fotoUrl());
+        aplicarModalidade(sebo, request);
         return seboMapper.toResponse(sebo);
     }
 
     @Transactional(readOnly = true)
     public SeboResponse buscarPorId(Long id) {
-        Sebo sebo = seboRepository.findById(id)
+        Sebo sebo = seboRepository.findByIdAndAccountAtivoTrueAndStatusVerificacao(
+                id, StatusVerificacaoSebo.VERIFICADO)
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado"));
         return seboMapper.toResponse(sebo);
     }
@@ -83,13 +96,64 @@ public class SeboService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
     }
 
+    @Transactional(readOnly = true)
+    public Page<SeboResponse> listarPendentes(Pageable pageable) {
+        return seboRepository.findByStatusVerificacao(StatusVerificacaoSebo.PENDENTE, pageable)
+                .map(seboMapper::toResponse);
+    }
+
     @Transactional
     public MensagemResponse excluirConta(Account account) {
-        seboRepository.findByAccountId(account.getId()).ifPresent(sebo -> {
-            seboRepository.delete(sebo);
-            seboRepository.flush();
-        });
-        accountRepository.delete(account);
+        anonimizacaoContaService.anonimizarSebo(account);
         return new MensagemResponse("Conta do sebo excluida com sucesso");
+    }
+
+    private void aplicarModalidade(Sebo sebo, SeboRequest request) {
+        TipoOperacaoSebo tipo = request.tipoOperacao() == null ? TipoOperacaoSebo.VIRTUAL : request.tipoOperacao();
+        sebo.setTipoOperacao(tipo);
+        if (tipo == TipoOperacaoSebo.VIRTUAL) {
+            limparCamposFisicos(sebo);
+            return;
+        }
+        String cep = apenasDigitos(request.cep());
+        String logradouro = trimToNull(request.logradouro());
+        String cidade = trimToNull(request.cidade());
+        String uf = trimToNull(request.uf());
+        if (cep == null || logradouro == null || cidade == null || uf == null) {
+            throw new BusinessException("CEP, logradouro, cidade e UF sao obrigatorios para sebo fisico ou hibrido",
+                    HttpStatus.BAD_REQUEST);
+        }
+        if (uf.length() != 2) {
+            throw new BusinessException("UF deve conter 2 caracteres", HttpStatus.BAD_REQUEST);
+        }
+        sebo.setCep(cep);
+        sebo.setLogradouro(logradouro);
+        sebo.setCidade(cidade);
+        sebo.setUf(uf.toUpperCase());
+        sebo.setHorarioFuncionamento(trimToNull(request.horarioFuncionamento()));
+    }
+
+    private void limparCamposFisicos(Sebo sebo) {
+        sebo.setCep(null);
+        sebo.setLogradouro(null);
+        sebo.setCidade(null);
+        sebo.setUf(null);
+        sebo.setHorarioFuncionamento(null);
+    }
+
+    private String apenasDigitos(String valor) {
+        String texto = trimToNull(valor);
+        if (texto == null) {
+            return null;
+        }
+        String digitos = texto.replaceAll("\\D", "");
+        return digitos.isBlank() ? null : digitos;
+    }
+
+    private String trimToNull(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return null;
+        }
+        return valor.trim();
     }
 }

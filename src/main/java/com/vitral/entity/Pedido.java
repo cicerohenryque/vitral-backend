@@ -3,6 +3,7 @@ package com.vitral.entity;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.time.OffsetDateTime;
 
 import com.vitral.enumerations.FormaPagamento;
 import com.vitral.enumerations.StatusPagamento;
@@ -57,6 +58,18 @@ public class Pedido extends BaseEntity {
     @Column(name = "status_pagamento", nullable = false, length = 20)
     @Builder.Default
     private StatusPagamento statusPagamento = StatusPagamento.PENDENTE;
+
+    @Column(name = "confirmado_em")
+    private OffsetDateTime confirmadoEm;
+
+    @Column(name = "pago_em")
+    private OffsetDateTime pagoEm;
+
+    @Column(name = "cancelado_em")
+    private OffsetDateTime canceladoEm;
+
+    @Column(name = "reembolsado_em")
+    private OffsetDateTime reembolsadoEm;
 
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

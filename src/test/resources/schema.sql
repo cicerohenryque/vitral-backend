@@ -1,11 +1,16 @@
 DROP TABLE IF EXISTS pedido_item;
 DROP TABLE IF EXISTS pedido;
+DROP TABLE IF EXISTS movimentacao_estoque;
+DROP TABLE IF EXISTS auditoria_verificacao_sebo;
+DROP TABLE IF EXISTS documento_verificacao_sebo;
+DROP TABLE IF EXISTS documento_upload;
 DROP TABLE IF EXISTS mensagem;
 DROP TABLE IF EXISTS cesta_item;
 DROP TABLE IF EXISTS favoritos;
 DROP TABLE IF EXISTS oferta;
 DROP TABLE IF EXISTS token_verificacao_email;
 DROP TABLE IF EXISTS produto;
+DROP TABLE IF EXISTS catalogo_livro;
 DROP TABLE IF EXISTS categoria;
 DROP TABLE IF EXISTS sebo;
 DROP TABLE IF EXISTS account;
@@ -19,10 +24,11 @@ CREATE TABLE account (
     email_verificado BOOLEAN      NOT NULL DEFAULT FALSE,
     foto_url         VARCHAR(500),
     auth_version     INTEGER      NOT NULL DEFAULT 0,
+    ativo            BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at       TIMESTAMP    NOT NULL,
     updated_at       TIMESTAMP    NOT NULL,
     CONSTRAINT uk_account_email UNIQUE (email),
-    CONSTRAINT ck_account_type CHECK (type IN ('SEBO', 'USUARIO'))
+    CONSTRAINT ck_account_type CHECK (type IN ('SEBO', 'USUARIO', 'ADMIN'))
 );
 
 CREATE TABLE sebo (
@@ -30,16 +36,67 @@ CREATE TABLE sebo (
     account_id             BIGINT       NOT NULL,
     descricao              VARCHAR(2000),
     telefone               VARCHAR(20),
-    cep                    VARCHAR(9),
+    cnpj                   VARCHAR(14),
+    status_verificacao     VARCHAR(20) NOT NULL DEFAULT 'VERIFICADO',
+    verificado_em          TIMESTAMP,
+    motivo_rejeicao        VARCHAR(500),
+    razao_social_receita   VARCHAR(255),
+    status_consulta_cnpj   VARCHAR(20) NOT NULL DEFAULT 'NAO_CONSULTADO',
+    cnpj_consultado_em     TIMESTAMP,
+    mensagem_consulta_cnpj VARCHAR(500),
+    foto_url               VARCHAR(500),
+    cep                    VARCHAR(8),
     logradouro             VARCHAR(255),
     cidade                 VARCHAR(120),
     uf                     VARCHAR(2),
     horario_funcionamento  VARCHAR(255),
-    foto_url               VARCHAR(500),
+    tipo_operacao          VARCHAR(20) NOT NULL DEFAULT 'VIRTUAL',
+    confirmado             BOOLEAN     NOT NULL DEFAULT FALSE,
     created_at             TIMESTAMP    NOT NULL,
     updated_at             TIMESTAMP    NOT NULL,
     CONSTRAINT uk_sebo_account UNIQUE (account_id),
     CONSTRAINT fk_sebo_account FOREIGN KEY (account_id) REFERENCES account (id) ON DELETE CASCADE
+);
+
+CREATE TABLE documento_verificacao_sebo (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    sebo_id BIGINT NOT NULL,
+    tipo_documento VARCHAR(30) NOT NULL,
+    arquivo_url VARCHAR(500) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    enviado_em TIMESTAMP NOT NULL,
+    analisado_em TIMESTAMP,
+    analisado_por BIGINT,
+    motivo_rejeicao VARCHAR(500),
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_documento_sebo FOREIGN KEY (sebo_id) REFERENCES sebo(id),
+    CONSTRAINT fk_documento_admin FOREIGN KEY (analisado_por) REFERENCES account(id)
+);
+
+CREATE TABLE auditoria_verificacao_sebo (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    sebo_id BIGINT NOT NULL,
+    analisado_por BIGINT NOT NULL,
+    status_anterior VARCHAR(20) NOT NULL,
+    novo_status VARCHAR(20) NOT NULL,
+    motivo VARCHAR(500),
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_auditoria_sebo FOREIGN KEY (sebo_id) REFERENCES sebo(id),
+    CONSTRAINT fk_auditoria_admin FOREIGN KEY (analisado_por) REFERENCES account(id)
+);
+
+CREATE TABLE documento_upload (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    sebo_id BIGINT NOT NULL,
+    nome_interno VARCHAR(80) NOT NULL UNIQUE,
+    nome_original VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(50) NOT NULL,
+    tamanho_bytes BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_documento_upload_sebo FOREIGN KEY (sebo_id) REFERENCES sebo(id)
 );
 
 CREATE TABLE categoria (
@@ -53,10 +110,25 @@ CREATE TABLE categoria (
     CONSTRAINT uk_categoria_slug UNIQUE (slug)
 );
 
+CREATE TABLE catalogo_livro (
+    id             BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    isbn           VARCHAR(13) NOT NULL UNIQUE,
+    titulo         VARCHAR(255) NOT NULL,
+    autores        VARCHAR(500),
+    editora        VARCHAR(255),
+    edicao         VARCHAR(100),
+    ano_publicacao INTEGER,
+    idioma         VARCHAR(50),
+    capa_url       VARCHAR(500),
+    created_at     TIMESTAMP NOT NULL,
+    updated_at     TIMESTAMP NOT NULL
+);
+
 CREATE TABLE produto (
     id          BIGINT         NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     sebo_id     BIGINT         NOT NULL,
     categoria_id BIGINT,
+    catalogo_livro_id BIGINT,
     titulo      VARCHAR(255)   NOT NULL,
     autor       VARCHAR(255),
     descricao   VARCHAR(2000),
@@ -69,9 +141,31 @@ CREATE TABLE produto (
     updated_at  TIMESTAMP      NOT NULL,
     CONSTRAINT fk_produto_sebo FOREIGN KEY (sebo_id) REFERENCES sebo (id) ON DELETE CASCADE,
     CONSTRAINT fk_produto_categoria FOREIGN KEY (categoria_id) REFERENCES categoria (id),
+    CONSTRAINT fk_produto_catalogo FOREIGN KEY (catalogo_livro_id) REFERENCES catalogo_livro (id),
     CONSTRAINT ck_produto_condicao CHECK (condicao IN ('NOVO', 'USADO', 'SEMINOVO')),
     CONSTRAINT ck_produto_preco CHECK (preco >= 0),
     CONSTRAINT ck_produto_estoque CHECK (estoque >= 0)
+);
+
+CREATE TABLE movimentacao_estoque (
+    id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    produto_id BIGINT NOT NULL,
+    sebo_id BIGINT NOT NULL,
+    operador_id BIGINT NOT NULL,
+    movimentacao_origem_id BIGINT,
+    tipo VARCHAR(20) NOT NULL,
+    quantidade INTEGER NOT NULL,
+    estoque_antes INTEGER NOT NULL,
+    estoque_depois INTEGER NOT NULL,
+    valor_unitario NUMERIC(12, 2),
+    valor_total NUMERIC(12, 2),
+    observacao VARCHAR(500),
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_mov_produto FOREIGN KEY (produto_id) REFERENCES produto(id),
+    CONSTRAINT fk_mov_sebo FOREIGN KEY (sebo_id) REFERENCES sebo(id),
+    CONSTRAINT fk_mov_operador FOREIGN KEY (operador_id) REFERENCES account(id),
+    CONSTRAINT fk_mov_origem FOREIGN KEY (movimentacao_origem_id) REFERENCES movimentacao_estoque(id)
 );
 
 CREATE TABLE oferta (
@@ -147,6 +241,10 @@ CREATE TABLE pedido (
     forma_pagamento  VARCHAR(20),
     status_pagamento VARCHAR(20) NOT NULL DEFAULT 'PENDENTE',
     total      NUMERIC(12, 2) NOT NULL,
+    confirmado_em TIMESTAMP,
+    pago_em TIMESTAMP,
+    cancelado_em TIMESTAMP,
+    reembolsado_em TIMESTAMP,
     created_at TIMESTAMP      NOT NULL,
     updated_at TIMESTAMP      NOT NULL,
     CONSTRAINT fk_pedido_account FOREIGN KEY (account_id) REFERENCES account (id),

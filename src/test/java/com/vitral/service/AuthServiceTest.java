@@ -159,7 +159,7 @@ class AuthServiceTest {
                 .build();
         AccountResponse accountResponse = new AccountResponse(1L, "maria", "maria@vitral.com", AccountType.USUARIO, null);
 
-        when(accountRepository.findFirstByNameOrderByIdAsc("maria")).thenReturn(Optional.of(account));
+        when(accountRepository.findFirstByNameAndAtivoTrueOrderByIdAsc("maria")).thenReturn(Optional.of(account));
         when(jwtService.generateToken("maria@vitral.com", "USUARIO", 0)).thenReturn("token-jwt");
         when(jwtService.getExpiration()).thenReturn(86400000L);
         when(accountMapper.toResponse(account)).thenReturn(accountResponse);
@@ -184,7 +184,7 @@ class AuthServiceTest {
                 .build();
         AccountResponse accountResponse = new AccountResponse(1L, "Maria", "maria@vitral.com", AccountType.USUARIO, null);
 
-        when(accountRepository.findByEmail("maria@vitral.com")).thenReturn(Optional.of(account));
+        when(accountRepository.findByEmailAndAtivoTrue("maria@vitral.com")).thenReturn(Optional.of(account));
         when(jwtService.generateToken("maria@vitral.com", "USUARIO", 0)).thenReturn("token-jwt");
         when(jwtService.getExpiration()).thenReturn(86400000L);
         when(accountMapper.toResponse(account)).thenReturn(accountResponse);
@@ -208,7 +208,7 @@ class AuthServiceTest {
                 .emailVerificado(false)
                 .build();
 
-        when(accountRepository.findByEmail("maria@vitral.com")).thenReturn(Optional.of(account));
+        when(accountRepository.findByEmailAndAtivoTrue("maria@vitral.com")).thenReturn(Optional.of(account));
 
         assertThatThrownBy(() -> authService.login(request))
                 .isInstanceOf(BusinessException.class)
@@ -287,7 +287,7 @@ class AuthServiceTest {
     @Test
     @DisplayName("Deve responder de forma neutra quando o e-mail de recuperacao nao existir")
     void shouldNotRevealWhetherRecoveryEmailExists() {
-        when(accountRepository.findByEmail("ausente@vitral.com")).thenReturn(Optional.empty());
+        when(accountRepository.findByEmailAndAtivoTrue("ausente@vitral.com")).thenReturn(Optional.empty());
 
         MensagemResponse result = authService.solicitarRecuperacaoSenha(
                 new RecuperarSenhaRequest("ausente@vitral.com"));
@@ -326,7 +326,7 @@ class AuthServiceTest {
                 .email("maria@vitral.com")
                 .emailVerificado(false)
                 .build();
-        when(accountRepository.findByEmail("maria@vitral.com")).thenReturn(Optional.of(account));
+        when(accountRepository.findByEmailAndAtivoTrue("maria@vitral.com")).thenReturn(Optional.of(account));
 
         MensagemResponse result = authService.reenviarConfirmacao(
                 new ReenviarConfirmacaoRequest("maria@vitral.com"));
@@ -344,7 +344,7 @@ class AuthServiceTest {
                 .email("maria@vitral.com")
                 .emailVerificado(true)
                 .build();
-        when(accountRepository.findByEmail("maria@vitral.com")).thenReturn(Optional.of(account));
+        when(accountRepository.findByEmailAndAtivoTrue("maria@vitral.com")).thenReturn(Optional.of(account));
 
         authService.reenviarConfirmacao(new ReenviarConfirmacaoRequest("maria@vitral.com"));
 

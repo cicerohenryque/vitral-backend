@@ -32,6 +32,8 @@ import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.TipoOperacaoSebo;
 import com.vitral.mapper.ProdutoMapper;
 import com.vitral.mapper.SeboMapper;
 import com.vitral.repository.ProdutoRepository;
@@ -77,12 +79,11 @@ class BuscaServiceTest {
 
         sebo = Sebo.builder()
                 .account(conta)
-                .cidade("Campina Grande")
-                .uf("PB")
                 .build();
 
         seboResponse = new SeboResponse(1L, 1L, "Livraria Leitura", "livraria@email.com",
-                null, null, null, null, "Campina Grande", "PB", null, null);
+                null, null, "12345678000199", StatusVerificacaoSebo.VERIFICADO, null,
+                null, null, null, null, null, null);
 
         produto = Produto.builder()
                 .sebo(sebo)
@@ -93,7 +94,7 @@ class BuscaServiceTest {
                 .build();
         ReflectionTestUtils.setField(produto, "id", 1L);
 
-        produtoResponse = new ProdutoResponse(1L, 1L, null, null, "Dom Casmurro", null, null,
+        produtoResponse = new ProdutoResponse(1L, 1L, null, null, null, null, "Dom Casmurro", null, null,
                 BigDecimal.valueOf(25.00), null, 1, CondicaoProduto.USADO, null, true);
     }
 
@@ -104,7 +105,7 @@ class BuscaServiceTest {
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
         when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
 
-        Page<SeboResponse> resultado = buscaService.buscarSebos("Livraria", "Campina Grande", null, pageable);
+        Page<SeboResponse> resultado = buscaService.buscarSebos("Livraria", pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
         assertThat(resultado.getContent().getFirst()).isEqualTo(seboResponse);
@@ -118,20 +119,59 @@ class BuscaServiceTest {
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
         when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
 
-        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, pageable);
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
         verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
     }
 
     @Test
-    @DisplayName("Deve filtrar sebos por estado quando apenas uf for informada")
-    void shouldFilterSebosByUfWhenOnlyUfProvided() {
+    @DisplayName("Deve filtrar sebos por tipo de operacao")
+    void shouldFilterSebosByOperationType() {
         Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
         when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
 
-        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, "PB", pageable);
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, TipoOperacaoSebo.HIBRIDO, null, null, pageable);
+
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
+    }
+
+    @Test
+    @DisplayName("Deve filtrar sebos por cidade")
+    void shouldFilterSebosByCity() {
+        Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
+        when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
+        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, "Joao Pessoa", null, pageable);
+
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
+    }
+
+    @Test
+    @DisplayName("Deve filtrar sebos por UF")
+    void shouldFilterSebosByState() {
+        Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
+        when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
+        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, "pb", pageable);
+
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
+    }
+
+    @Test
+    @DisplayName("Deve listar apenas vitrines de sebos ativos")
+    void shouldListOnlyActiveSebos() {
+        Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
+        when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
+        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
         verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
@@ -214,7 +254,7 @@ class BuscaServiceTest {
     void shouldReturnEmptyPageWhenNoResultsFound() {
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(new PageImpl<>(List.of()));
 
-        Page<SeboResponse> resultado = buscaService.buscarSebos("Inexistente", null, null, pageable);
+        Page<SeboResponse> resultado = buscaService.buscarSebos("Inexistente", pageable);
 
         assertThat(resultado.getContent()).isEmpty();
         assertThat(resultado.getTotalElements()).isZero();
