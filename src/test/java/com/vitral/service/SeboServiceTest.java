@@ -225,8 +225,71 @@ class SeboServiceTest {
     }
 
     @Test
-    @DisplayName("Deve forcar modalidade virtual mesmo quando a requisicao enviar fisico ou hibrido")
-    void shouldForceVirtualModeRegardlessOfRequestedOperation() {
+    @DisplayName("Deve criar sebo fisico quando endereco minimo for informado")
+    void shouldCreatePhysicalSeboWhenAddressIsProvided() {
+        SeboRequest requestFisico = new SeboRequest(
+                "Sebo familiar com livros raros",
+                "8399999-0000",
+                "12345678000199",
+                "https://cdn/foto.jpg",
+                TipoOperacaoSebo.FISICO,
+                "58.000-000",
+                "Rua das Letras",
+                "Joao Pessoa",
+                "pb",
+                "Seg a sex");
+
+        when(seboRepository.existsByAccountId(10L)).thenReturn(false);
+        when(seboRepository.existsByCnpj("12345678000199")).thenReturn(false);
+        when(seboRepository.save(any(Sebo.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(seboMapper.toResponse(any(Sebo.class))).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
+                requestFisico.descricao(), requestFisico.telefone(), requestFisico.cnpj(), StatusVerificacaoSebo.PENDENTE,
+                null, null, null, null, null, requestFisico.fotoUrl(), TipoOperacaoSebo.FISICO,
+                "58000000", "Rua das Letras", "Joao Pessoa", "PB", "Seg a sex", false));
+
+        seboService.criar(contaSebo, requestFisico);
+
+        verify(seboRepository).save(seboCaptor.capture());
+        assertThat(seboCaptor.getValue().getTipoOperacao()).isEqualTo(TipoOperacaoSebo.FISICO);
+        assertThat(seboCaptor.getValue().getCep()).isEqualTo("58000000");
+        assertThat(seboCaptor.getValue().getUf()).isEqualTo("PB");
+    }
+
+    @Test
+    @DisplayName("Deve criar sebo hibrido quando endereco minimo for informado")
+    void shouldCreateHybridSeboWhenAddressIsProvided() {
+        SeboRequest requestHibrido = new SeboRequest(
+                "Sebo com atendimento online e retirada",
+                "8399999-0000",
+                "12345678000199",
+                "https://cdn/foto.jpg",
+                TipoOperacaoSebo.HIBRIDO,
+                "58000-123",
+                "Avenida Central",
+                "Campina Grande",
+                "pb",
+                null);
+
+        when(seboRepository.existsByAccountId(10L)).thenReturn(false);
+        when(seboRepository.existsByCnpj("12345678000199")).thenReturn(false);
+        when(seboRepository.save(any(Sebo.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(seboMapper.toResponse(any(Sebo.class))).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
+                requestHibrido.descricao(), requestHibrido.telefone(), requestHibrido.cnpj(), StatusVerificacaoSebo.PENDENTE,
+                null, null, null, null, null, requestHibrido.fotoUrl(), TipoOperacaoSebo.HIBRIDO,
+                "58000123", "Avenida Central", "Campina Grande", "PB", null, false));
+
+        SeboResponse response = seboService.criar(contaSebo, requestHibrido);
+
+        verify(seboRepository).save(seboCaptor.capture());
+        assertThat(response.tipoOperacao()).isEqualTo(TipoOperacaoSebo.HIBRIDO);
+        assertThat(seboCaptor.getValue().getTipoOperacao()).isEqualTo(TipoOperacaoSebo.HIBRIDO);
+        assertThat(seboCaptor.getValue().getCep()).isEqualTo("58000123");
+        assertThat(seboCaptor.getValue().getUf()).isEqualTo("PB");
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar sebo fisico sem endereco minimo")
+    void shouldRejectPhysicalSeboWithoutRequiredAddress() {
         SeboRequest requestFisico = new SeboRequest(
                 "Sebo familiar com livros raros",
                 "8399999-0000",
@@ -236,15 +299,35 @@ class SeboServiceTest {
 
         when(seboRepository.existsByAccountId(10L)).thenReturn(false);
         when(seboRepository.existsByCnpj("12345678000199")).thenReturn(false);
-        when(seboRepository.save(any(Sebo.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(seboMapper.toResponse(any(Sebo.class))).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
-                requestFisico.descricao(), requestFisico.telefone(), requestFisico.cnpj(), StatusVerificacaoSebo.PENDENTE,
-                null, null, null, null, null, requestFisico.fotoUrl(), TipoOperacaoSebo.VIRTUAL, false));
 
-        seboService.criar(contaSebo, requestFisico);
+        assertThatThrownBy(() -> seboService.criar(contaSebo, requestFisico))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("CEP, logradouro, cidade e UF");
+    }
 
-        verify(seboRepository).save(seboCaptor.capture());
-        assertThat(seboCaptor.getValue().getTipoOperacao()).isEqualTo(TipoOperacaoSebo.VIRTUAL);
+    @Test
+    @DisplayName("Deve limpar campos fisicos quando modalidade virtual for informada")
+    void shouldClearPhysicalFieldsWhenVirtualModeIsProvided() {
+        Sebo existente = Sebo.builder()
+                .account(contaSebo)
+                .tipoOperacao(TipoOperacaoSebo.HIBRIDO)
+                .cep("58000000")
+                .logradouro("Rua Antiga")
+                .cidade("Joao Pessoa")
+                .uf("PB")
+                .horarioFuncionamento("Seg a sex")
+                .build();
+
+        when(seboRepository.findByAccountId(10L)).thenReturn(Optional.of(existente));
+        when(seboMapper.toResponse(existente)).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
+                request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
+                null, null, null, null, null, request.fotoUrl(), TipoOperacaoSebo.VIRTUAL, false));
+
+        seboService.atualizarMeuSebo(contaSebo, request);
+
+        assertThat(existente.getTipoOperacao()).isEqualTo(TipoOperacaoSebo.VIRTUAL);
+        assertThat(existente.getCep()).isNull();
+        assertThat(existente.getCidade()).isNull();
     }
 
     @Test

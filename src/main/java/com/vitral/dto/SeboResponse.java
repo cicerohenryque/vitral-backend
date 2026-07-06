@@ -21,6 +21,11 @@ public record SeboResponse(
         String mensagemConsultaCnpj,
         String fotoUrl,
         TipoOperacaoSebo tipoOperacao,
+        String cep,
+        String logradouro,
+        String cidade,
+        String uf,
+        String horarioFuncionamento,
         Boolean confirmado) {
 
     public SeboResponse(
@@ -41,6 +46,28 @@ public record SeboResponse(
             TipoOperacaoSebo tipoOperacao) {
         this(id, accountId, nome, email, descricao, telefone, cnpj, statusVerificacao, motivoRejeicao,
                 razaoSocialReceita, statusConsultaCnpj, cnpjConsultadoEm, mensagemConsultaCnpj, fotoUrl,
-                tipoOperacao, Boolean.FALSE);
+                tipoOperacao, null, null, null, null, null, Boolean.FALSE);
+    }
+
+    public SeboResponse(
+            Long id,
+            Long accountId,
+            String nome,
+            String email,
+            String descricao,
+            String telefone,
+            String cnpj,
+            StatusVerificacaoSebo statusVerificacao,
+            String motivoRejeicao,
+            String razaoSocialReceita,
+            StatusConsultaCnpj statusConsultaCnpj,
+            OffsetDateTime cnpjConsultadoEm,
+            String mensagemConsultaCnpj,
+            String fotoUrl,
+            TipoOperacaoSebo tipoOperacao,
+            Boolean confirmado) {
+        this(id, accountId, nome, email, descricao, telefone, cnpj, statusVerificacao, motivoRejeicao,
+                razaoSocialReceita, statusConsultaCnpj, cnpjConsultadoEm, mensagemConsultaCnpj, fotoUrl,
+                tipoOperacao, null, null, null, null, null, confirmado);
     }
 }

@@ -71,6 +71,21 @@ public class Sebo extends BaseEntity {
     @Column(name = "foto_url", length = 500)
     private String fotoUrl;
 
+    @Column(length = 8)
+    private String cep;
+
+    @Column(length = 255)
+    private String logradouro;
+
+    @Column(length = 120)
+    private String cidade;
+
+    @Column(length = 2)
+    private String uf;
+
+    @Column(name = "horario_funcionamento", length = 255)
+    private String horarioFuncionamento;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_operacao", nullable = false, length = 20)
     @Builder.Default

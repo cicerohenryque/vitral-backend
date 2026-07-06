@@ -33,6 +33,7 @@ import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.CondicaoProduto;
 import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.TipoOperacaoSebo;
 import com.vitral.mapper.ProdutoMapper;
 import com.vitral.mapper.SeboMapper;
 import com.vitral.repository.ProdutoRepository;
@@ -119,6 +120,45 @@ class BuscaServiceTest {
         when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
 
         Page<SeboResponse> resultado = buscaService.buscarSebos(null, pageable);
+
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
+    }
+
+    @Test
+    @DisplayName("Deve filtrar sebos por tipo de operacao")
+    void shouldFilterSebosByOperationType() {
+        Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
+        when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
+        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, TipoOperacaoSebo.HIBRIDO, null, null, pageable);
+
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
+    }
+
+    @Test
+    @DisplayName("Deve filtrar sebos por cidade")
+    void shouldFilterSebosByCity() {
+        Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
+        when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
+        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, "Joao Pessoa", null, pageable);
+
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
+    }
+
+    @Test
+    @DisplayName("Deve filtrar sebos por UF")
+    void shouldFilterSebosByState() {
+        Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
+        when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
+        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, "pb", pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
         verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));

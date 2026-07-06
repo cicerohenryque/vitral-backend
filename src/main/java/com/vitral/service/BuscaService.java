@@ -15,6 +15,7 @@ import com.vitral.dto.SeboResponse;
 import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.enumerations.TipoOperacaoSebo;
 import com.vitral.mapper.ProdutoMapper;
 import com.vitral.mapper.SeboMapper;
 import com.vitral.repository.ProdutoRepository;
@@ -36,10 +37,25 @@ public class BuscaService {
 
     @Transactional(readOnly = true)
     public Page<SeboResponse> buscarSebos(String termo, Pageable pageable) {
+        return buscarSebos(termo, null, null, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SeboResponse> buscarSebos(String termo, TipoOperacaoSebo tipoOperacao,
+            String cidade, String uf, Pageable pageable) {
         Specification<Sebo> spec = SeboSpecification.ativo();
 
         if (termo != null && !termo.isBlank()) {
             spec = spec.and(SeboSpecification.nomeContem(termo));
+        }
+        if (tipoOperacao != null) {
+            spec = spec.and(SeboSpecification.tipoOperacao(tipoOperacao));
+        }
+        if (cidade != null && !cidade.isBlank()) {
+            spec = spec.and(SeboSpecification.cidadeContem(cidade));
+        }
+        if (uf != null && !uf.isBlank()) {
+            spec = spec.and(SeboSpecification.ufIgual(uf));
         }
         return seboRepository.findAll(spec, pageable).map(seboMapper::toResponse);
     }

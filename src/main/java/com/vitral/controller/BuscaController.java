@@ -13,6 +13,7 @@ import com.vitral.dto.PageResponse;
 import com.vitral.dto.ProdutoResponse;
 import com.vitral.dto.SeboResponse;
 import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.enumerations.TipoOperacaoSebo;
 import com.vitral.service.BuscaService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,8 +32,11 @@ public class BuscaController {
     @Operation(summary = "Busca vitrines virtuais de sebos ativos pelo nome opcional (q)")
     public ResponseEntity<PageResponse<SeboResponse>> buscarSebos(
             @RequestParam(required = false) String q,
+            @RequestParam(required = false) TipoOperacaoSebo tipoOperacao,
+            @RequestParam(required = false) String cidade,
+            @RequestParam(required = false) String uf,
             Pageable pageable) {
-        return ResponseEntity.ok(PageResponse.from(buscaService.buscarSebos(q, pageable)));
+        return ResponseEntity.ok(PageResponse.from(buscaService.buscarSebos(q, tipoOperacao, cidade, uf, pageable)));
     }
 
     @GetMapping("/produtos")

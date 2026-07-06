@@ -3,6 +3,7 @@ package com.vitral.specification;
 import org.springframework.data.jpa.domain.Specification;
 
 import com.vitral.entity.Sebo;
+import com.vitral.enumerations.TipoOperacaoSebo;
 
 import jakarta.persistence.criteria.JoinType;
 
@@ -22,6 +23,19 @@ public class SeboSpecification {
         return (root, query, cb) -> cb.like(
                 cb.lower(root.join("account", JoinType.INNER).get("name")),
                 "%" + termo.toLowerCase() + "%");
+    }
+
+    public static Specification<Sebo> tipoOperacao(TipoOperacaoSebo tipoOperacao) {
+        return (root, query, cb) -> cb.equal(root.get("tipoOperacao"), tipoOperacao);
+    }
+
+    public static Specification<Sebo> cidadeContem(String cidade) {
+        return (root, query, cb) -> cb.like(cb.lower(root.get("cidade")),
+                "%" + cidade.trim().toLowerCase() + "%");
+    }
+
+    public static Specification<Sebo> ufIgual(String uf) {
+        return (root, query, cb) -> cb.equal(root.get("uf"), uf.trim().toUpperCase());
     }
 
 }

@@ -49,8 +49,8 @@ public class SeboService {
                 .cnpj(request.cnpj())
                 .statusVerificacao(StatusVerificacaoSebo.PENDENTE)
                 .fotoUrl(request.fotoUrl())
-                .tipoOperacao(TipoOperacaoSebo.VIRTUAL)
                 .build();
+        aplicarModalidade(sebo, request);
         Sebo salvo = seboRepository.save(sebo);
         cnpjConsultaService.consultar(salvo);
         return seboMapper.toResponse(salvo);
@@ -73,7 +73,7 @@ public class SeboService {
             cnpjConsultaService.consultar(sebo);
         }
         sebo.setFotoUrl(request.fotoUrl());
-        sebo.setTipoOperacao(TipoOperacaoSebo.VIRTUAL);
+        aplicarModalidade(sebo, request);
         return seboMapper.toResponse(sebo);
     }
 
@@ -106,5 +106,54 @@ public class SeboService {
     public MensagemResponse excluirConta(Account account) {
         anonimizacaoContaService.anonimizarSebo(account);
         return new MensagemResponse("Conta do sebo excluida com sucesso");
+    }
+
+    private void aplicarModalidade(Sebo sebo, SeboRequest request) {
+        TipoOperacaoSebo tipo = request.tipoOperacao() == null ? TipoOperacaoSebo.VIRTUAL : request.tipoOperacao();
+        sebo.setTipoOperacao(tipo);
+        if (tipo == TipoOperacaoSebo.VIRTUAL) {
+            limparCamposFisicos(sebo);
+            return;
+        }
+        String cep = apenasDigitos(request.cep());
+        String logradouro = trimToNull(request.logradouro());
+        String cidade = trimToNull(request.cidade());
+        String uf = trimToNull(request.uf());
+        if (cep == null || logradouro == null || cidade == null || uf == null) {
+            throw new BusinessException("CEP, logradouro, cidade e UF sao obrigatorios para sebo fisico ou hibrido",
+                    HttpStatus.BAD_REQUEST);
+        }
+        if (uf.length() != 2) {
+            throw new BusinessException("UF deve conter 2 caracteres", HttpStatus.BAD_REQUEST);
+        }
+        sebo.setCep(cep);
+        sebo.setLogradouro(logradouro);
+        sebo.setCidade(cidade);
+        sebo.setUf(uf.toUpperCase());
+        sebo.setHorarioFuncionamento(trimToNull(request.horarioFuncionamento()));
+    }
+
+    private void limparCamposFisicos(Sebo sebo) {
+        sebo.setCep(null);
+        sebo.setLogradouro(null);
+        sebo.setCidade(null);
+        sebo.setUf(null);
+        sebo.setHorarioFuncionamento(null);
+    }
+
+    private String apenasDigitos(String valor) {
+        String texto = trimToNull(valor);
+        if (texto == null) {
+            return null;
+        }
+        String digitos = texto.replaceAll("\\D", "");
+        return digitos.isBlank() ? null : digitos;
+    }
+
+    private String trimToNull(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return null;
+        }
+        return valor.trim();
     }
 }
