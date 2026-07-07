@@ -2,6 +2,7 @@ package com.vitral.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
 
@@ -35,6 +36,7 @@ class MovimentacaoEstoqueServiceTest {
     @Mock MovimentacaoEstoqueRepository repository;
     @Mock ProdutoRepository produtoRepository;
     @Mock PedidoRepository pedidoRepository;
+    @Mock SeboService seboService;
     @InjectMocks MovimentacaoEstoqueService service;
 
     private Account operador;
@@ -64,6 +66,7 @@ class MovimentacaoEstoqueServiceTest {
         assertThat(response.valorTotal()).isEqualByComparingTo("50.00");
         assertThat(response.estoqueAntes()).isEqualTo(5);
         assertThat(response.estoqueDepois()).isEqualTo(3);
+        verify(seboService).registrarAtividade(produto.getSebo());
     }
 
     @Test
@@ -106,5 +109,6 @@ class MovimentacaoEstoqueServiceTest {
         assertThat(produto.getEstoque()).isEqualTo(5);
         assertThat(response.tipo()).isEqualTo(TipoMovimentacaoEstoque.ESTORNO);
         assertThat(response.movimentacaoOrigemId()).isEqualTo(9L);
+        verify(seboService).registrarAtividade(produto.getSebo());
     }
 }

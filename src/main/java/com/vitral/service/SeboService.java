@@ -1,5 +1,7 @@
 package com.vitral.service;
 
+import java.time.OffsetDateTime;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +53,9 @@ public class SeboService {
                 .fotoUrl(request.fotoUrl())
                 .build();
         aplicarModalidade(sebo, request);
+        OffsetDateTime agora = OffsetDateTime.now();
+        sebo.setDataCriacao(agora);
+        sebo.setUltimaAtividade(agora);
         Sebo salvo = seboRepository.save(sebo);
         cnpjConsultaService.consultar(salvo);
         return seboMapper.toResponse(salvo);
@@ -74,6 +79,7 @@ public class SeboService {
         }
         sebo.setFotoUrl(request.fotoUrl());
         aplicarModalidade(sebo, request);
+        registrarAtividade(sebo);
         return seboMapper.toResponse(sebo);
     }
 
@@ -106,6 +112,10 @@ public class SeboService {
     public MensagemResponse excluirConta(Account account) {
         anonimizacaoContaService.anonimizarSebo(account);
         return new MensagemResponse("Conta do sebo excluida com sucesso");
+    }
+
+    public void registrarAtividade(Sebo sebo) {
+        sebo.setUltimaAtividade(OffsetDateTime.now());
     }
 
     private void aplicarModalidade(Sebo sebo, SeboRequest request) {

@@ -104,6 +104,8 @@ class SeboServiceTest {
         assertThat(persistido.getDescricao()).isEqualTo(request.descricao());
         assertThat(persistido.getTelefone()).isEqualTo(request.telefone());
         assertThat(persistido.getFotoUrl()).isEqualTo(request.fotoUrl());
+        assertThat(persistido.getDataCriacao()).isNotNull();
+        assertThat(persistido.getUltimaAtividade()).isNotNull();
     }
 
     @Test
@@ -147,6 +149,7 @@ class SeboServiceTest {
 
         assertThat(resultado).isEqualTo(responseEsperado);
         assertThat(existente.getDescricao()).isEqualTo(request.descricao());
+        assertThat(existente.getUltimaAtividade()).isNotNull();
         assertThat(existente.getTelefone()).isEqualTo(request.telefone());
         assertThat(existente.getFotoUrl()).isEqualTo(request.fotoUrl());
     }

@@ -143,6 +143,7 @@ class ProdutoServiceTest {
         assertThat(persistido.getEstoque()).isEqualTo(3);
         assertThat(persistido.getCondicao()).isEqualTo(CondicaoProduto.USADO);
         assertThat(persistido.getAtivo()).isTrue();
+        verify(seboService).registrarAtividade(seboDono);
     }
 
     @Test
@@ -167,6 +168,7 @@ class ProdutoServiceTest {
         assertThat(produtoCaptor.getAllValues().get(0).getEstoque()).isEqualTo(1);
         verify(movimentacaoEstoqueService).registrarAlteracao(any(), eq(contaDona), eq(TipoMovimentacaoEstoque.ENTRADA),
                 eq(1), eq(0), eq(1), eq(BigDecimal.TEN), eq("Estoque inicial"));
+        verify(seboService).registrarAtividade(seboDono);
     }
 
     @Test
@@ -206,6 +208,7 @@ class ProdutoServiceTest {
         assertThat(produto.getEstoque()).isEqualTo(3);
         assertThat(produto.getCondicao()).isEqualTo(CondicaoProduto.USADO);
         assertThat(produto.getFotoUrl()).isEqualTo("https://cdn/dom.jpg");
+        verify(seboService).registrarAtividade(seboDono);
     }
 
     @Test
@@ -244,6 +247,7 @@ class ProdutoServiceTest {
 
         assertThat(produto.getAtivo()).isFalse();
         verify(produtoRepository, never()).delete(produto);
+        verify(seboService).registrarAtividade(seboDono);
     }
 
     @Test

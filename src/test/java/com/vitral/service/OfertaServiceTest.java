@@ -45,6 +45,9 @@ class OfertaServiceTest {
     @Mock
     private ProdutoRepository produtoRepository;
 
+    @Mock
+    private SeboService seboService;
+
     @InjectMocks
     private OfertaService ofertaService;
 
@@ -84,6 +87,7 @@ class OfertaServiceTest {
         assertThat(response.id()).isEqualTo(20L);
         assertThat(response.produtoId()).isEqualTo(10L);
         assertThat(response.precoPromocional()).isEqualByComparingTo("39.90");
+        verify(seboService).registrarAtividade(produto.getSebo());
     }
 
     @Test
@@ -183,6 +187,7 @@ class OfertaServiceTest {
         ofertaService.remover(contaSebo, 20L);
 
         assertThat(oferta.getAtiva()).isFalse();
+        verify(seboService).registrarAtividade(produto.getSebo());
     }
 
     @Test
@@ -199,6 +204,7 @@ class OfertaServiceTest {
         assertThat(response.precoPromocional()).isEqualByComparingTo("35.00");
         assertThat(response.ativa()).isFalse();
         assertThat(oferta.getAtiva()).isFalse();
+        verify(seboService).registrarAtividade(produto.getSebo());
     }
 
     @Test

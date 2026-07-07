@@ -26,6 +26,7 @@ import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.AccountMapper;
 import com.vitral.repository.AccountRepository;
+import com.vitral.repository.SeboRepository;
 import com.vitral.repository.TokenVerificacaoEmailRepository;
 import com.vitral.repository.TokenRecuperacaoSenhaRepository;
 import com.vitral.security.JwtService;
@@ -44,6 +45,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final AccountMapper accountMapper;
     private final EmailService emailService;
+    private final SeboRepository seboRepository;
 
     @Transactional
     public MensagemResponse register(RegisterRequest request) {
@@ -72,6 +74,7 @@ public class AuthService {
         return new MensagemResponse("Cadastro realizado. Verifique seu e-mail para confirmar a conta.");
     }
 
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         String identificador = request.login().trim();
         Account account = (identificador.contains("@")
@@ -85,6 +88,8 @@ public class AuthService {
 
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(account.getEmail(), request.password()));
+
+        registrarAtividadeSebo(account);
 
         return buildAuthResponse(account);
     }
@@ -155,6 +160,14 @@ public class AuthService {
         String token = jwtService.generateToken(
                 account.getEmail(), account.getType().name(), account.getAuthVersion());
         return new AuthResponse(token, jwtService.getExpiration(), accountMapper.toResponse(account));
+    }
+
+    private void registrarAtividadeSebo(Account account) {
+        if (account.getType() != AccountType.SEBO) {
+            return;
+        }
+        seboRepository.findByAccountId(account.getId())
+                .ifPresent(sebo -> sebo.setUltimaAtividade(OffsetDateTime.now()));
     }
 
     private void enviarTokenConfirmacao(Account account) {

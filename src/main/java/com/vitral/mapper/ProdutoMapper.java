@@ -17,5 +17,6 @@ public interface ProdutoMapper {
     @Mapping(target = "catalogoLivroId", source = "produto.catalogoLivro.id")
     @Mapping(target = "isbn", source = "produto.catalogoLivro.isbn")
     @Mapping(target = "precoPromocional", source = "precoPromocional")
+    @Mapping(target = "dataPublicacao", source = "produto.createdAt")
     ProdutoResponse toResponse(Produto produto, BigDecimal precoPromocional);
 }

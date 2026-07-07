@@ -28,6 +28,7 @@ public class MovimentacaoEstoqueService {
     private final MovimentacaoEstoqueRepository repository;
     private final ProdutoRepository produtoRepository;
     private final PedidoRepository pedidoRepository;
+    private final SeboService seboService;
 
     @Transactional
     public MovimentacaoEstoqueResponse registrarVendaFisica(Account operador, RegistrarVendaFisicaRequest request) {
@@ -39,8 +40,10 @@ public class MovimentacaoEstoqueService {
             throw new BusinessException("Estoque insuficiente: existem unidades reservadas em pedidos online",
                     HttpStatus.BAD_REQUEST);
         }
-        return toResponse(aplicarSaida(produto, operador, TipoMovimentacaoEstoque.VENDA_FISICA,
-                request.quantidade(), request.valorUnitario(), request.observacao()));
+        MovimentacaoEstoque movimentacao = aplicarSaida(produto, operador, TipoMovimentacaoEstoque.VENDA_FISICA,
+                request.quantidade(), request.valorUnitario(), request.observacao());
+        seboService.registrarAtividade(produto.getSebo());
+        return toResponse(movimentacao);
     }
 
     @Transactional
@@ -64,6 +67,7 @@ public class MovimentacaoEstoqueService {
         produto.setAtivo(true);
         MovimentacaoEstoque estorno = salvar(produto, operador, TipoMovimentacaoEstoque.ESTORNO,
                 origem.getQuantidade(), antes, depois, origem.getValorUnitario(), request.motivo(), origem);
+        seboService.registrarAtividade(produto.getSebo());
         return toResponse(estorno);
     }
 

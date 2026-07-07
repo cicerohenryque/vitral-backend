@@ -65,6 +65,7 @@ public class ProdutoService {
             movimentacaoEstoqueService.registrarAlteracao(salvo, account, TipoMovimentacaoEstoque.ENTRADA,
                     salvo.getEstoque(), 0, salvo.getEstoque(), salvo.getPreco(), "Estoque inicial");
         }
+        seboService.registrarAtividade(sebo);
         return toResponse(salvo);
     }
 
@@ -88,6 +89,7 @@ public class ProdutoService {
                     Math.abs(estoqueDepois - estoqueAntes), estoqueAntes, estoqueDepois, produto.getPreco(),
                     "Ajuste no cadastro do produto");
         }
+        seboService.registrarAtividade(produto.getSebo());
         return toResponse(produto);
     }
 
@@ -95,6 +97,7 @@ public class ProdutoService {
     public void remover(Account account, Long produtoId) {
         Produto produto = obterProdutoDoDono(account, produtoId);
         produto.setAtivo(Boolean.FALSE);
+        seboService.registrarAtividade(produto.getSebo());
     }
 
     @Transactional

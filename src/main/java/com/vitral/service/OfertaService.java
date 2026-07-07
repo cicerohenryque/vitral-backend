@@ -27,6 +27,7 @@ public class OfertaService {
 
     private final OfertaRepository ofertaRepository;
     private final ProdutoRepository produtoRepository;
+    private final SeboService seboService;
 
     @Transactional
     public OfertaResponse criar(Account account, OfertaRequest request) {
@@ -43,7 +44,9 @@ public class OfertaService {
                 .fimEm(request.fimEm())
                 .ativa(request.ativa() == null || request.ativa())
                 .build();
-        return toResponse(ofertaRepository.save(oferta));
+        Oferta salva = ofertaRepository.save(oferta);
+        seboService.registrarAtividade(produto.getSebo());
+        return toResponse(salva);
     }
 
     @Transactional
@@ -58,6 +61,7 @@ public class OfertaService {
         oferta.setInicioEm(request.inicioEm());
         oferta.setFimEm(request.fimEm());
         oferta.setAtiva(request.ativa() == null || request.ativa());
+        seboService.registrarAtividade(produto.getSebo());
         return toResponse(oferta);
     }
 
@@ -69,6 +73,7 @@ public class OfertaService {
             throw new BusinessException("Oferta nao pertence ao sebo da conta autenticada", HttpStatus.FORBIDDEN);
         }
         oferta.setAtiva(Boolean.FALSE);
+        seboService.registrarAtividade(oferta.getProduto().getSebo());
     }
 
     @Transactional(readOnly = true)

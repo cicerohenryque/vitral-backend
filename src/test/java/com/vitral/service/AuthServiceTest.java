@@ -32,6 +32,7 @@ import com.vitral.dto.RecuperarSenhaRequest;
 import com.vitral.dto.RedefinirSenhaRequest;
 import com.vitral.dto.ReenviarConfirmacaoRequest;
 import com.vitral.entity.Account;
+import com.vitral.entity.Sebo;
 import com.vitral.entity.TokenRecuperacaoSenha;
 import com.vitral.entity.TokenVerificacaoEmail;
 import com.vitral.enumerations.AccountType;
@@ -40,6 +41,7 @@ import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.AccountMapper;
 import com.vitral.repository.AccountRepository;
+import com.vitral.repository.SeboRepository;
 import com.vitral.repository.TokenVerificacaoEmailRepository;
 import com.vitral.repository.TokenRecuperacaoSenhaRepository;
 import com.vitral.security.JwtService;
@@ -70,6 +72,9 @@ class AuthServiceTest {
 
     @Mock
     private EmailService emailService;
+
+    @Mock
+    private SeboRepository seboRepository;
 
     @InjectMocks
     private AuthService authService;
@@ -198,6 +203,34 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("Deve atualizar ultima atividade do sebo quando vendedor autenticar com sucesso")
+    void shouldUpdateSeboLastActivityWhenSellerLogsInSuccessfully() {
+        LoginRequest request = new LoginRequest("sebo@vitral.com", "senha1234");
+        Account account = Account.builder()
+                .name("Sebo")
+                .email("sebo@vitral.com")
+                .passwordHash("hash")
+                .type(AccountType.SEBO)
+                .emailVerificado(true)
+                .build();
+        setId(account, 55L);
+        Sebo sebo = Sebo.builder().account(account).build();
+        AccountResponse accountResponse = new AccountResponse(55L, "Sebo", "sebo@vitral.com", AccountType.SEBO, null);
+
+        when(accountRepository.findByEmailAndAtivoTrue("sebo@vitral.com")).thenReturn(Optional.of(account));
+        when(seboRepository.findByAccountId(55L)).thenReturn(Optional.of(sebo));
+        when(jwtService.generateToken("sebo@vitral.com", "SEBO", 0)).thenReturn("token-jwt");
+        when(jwtService.getExpiration()).thenReturn(86400000L);
+        when(accountMapper.toResponse(account)).thenReturn(accountResponse);
+
+        AuthResponse result = authService.login(request);
+
+        assertThat(result.token()).isEqualTo("token-jwt");
+        assertThat(sebo.getUltimaAtividade()).isNotNull();
+        assertThat(sebo.getUltimaAtividade()).isBeforeOrEqualTo(OffsetDateTime.now());
+    }
+
+    @Test
     @DisplayName("Deve lancar BusinessException 401 ao tentar login com e-mail nao confirmado")
     void shouldBlockLoginWhenEmailIsNotVerified() {
         LoginRequest request = new LoginRequest("maria@vitral.com", "senha1234");
@@ -240,6 +273,10 @@ class AuthServiceTest {
         assertThat(result.mensagem()).contains("confirmado com sucesso");
         assertThat(account.isEmailVerificado()).isTrue();
         assertThat(token.isUsado()).isTrue();
+    }
+
+    private void setId(Account account, Long id) {
+        org.springframework.test.util.ReflectionTestUtils.setField(account, "id", id);
     }
 
     @Test

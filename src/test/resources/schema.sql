@@ -50,6 +50,8 @@ CREATE TABLE sebo (
     cidade                 VARCHAR(120),
     uf                     VARCHAR(2),
     horario_funcionamento  VARCHAR(255),
+    data_criacao           TIMESTAMP,
+    ultima_atividade       TIMESTAMP,
     tipo_operacao          VARCHAR(20) NOT NULL DEFAULT 'VIRTUAL',
     confirmado             BOOLEAN     NOT NULL DEFAULT FALSE,
     created_at             TIMESTAMP    NOT NULL,

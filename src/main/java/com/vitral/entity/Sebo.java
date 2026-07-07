@@ -8,6 +8,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import org.hibernate.annotations.CreationTimestamp;
 import java.time.OffsetDateTime;
 import com.vitral.enumerations.StatusVerificacaoSebo;
 import com.vitral.enumerations.StatusConsultaCnpj;
@@ -85,6 +86,13 @@ public class Sebo extends BaseEntity {
 
     @Column(name = "horario_funcionamento", length = 255)
     private String horarioFuncionamento;
+
+    @CreationTimestamp
+    @Column(name = "data_criacao", updatable = false)
+    private OffsetDateTime dataCriacao;
+
+    @Column(name = "ultima_atividade")
+    private OffsetDateTime ultimaAtividade;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_operacao", nullable = false, length = 20)
