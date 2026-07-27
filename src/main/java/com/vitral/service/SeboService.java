@@ -2,6 +2,7 @@ package com.vitral.service;
 
 import java.time.OffsetDateTime;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,10 @@ public class SeboService {
     private final SeboMapper seboMapper;
     private final AnonimizacaoContaService anonimizacaoContaService;
     private final CnpjConsultaService cnpjConsultaService;
+    private final SeboGeocodingService seboGeocodingService;
+
+    @Value("${app.sebo-verificacao.mock-auto-aprovar:true}")
+    private boolean mockAutoAprovarVerificacao;
 
     @Transactional
     public SeboResponse criar(Account account, SeboRequest request) {
@@ -44,15 +49,19 @@ public class SeboService {
         if (seboRepository.existsByCnpj(request.cnpj())) {
             throw new ConflictException("CNPJ ja cadastrado");
         }
+        // Fluxo real: novo cadastro comeca PENDENTE ate um ADMIN revisar
+        // (ver VerificacaoSeboService.revisar). Isso ja e o default da entidade Sebo.
+        // .statusVerificacao(StatusVerificacaoSebo.PENDENTE)
         Sebo sebo = Sebo.builder()
                 .account(account)
                 .descricao(request.descricao())
                 .telefone(request.telefone())
                 .cnpj(request.cnpj())
-                .statusVerificacao(StatusVerificacaoSebo.PENDENTE)
                 .fotoUrl(request.fotoUrl())
                 .build();
         aplicarModalidade(sebo, request);
+        seboGeocodingService.geocodificar(sebo);
+        aprovarAutomaticamenteEnquantoNaoHaAdmin(sebo);
         OffsetDateTime agora = OffsetDateTime.now();
         sebo.setDataCriacao(agora);
         sebo.setUltimaAtividade(agora);
@@ -72,13 +81,30 @@ public class SeboService {
                 throw new ConflictException("CNPJ ja cadastrado");
             }
             sebo.setCnpj(request.cnpj());
+            // Fluxo real: alterar o CNPJ reabre a verificacao (volta pra PENDENTE ate um ADMIN revisar).
             sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
             sebo.setVerificadoEm(null);
             sebo.setConfirmado(false);
+            aprovarAutomaticamenteEnquantoNaoHaAdmin(sebo);
             cnpjConsultaService.consultar(sebo);
         }
         sebo.setFotoUrl(request.fotoUrl());
+        String cepAntigo = sebo.getCep();
         aplicarModalidade(sebo, request);
+        boolean enderecoMudou = !java.util.Objects.equals(cepAntigo, sebo.getCep());
+        // Tambem tenta de novo se o sebo continua fisico/hibrido mas ainda esta sem
+        // coordenadas (ex.: tentativa anterior falhou ou o CEP nao mudou desta vez).
+        boolean aindaSemCoordenadas = sebo.getTipoOperacao() != TipoOperacaoSebo.VIRTUAL
+                && (sebo.getLatitude() == null || sebo.getLongitude() == null);
+        if (enderecoMudou || aindaSemCoordenadas) {
+            seboGeocodingService.geocodificar(sebo);
+        }
+        // Cobre o caso de um sebo que ficou PENDENTE antes do mock existir (ou por qualquer
+        // outro motivo) e so esta salvando o perfil sem trocar CNPJ/documento: com o mock
+        // ativo, qualquer atualizacao de perfil tambem aprova automaticamente.
+        if (sebo.getStatusVerificacao() != StatusVerificacaoSebo.VERIFICADO) {
+            aprovarAutomaticamenteEnquantoNaoHaAdmin(sebo);
+        }
         registrarAtividade(sebo);
         return seboMapper.toResponse(sebo);
     }
@@ -149,6 +175,8 @@ public class SeboService {
         sebo.setCidade(null);
         sebo.setUf(null);
         sebo.setHorarioFuncionamento(null);
+        sebo.setLatitude(null);
+        sebo.setLongitude(null);
     }
 
     private String apenasDigitos(String valor) {
@@ -158,6 +186,24 @@ public class SeboService {
         }
         String digitos = texto.replaceAll("\\D", "");
         return digitos.isBlank() ? null : digitos;
+    }
+
+    /**
+     * MOCK TEMPORARIO (ainda nao existe conta ADMIN para revisar cadastros):
+     * aprova o sebo automaticamente, pulando a analise manual normalmente feita
+     * em VerificacaoSeboService.revisar(). Defina
+     * app.sebo-verificacao.mock-auto-aprovar=false (ou remova este metodo e as
+     * chamadas a ele) quando houver um ADMIN operando, para que o sebo volte a
+     * ficar PENDENTE ate a revisao manual.
+     */
+    private void aprovarAutomaticamenteEnquantoNaoHaAdmin(Sebo sebo) {
+        if (!mockAutoAprovarVerificacao) {
+            return;
+        }
+        sebo.setStatusVerificacao(StatusVerificacaoSebo.VERIFICADO);
+        sebo.setVerificadoEm(OffsetDateTime.now());
+        sebo.setMotivoRejeicao(null);
+        sebo.setConfirmado(Boolean.TRUE);
     }
 
     private String trimToNull(String valor) {

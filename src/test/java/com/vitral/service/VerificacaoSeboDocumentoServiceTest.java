@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 import com.vitral.dto.DocumentoVerificacaoSeboRequest;
 import com.vitral.dto.SeboResponse;
 import com.vitral.entity.Account;
@@ -87,6 +88,25 @@ class VerificacaoSeboDocumentoServiceTest {
         assertThat(sebo.getStatusVerificacao()).isEqualTo(StatusVerificacaoSebo.PENDENTE);
         assertThat(sebo.getVerificadoEm()).isNull();
         assertThat(sebo.getConfirmado()).isFalse();
+    }
+
+    @Test
+    void enviarDocumentoComMockAtivo_aprovaAutomaticamenteAoInvesDeReabrirPendente() {
+        ReflectionTestUtils.setField(service, "mockAutoAprovarVerificacao", true);
+        String url = "/api/v1/uploads/documents/arquivo.pdf";
+        DocumentoVerificacaoSebo documento = DocumentoVerificacaoSebo.builder()
+                .sebo(sebo).tipoDocumento(TipoDocumentoSebo.CONTRATO_SOCIAL).arquivoUrl(url)
+                .status(StatusDocumentoSebo.PENDENTE).build();
+
+        when(uploadRepository.existsByNomeInternoAndSeboAccountId("arquivo.pdf", 1L)).thenReturn(true);
+        when(documentoRepository.save(org.mockito.ArgumentMatchers.any(DocumentoVerificacaoSebo.class)))
+                .thenReturn(documento);
+
+        service.enviarDocumento(account, new DocumentoVerificacaoSeboRequest(TipoDocumentoSebo.CONTRATO_SOCIAL, url));
+
+        assertThat(sebo.getStatusVerificacao()).isEqualTo(StatusVerificacaoSebo.VERIFICADO);
+        assertThat(sebo.getVerificadoEm()).isNotNull();
+        assertThat(sebo.getConfirmado()).isTrue();
     }
 
     @Test

@@ -56,7 +56,7 @@ class AuthControllerTest {
 
     @Test
     void registerRetornaCreated() {
-        RegisterRequest request = new RegisterRequest("Ana", "ana@vitral.com", "password123", AccountType.USUARIO);
+        RegisterRequest request = new RegisterRequest("Ana", "ana.silva", "ana@vitral.com", "password123", AccountType.USUARIO);
         MensagemResponse response = new MensagemResponse("Cadastro criado");
         when(authService.register(request)).thenReturn(response);
 
@@ -106,7 +106,7 @@ class AuthControllerTest {
     @Test
     void meMapeiaContaAutenticada() {
         Account account = Account.builder().type(AccountType.USUARIO).email("user@vitral.com").ativo(true).build();
-        AccountResponse response = new AccountResponse(1L, "User", "user@vitral.com", AccountType.USUARIO, null);
+        AccountResponse response = new AccountResponse(1L, "User", "user", "user@vitral.com", AccountType.USUARIO, null);
         when(accountMapper.toResponse(account)).thenReturn(response);
 
         var result = controller.me(new AccountUserDetails(account));

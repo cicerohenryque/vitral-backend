@@ -19,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.vitral.dto.SeboRequest;
 import com.vitral.dto.SeboResponse;
@@ -48,6 +49,9 @@ class SeboServiceTest {
 
     @Mock
     private CnpjConsultaService cnpjConsultaService;
+
+    @Mock
+    private SeboGeocodingService seboGeocodingService;
 
     @InjectMocks
     private SeboService seboService;
@@ -106,6 +110,28 @@ class SeboServiceTest {
         assertThat(persistido.getFotoUrl()).isEqualTo(request.fotoUrl());
         assertThat(persistido.getDataCriacao()).isNotNull();
         assertThat(persistido.getUltimaAtividade()).isNotNull();
+        assertThat(persistido.getStatusVerificacao()).isEqualTo(StatusVerificacaoSebo.PENDENTE);
+    }
+
+    @Test
+    @DisplayName("Deve aprovar o sebo automaticamente na criacao quando o mock de auto-aprovacao estiver ativo")
+    void shouldAutoApproveSeboOnCreationWhenMockIsEnabled() {
+        ReflectionTestUtils.setField(seboService, "mockAutoAprovarVerificacao", true);
+        when(seboRepository.existsByAccountId(10L)).thenReturn(false);
+        when(seboRepository.save(any(Sebo.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(seboMapper.toResponse(any(Sebo.class))).thenAnswer(invocation -> {
+            Sebo sebo = invocation.getArgument(0);
+            return new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
+                    request.descricao(), request.telefone(), request.cnpj(), sebo.getStatusVerificacao(),
+                    null, null, null, null, null, request.fotoUrl(), TipoOperacaoSebo.VIRTUAL);
+        });
+
+        SeboResponse resultado = seboService.criar(contaSebo, request);
+
+        assertThat(resultado.statusVerificacao()).isEqualTo(StatusVerificacaoSebo.VERIFICADO);
+        verify(seboRepository).save(seboCaptor.capture());
+        assertThat(seboCaptor.getValue().getConfirmado()).isTrue();
+        assertThat(seboCaptor.getValue().getVerificadoEm()).isNotNull();
     }
 
     @Test
@@ -256,6 +282,7 @@ class SeboServiceTest {
         assertThat(seboCaptor.getValue().getTipoOperacao()).isEqualTo(TipoOperacaoSebo.FISICO);
         assertThat(seboCaptor.getValue().getCep()).isEqualTo("58000000");
         assertThat(seboCaptor.getValue().getUf()).isEqualTo("PB");
+        verify(seboGeocodingService).geocodificar(any(Sebo.class));
     }
 
     @Test
@@ -288,6 +315,7 @@ class SeboServiceTest {
         assertThat(seboCaptor.getValue().getTipoOperacao()).isEqualTo(TipoOperacaoSebo.HIBRIDO);
         assertThat(seboCaptor.getValue().getCep()).isEqualTo("58000123");
         assertThat(seboCaptor.getValue().getUf()).isEqualTo("PB");
+        verify(seboGeocodingService).geocodificar(any(Sebo.class));
     }
 
     @Test
@@ -331,6 +359,110 @@ class SeboServiceTest {
         assertThat(existente.getTipoOperacao()).isEqualTo(TipoOperacaoSebo.VIRTUAL);
         assertThat(existente.getCep()).isNull();
         assertThat(existente.getCidade()).isNull();
+        verify(seboGeocodingService).geocodificar(existente);
+    }
+
+    @Test
+    @DisplayName("Deve geocodificar quando o CEP muda ao atualizar o sebo")
+    void shouldGeocodeWhenCepChangesOnUpdate() {
+        Sebo existente = Sebo.builder()
+                .account(contaSebo)
+                .tipoOperacao(TipoOperacaoSebo.VIRTUAL)
+                .build();
+        SeboRequest requestFisico = new SeboRequest(
+                "Sebo familiar com livros raros",
+                "8399999-0000",
+                "12345678000199",
+                "https://cdn/foto.jpg",
+                TipoOperacaoSebo.FISICO,
+                "58000-000",
+                "Rua das Letras",
+                "Joao Pessoa",
+                "pb",
+                "Seg a sex");
+
+        when(seboRepository.findByAccountId(10L)).thenReturn(Optional.of(existente));
+        when(seboMapper.toResponse(existente)).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao",
+                "sebo@vitral.com", requestFisico.descricao(), requestFisico.telefone(), requestFisico.cnpj(),
+                StatusVerificacaoSebo.PENDENTE, null, null, null, null, null, requestFisico.fotoUrl(),
+                TipoOperacaoSebo.FISICO, "58000000", "Rua das Letras", "Joao Pessoa", "PB", "Seg a sex", false));
+
+        seboService.atualizarMeuSebo(contaSebo, requestFisico);
+
+        verify(seboGeocodingService).geocodificar(existente);
+    }
+
+    @Test
+    @DisplayName("Nao deve geocodificar novamente quando o CEP permanece o mesmo ao atualizar o sebo")
+    void shouldNotRegeocodeWhenCepIsUnchangedOnUpdate() {
+        Sebo existente = Sebo.builder()
+                .account(contaSebo)
+                .tipoOperacao(TipoOperacaoSebo.FISICO)
+                .cep("58000000")
+                .logradouro("Rua das Letras")
+                .cidade("Joao Pessoa")
+                .uf("PB")
+                .horarioFuncionamento("Seg a sex")
+                .latitude(-7.115)
+                .longitude(-34.861)
+                .build();
+        SeboRequest requestMesmoCep = new SeboRequest(
+                "Descricao atualizada",
+                "8399999-0000",
+                "12345678000199",
+                "https://cdn/foto.jpg",
+                TipoOperacaoSebo.FISICO,
+                "58000-000",
+                "Rua das Letras",
+                "Joao Pessoa",
+                "pb",
+                "Seg a sex");
+
+        when(seboRepository.findByAccountId(10L)).thenReturn(Optional.of(existente));
+        when(seboMapper.toResponse(existente)).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao",
+                "sebo@vitral.com", requestMesmoCep.descricao(), requestMesmoCep.telefone(), requestMesmoCep.cnpj(),
+                StatusVerificacaoSebo.PENDENTE, null, null, null, null, null, requestMesmoCep.fotoUrl(),
+                TipoOperacaoSebo.FISICO, "58000000", "Rua das Letras", "Joao Pessoa", "PB", "Seg a sex", false));
+
+        seboService.atualizarMeuSebo(contaSebo, requestMesmoCep);
+
+        assertThat(existente.getDescricao()).isEqualTo("Descricao atualizada");
+        verify(seboGeocodingService, never()).geocodificar(any());
+    }
+
+    @Test
+    @DisplayName("Deve tentar geocodificar de novo quando o CEP nao muda mas o sebo ainda esta sem coordenadas")
+    void shouldRegeocodeWhenCepUnchangedButCoordinatesStillMissing() {
+        Sebo existente = Sebo.builder()
+                .account(contaSebo)
+                .tipoOperacao(TipoOperacaoSebo.FISICO)
+                .cep("58000000")
+                .logradouro("Rua das Letras")
+                .cidade("Joao Pessoa")
+                .uf("PB")
+                .horarioFuncionamento("Seg a sex")
+                .build();
+        SeboRequest requestMesmoCep = new SeboRequest(
+                "Descricao atualizada",
+                "8399999-0000",
+                "12345678000199",
+                "https://cdn/foto.jpg",
+                TipoOperacaoSebo.FISICO,
+                "58000-000",
+                "Rua das Letras",
+                "Joao Pessoa",
+                "pb",
+                "Seg a sex");
+
+        when(seboRepository.findByAccountId(10L)).thenReturn(Optional.of(existente));
+        when(seboMapper.toResponse(existente)).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao",
+                "sebo@vitral.com", requestMesmoCep.descricao(), requestMesmoCep.telefone(), requestMesmoCep.cnpj(),
+                StatusVerificacaoSebo.PENDENTE, null, null, null, null, null, requestMesmoCep.fotoUrl(),
+                TipoOperacaoSebo.FISICO, "58000000", "Rua das Letras", "Joao Pessoa", "PB", "Seg a sex", false));
+
+        seboService.atualizarMeuSebo(contaSebo, requestMesmoCep);
+
+        verify(seboGeocodingService).geocodificar(existente);
     }
 
     @Test

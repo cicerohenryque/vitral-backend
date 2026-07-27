@@ -55,12 +55,13 @@ public class AuthService {
         if (accountRepository.existsByEmail(request.email())) {
             throw new ConflictException("Email ja cadastrado");
         }
-        if (accountRepository.existsByName(request.name())) {
-            throw new ConflictException("Nome de usuario ja cadastrado");
+        if (accountRepository.existsByUsername(request.username())) {
+            throw new ConflictException("Usuario ja cadastrado");
         }
 
         Account account = Account.builder()
                 .name(request.name())
+                .username(request.username())
                 .email(request.email())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .type(request.type())
@@ -79,7 +80,7 @@ public class AuthService {
         String identificador = request.login().trim();
         Account account = (identificador.contains("@")
                 ? accountRepository.findByEmailAndAtivoTrue(identificador)
-                : accountRepository.findFirstByNameAndAtivoTrueOrderByIdAsc(identificador))
+                : accountRepository.findByUsernameAndAtivoTrue(identificador.toLowerCase(java.util.Locale.ROOT)))
                 .orElseThrow(() -> new BusinessException("Credenciais invalidas", HttpStatus.UNAUTHORIZED));
 
         if (!account.isEmailVerificado()) {

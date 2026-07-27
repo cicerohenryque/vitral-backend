@@ -42,6 +42,7 @@ class SecurityIntegrationTest {
     void setUp() {
         Account usuario = accountRepository.save(Account.builder()
                 .name("Usuario Teste")
+                .username("usuario.seguranca")
                 .email("usuario-seguranca@vitral.com")
                 .passwordHash("hash")
                 .type(AccountType.USUARIO)
@@ -49,6 +50,7 @@ class SecurityIntegrationTest {
                 .build());
         Account sebo = accountRepository.save(Account.builder()
                 .name("Sebo Teste")
+                .username("sebo.seguranca")
                 .email("sebo-seguranca@vitral.com")
                 .passwordHash("hash")
                 .type(AccountType.SEBO)

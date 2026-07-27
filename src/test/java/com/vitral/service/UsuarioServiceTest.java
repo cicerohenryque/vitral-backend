@@ -51,7 +51,7 @@ class UsuarioServiceTest {
                 .emailVerificado(true)
                 .build();
         AtualizarPerfilRequest request = new AtualizarPerfilRequest("Maria Clara", "/api/v1/uploads/images/perfil.jpg");
-        AccountResponse expectedResponse = new AccountResponse(1L, "Maria Clara", "maria@vitral.com", AccountType.USUARIO, "/api/v1/uploads/images/perfil.jpg");
+        AccountResponse expectedResponse = new AccountResponse(1L, "Maria Clara", "maria", "maria@vitral.com", AccountType.USUARIO, "/api/v1/uploads/images/perfil.jpg");
 
         when(accountRepository.save(accountCaptor.capture())).thenReturn(account);
         when(accountMapper.toResponse(account)).thenReturn(expectedResponse);
@@ -77,7 +77,7 @@ class UsuarioServiceTest {
 
         when(accountRepository.save(accountCaptor.capture())).thenReturn(account);
         when(accountMapper.toResponse(account)).thenReturn(
-                new AccountResponse(2L, "Livraria Novo Nome", "sebo@vitral.com", AccountType.SEBO, null));
+                new AccountResponse(2L, "Livraria Novo Nome", "sebo", "sebo@vitral.com", AccountType.SEBO, null));
 
         usuarioService.atualizarPerfil(account, request);
 

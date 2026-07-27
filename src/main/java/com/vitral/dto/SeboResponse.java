@@ -28,7 +28,38 @@ public record SeboResponse(
         String horarioFuncionamento,
         OffsetDateTime dataCriacao,
         OffsetDateTime ultimaAtividade,
-        Boolean confirmado) {
+        Boolean confirmado,
+        Double distanciaKm) {
+
+    public SeboResponse(
+            Long id,
+            Long accountId,
+            String nome,
+            String email,
+            String descricao,
+            String telefone,
+            String cnpj,
+            StatusVerificacaoSebo statusVerificacao,
+            String motivoRejeicao,
+            String razaoSocialReceita,
+            StatusConsultaCnpj statusConsultaCnpj,
+            OffsetDateTime cnpjConsultadoEm,
+            String mensagemConsultaCnpj,
+            String fotoUrl,
+            TipoOperacaoSebo tipoOperacao,
+            String cep,
+            String logradouro,
+            String cidade,
+            String uf,
+            String horarioFuncionamento,
+            OffsetDateTime dataCriacao,
+            OffsetDateTime ultimaAtividade,
+            Boolean confirmado) {
+        this(id, accountId, nome, email, descricao, telefone, cnpj, statusVerificacao, motivoRejeicao,
+                razaoSocialReceita, statusConsultaCnpj, cnpjConsultadoEm, mensagemConsultaCnpj, fotoUrl,
+                tipoOperacao, cep, logradouro, cidade, uf, horarioFuncionamento, dataCriacao, ultimaAtividade,
+                confirmado, null);
+    }
 
     public SeboResponse(
             Long id,

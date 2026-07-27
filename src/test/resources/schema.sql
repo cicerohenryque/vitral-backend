@@ -18,6 +18,7 @@ DROP TABLE IF EXISTS account;
 CREATE TABLE account (
     id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name             VARCHAR(255) NOT NULL,
+    username         VARCHAR(50)  NOT NULL,
     email            VARCHAR(255) NOT NULL,
     password_hash    VARCHAR(255) NOT NULL,
     type             VARCHAR(20)  NOT NULL,
@@ -28,6 +29,7 @@ CREATE TABLE account (
     created_at       TIMESTAMP    NOT NULL,
     updated_at       TIMESTAMP    NOT NULL,
     CONSTRAINT uk_account_email UNIQUE (email),
+    CONSTRAINT uk_account_username UNIQUE (username),
     CONSTRAINT ck_account_type CHECK (type IN ('SEBO', 'USUARIO', 'ADMIN'))
 );
 
@@ -50,6 +52,8 @@ CREATE TABLE sebo (
     cidade                 VARCHAR(120),
     uf                     VARCHAR(2),
     horario_funcionamento  VARCHAR(255),
+    latitude               DOUBLE PRECISION,
+    longitude              DOUBLE PRECISION,
     data_criacao           TIMESTAMP,
     ultima_atividade       TIMESTAMP,
     tipo_operacao          VARCHAR(20) NOT NULL DEFAULT 'VIRTUAL',

@@ -29,14 +29,18 @@ public class BuscaController {
     private final BuscaService buscaService;
 
     @GetMapping("/sebos")
-    @Operation(summary = "Busca vitrines virtuais de sebos ativos pelo nome opcional (q)")
+    @Operation(summary = "Busca vitrines virtuais de sebos ativos pelo nome opcional (q); "
+            + "ordena por proximidade quando lat/lng sao informados")
     public ResponseEntity<PageResponse<SeboResponse>> buscarSebos(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) TipoOperacaoSebo tipoOperacao,
             @RequestParam(required = false) String cidade,
             @RequestParam(required = false) String uf,
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng,
             Pageable pageable) {
-        return ResponseEntity.ok(PageResponse.from(buscaService.buscarSebos(q, tipoOperacao, cidade, uf, pageable)));
+        return ResponseEntity.ok(
+                PageResponse.from(buscaService.buscarSebos(q, tipoOperacao, cidade, uf, lat, lng, pageable)));
     }
 
     @GetMapping("/produtos")

@@ -1,10 +1,12 @@
 package com.vitral.service;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ import com.vitral.repository.ProdutoRepository;
 import com.vitral.repository.SeboRepository;
 import com.vitral.specification.ProdutoSpecification;
 import com.vitral.specification.SeboSpecification;
+import com.vitral.util.GeoUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -43,6 +46,12 @@ public class BuscaService {
     @Transactional(readOnly = true)
     public Page<SeboResponse> buscarSebos(String termo, TipoOperacaoSebo tipoOperacao,
             String cidade, String uf, Pageable pageable) {
+        return buscarSebos(termo, tipoOperacao, cidade, uf, null, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SeboResponse> buscarSebos(String termo, TipoOperacaoSebo tipoOperacao,
+            String cidade, String uf, Double lat, Double lng, Pageable pageable) {
         Specification<Sebo> spec = SeboSpecification.ativo();
 
         if (termo != null && !termo.isBlank()) {
@@ -57,7 +66,31 @@ public class BuscaService {
         if (uf != null && !uf.isBlank()) {
             spec = spec.and(SeboSpecification.ufIgual(uf));
         }
+
+        if (lat != null && lng != null) {
+            return buscarSebosPorProximidade(spec, lat, lng, pageable);
+        }
         return seboRepository.findAll(spec, pageable).map(seboMapper::toResponse);
+    }
+
+    private Page<SeboResponse> buscarSebosPorProximidade(Specification<Sebo> spec, double lat, double lng,
+            Pageable pageable) {
+        List<Sebo> encontrados = seboRepository.findAll(spec);
+        List<SeboResponse> ordenados = encontrados.stream()
+                .map(sebo -> seboMapper.toResponse(sebo, distanciaKm(sebo, lat, lng)))
+                .sorted(Comparator.comparing(SeboResponse::distanciaKm, Comparator.nullsLast(Double::compareTo)))
+                .toList();
+
+        int inicio = (int) Math.min(pageable.getOffset(), ordenados.size());
+        int fim = (int) Math.min(inicio + pageable.getPageSize(), ordenados.size());
+        return new PageImpl<>(ordenados.subList(inicio, fim), pageable, ordenados.size());
+    }
+
+    private Double distanciaKm(Sebo sebo, double lat, double lng) {
+        if (sebo.getLatitude() == null || sebo.getLongitude() == null) {
+            return null;
+        }
+        return GeoUtils.haversineKm(lat, lng, sebo.getLatitude(), sebo.getLongitude());
     }
 
     @Transactional(readOnly = true)

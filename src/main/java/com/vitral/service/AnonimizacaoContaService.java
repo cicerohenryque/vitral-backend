@@ -43,6 +43,7 @@ public class AnonimizacaoContaService {
     private void anonimizarConta(Account account) {
         account.setAtivo(false);
         account.setName("Conta excluida");
+        account.setUsername("conta-excluida-" + account.getId());
         account.setEmail("excluida-" + account.getId() + "@invalid.local");
         account.setPasswordHash("CONTA_DESATIVADA");
         account.setFotoUrl(null);

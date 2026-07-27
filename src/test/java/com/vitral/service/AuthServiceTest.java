@@ -88,9 +88,10 @@ class AuthServiceTest {
     @Test
     @DisplayName("Deve registrar nova conta, salvar token e enviar e-mail quando o e-mail ainda nao existe")
     void shouldRegisterAccountAndSendConfirmationEmailWhenEmailIsAvailable() {
-        RegisterRequest request = new RegisterRequest("Maria", "maria@vitral.com", "senha1234", AccountType.USUARIO);
+        RegisterRequest request = new RegisterRequest("Maria", "maria.silva", "maria@vitral.com", "senha1234", AccountType.USUARIO);
         Account savedAccount = Account.builder()
                 .name("Maria")
+                .username("maria.silva")
                 .email("maria@vitral.com")
                 .passwordHash("hash")
                 .type(AccountType.USUARIO)
@@ -98,6 +99,7 @@ class AuthServiceTest {
                 .build();
 
         when(accountRepository.existsByEmail("maria@vitral.com")).thenReturn(false);
+        when(accountRepository.existsByUsername("maria.silva")).thenReturn(false);
         when(passwordEncoder.encode("senha1234")).thenReturn("hash");
         when(accountRepository.save(accountCaptor.capture())).thenReturn(savedAccount);
         when(tokenRepository.save(tokenCaptor.capture())).thenReturn(new TokenVerificacaoEmail());
@@ -124,7 +126,7 @@ class AuthServiceTest {
     @Test
     @DisplayName("Deve lancar ConflictException e nao salvar quando o e-mail ja esta cadastrado")
     void shouldThrowConflictWhenEmailAlreadyExists() {
-        RegisterRequest request = new RegisterRequest("Maria", "maria@vitral.com", "senha1234", AccountType.USUARIO);
+        RegisterRequest request = new RegisterRequest("Maria", "maria.silva", "maria@vitral.com", "senha1234", AccountType.USUARIO);
         when(accountRepository.existsByEmail("maria@vitral.com")).thenReturn(true);
 
         assertThatThrownBy(() -> authService.register(request))
@@ -139,13 +141,13 @@ class AuthServiceTest {
     @Test
     @DisplayName("Deve lancar ConflictException quando o nome de usuario ja esta cadastrado")
     void shouldThrowConflictWhenUsernameAlreadyExists() {
-        RegisterRequest request = new RegisterRequest("Maria", "maria@vitral.com", "senha1234", AccountType.USUARIO);
+        RegisterRequest request = new RegisterRequest("Maria", "maria.silva", "maria@vitral.com", "senha1234", AccountType.USUARIO);
         when(accountRepository.existsByEmail("maria@vitral.com")).thenReturn(false);
-        when(accountRepository.existsByName("Maria")).thenReturn(true);
+        when(accountRepository.existsByUsername("maria.silva")).thenReturn(true);
 
         assertThatThrownBy(() -> authService.register(request))
                 .isInstanceOf(ConflictException.class)
-                .hasMessage("Nome de usuario ja cadastrado");
+                .hasMessage("Usuario ja cadastrado");
 
         verify(accountRepository, never()).save(any(Account.class));
         verify(emailService, never()).enviarConfirmacaoCadastro(any(), any());
@@ -156,15 +158,16 @@ class AuthServiceTest {
     void shouldLoginWithUsernameWhenIdentifierIsNotEmail() {
         LoginRequest request = new LoginRequest("maria", "senha1234");
         Account account = Account.builder()
-                .name("maria")
+                .name("Maria")
+                .username("maria")
                 .email("maria@vitral.com")
                 .passwordHash("hash")
                 .type(AccountType.USUARIO)
                 .emailVerificado(true)
                 .build();
-        AccountResponse accountResponse = new AccountResponse(1L, "maria", "maria@vitral.com", AccountType.USUARIO, null);
+        AccountResponse accountResponse = new AccountResponse(1L, "Maria", "maria", "maria@vitral.com", AccountType.USUARIO, null);
 
-        when(accountRepository.findFirstByNameAndAtivoTrueOrderByIdAsc("maria")).thenReturn(Optional.of(account));
+        when(accountRepository.findByUsernameAndAtivoTrue("maria")).thenReturn(Optional.of(account));
         when(jwtService.generateToken("maria@vitral.com", "USUARIO", 0)).thenReturn("token-jwt");
         when(jwtService.getExpiration()).thenReturn(86400000L);
         when(accountMapper.toResponse(account)).thenReturn(accountResponse);
@@ -187,7 +190,7 @@ class AuthServiceTest {
                 .type(AccountType.USUARIO)
                 .emailVerificado(true)
                 .build();
-        AccountResponse accountResponse = new AccountResponse(1L, "Maria", "maria@vitral.com", AccountType.USUARIO, null);
+        AccountResponse accountResponse = new AccountResponse(1L, "Maria", "maria", "maria@vitral.com", AccountType.USUARIO, null);
 
         when(accountRepository.findByEmailAndAtivoTrue("maria@vitral.com")).thenReturn(Optional.of(account));
         when(jwtService.generateToken("maria@vitral.com", "USUARIO", 0)).thenReturn("token-jwt");
@@ -215,7 +218,7 @@ class AuthServiceTest {
                 .build();
         setId(account, 55L);
         Sebo sebo = Sebo.builder().account(account).build();
-        AccountResponse accountResponse = new AccountResponse(55L, "Sebo", "sebo@vitral.com", AccountType.SEBO, null);
+        AccountResponse accountResponse = new AccountResponse(55L, "Sebo", "sebo", "sebo@vitral.com", AccountType.SEBO, null);
 
         when(accountRepository.findByEmailAndAtivoTrue("sebo@vitral.com")).thenReturn(Optional.of(account));
         when(seboRepository.findByAccountId(55L)).thenReturn(Optional.of(sebo));

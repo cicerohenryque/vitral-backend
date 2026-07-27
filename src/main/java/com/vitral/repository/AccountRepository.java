@@ -12,13 +12,11 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     Optional<Account> findByEmailAndAtivoTrue(String email);
 
-    Optional<Account> findFirstByNameOrderByIdAsc(String name);
-
-    Optional<Account> findFirstByNameAndAtivoTrueOrderByIdAsc(String name);
+    Optional<Account> findByUsernameAndAtivoTrue(String username);
 
     boolean existsByEmail(String email);
 
-    boolean existsByName(String name);
+    boolean existsByUsername(String username);
 
     boolean existsByType(com.vitral.enumerations.AccountType type);
 }

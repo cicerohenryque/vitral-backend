@@ -87,6 +87,10 @@ public class Sebo extends BaseEntity {
     @Column(name = "horario_funcionamento", length = 255)
     private String horarioFuncionamento;
 
+    private Double latitude;
+
+    private Double longitude;
+
     @CreationTimestamp
     @Column(name = "data_criacao", updatable = false)
     private OffsetDateTime dataCriacao;

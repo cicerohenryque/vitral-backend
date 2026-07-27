@@ -2,6 +2,7 @@ package com.vitral.service;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +44,9 @@ public class VerificacaoSeboService {
 
     private static final String PREFIXO_DOCUMENTO = "/api/v1/uploads/documents/";
 
+    @Value("${app.sebo-verificacao.mock-auto-aprovar:true}")
+    private boolean mockAutoAprovarVerificacao;
+
     @Transactional
     public DocumentoVerificacaoSeboResponse enviarDocumento(Account account, DocumentoVerificacaoSeboRequest request) {
         Sebo sebo = buscarPorAccount(account);
@@ -53,10 +57,12 @@ public class VerificacaoSeboService {
         DocumentoVerificacaoSebo documento = DocumentoVerificacaoSebo.builder()
                 .sebo(sebo).tipoDocumento(request.tipoDocumento()).arquivoUrl(request.arquivoUrl())
                 .status(StatusDocumentoSebo.PENDENTE).enviadoEm(OffsetDateTime.now()).build();
+        // Fluxo real: reenviar documento reabre a verificacao (volta pra PENDENTE ate um ADMIN revisar).
         sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
         sebo.setVerificadoEm(null);
         sebo.setMotivoRejeicao(null);
         sebo.setConfirmado(false);
+        aprovarAutomaticamenteEnquantoNaoHaAdmin(sebo);
         return toResponse(documentoRepository.save(documento), metadataPorNome(nomeInterno));
     }
 
@@ -70,10 +76,12 @@ public class VerificacaoSeboService {
         DocumentoVerificacaoSebo documento = DocumentoVerificacaoSebo.builder()
                 .sebo(sebo).tipoDocumento(tipo).arquivoUrl(documentoUploadService.arquivoUrl(metadata))
                 .status(StatusDocumentoSebo.PENDENTE).enviadoEm(OffsetDateTime.now()).build();
+        // Fluxo real: reenviar documento reabre a verificacao (volta pra PENDENTE ate um ADMIN revisar).
         sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
         sebo.setVerificadoEm(null);
         sebo.setMotivoRejeicao(null);
         sebo.setConfirmado(false);
+        aprovarAutomaticamenteEnquantoNaoHaAdmin(sebo);
         return toResponse(documentoRepository.save(documento), metadata);
     }
 
@@ -132,6 +140,22 @@ public class VerificacaoSeboService {
                 .statusAnterior(anterior).novoStatus(status).motivo(status == StatusVerificacaoSebo.REJEITADO ? motivo.trim() : null).build());
         if (status == StatusVerificacaoSebo.REJEITADO) produtoRepository.desativarCatalogoDoSebo(seboId);
         return seboMapper.toResponse(sebo);
+    }
+
+    /**
+     * MOCK TEMPORARIO (ainda nao existe conta ADMIN para revisar cadastros):
+     * aprova o sebo automaticamente, pulando a analise manual normalmente feita
+     * em revisar(). Defina app.sebo-verificacao.mock-auto-aprovar=false (ou
+     * remova este metodo e as chamadas a ele) quando houver um ADMIN operando.
+     */
+    private void aprovarAutomaticamenteEnquantoNaoHaAdmin(Sebo sebo) {
+        if (!mockAutoAprovarVerificacao) {
+            return;
+        }
+        sebo.setStatusVerificacao(StatusVerificacaoSebo.VERIFICADO);
+        sebo.setVerificadoEm(OffsetDateTime.now());
+        sebo.setMotivoRejeicao(null);
+        sebo.setConfirmado(Boolean.TRUE);
     }
 
     private Sebo buscarPorAccount(Account account) {

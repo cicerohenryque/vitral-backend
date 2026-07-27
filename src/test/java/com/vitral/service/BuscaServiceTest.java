@@ -260,6 +260,53 @@ class BuscaServiceTest {
         assertThat(resultado.getTotalElements()).isZero();
     }
 
+    @Test
+    @DisplayName("Deve ordenar sebos por proximidade quando lat e lng forem informados, deixando sem coordenadas por ultimo")
+    void shouldOrderSebosByProximityWhenLatAndLngProvided() {
+        Account conta = sebo.getAccount();
+        Sebo seboDistante = Sebo.builder().account(conta).latitude(-23.5505).longitude(-46.6333).build(); // Sao Paulo
+        Sebo seboProximo = Sebo.builder().account(conta).latitude(-7.1219).longitude(-34.8850).build(); // Joao Pessoa
+        Sebo seboSemCoordenadas = Sebo.builder().account(conta).build();
+
+        when(seboRepository.findAll(anySeboSpecification()))
+                .thenReturn(List.of(seboDistante, seboSemCoordenadas, seboProximo));
+        when(seboMapper.toResponse(eq(seboProximo), any()))
+                .thenAnswer(inv -> responseComDistancia(1L, "Proximo", inv.getArgument(1)));
+        when(seboMapper.toResponse(eq(seboDistante), any()))
+                .thenAnswer(inv -> responseComDistancia(2L, "Distante", inv.getArgument(1)));
+        when(seboMapper.toResponse(eq(seboSemCoordenadas), any()))
+                .thenAnswer(inv -> responseComDistancia(3L, "SemCoordenadas", inv.getArgument(1)));
+
+        // Referencia proxima a Joao Pessoa/PB
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, null, -7.1150, -34.8631, pageable);
+
+        assertThat(resultado.getContent()).extracting(SeboResponse::nome)
+                .containsExactly("Proximo", "Distante", "SemCoordenadas");
+        assertThat(resultado.getContent().get(0).distanciaKm()).isNotNull();
+        assertThat(resultado.getContent().get(1).distanciaKm()).isNotNull();
+        assertThat(resultado.getContent().get(2).distanciaKm()).isNull();
+        assertThat(resultado.getTotalElements()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("Deve manter comportamento padrao quando apenas lat ou apenas lng forem informados")
+    void shouldIgnoreProximitySortingWhenOnlyOneCoordinateProvided() {
+        Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
+        when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
+        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, null, -7.1150, null, pageable);
+
+        assertThat(resultado.getContent()).containsExactly(seboResponse);
+        verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
+    }
+
+    private SeboResponse responseComDistancia(Long id, String nome, Double distanciaKm) {
+        return new SeboResponse(id, 1L, nome, nome + "@email.com", null, null, String.valueOf(id),
+                StatusVerificacaoSebo.VERIFICADO, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, distanciaKm);
+    }
+
     private static Specification<Sebo> anySeboSpecification() {
         return ArgumentMatchers.any();
     }
