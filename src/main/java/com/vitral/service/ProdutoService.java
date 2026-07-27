@@ -62,6 +62,8 @@ public class ProdutoService {
                 .condicao(request.condicao())
                 .fotoUrl(request.fotoUrl())
                 .ativo(normalizarEstoque(request.estoque()) > 0)
+                .classico(Boolean.TRUE.equals(request.classico()))
+                .lancamento(Boolean.TRUE.equals(request.lancamento()))
                 .build();
         Produto salvo = produtoRepository.save(produto);
         if (salvo.getEstoque() > 0) {
@@ -90,6 +92,8 @@ public class ProdutoService {
         produto.setCondicao(request.condicao());
         produto.setFotoUrl(request.fotoUrl());
         produto.setAtivo(produto.getEstoque() > 0);
+        produto.setClassico(Boolean.TRUE.equals(request.classico()));
+        produto.setLancamento(Boolean.TRUE.equals(request.lancamento()));
         if (estoqueAntes != estoqueDepois) {
             movimentacaoEstoqueService.registrarAlteracao(produto, account, TipoMovimentacaoEstoque.AJUSTE,
                     Math.abs(estoqueDepois - estoqueAntes), estoqueAntes, estoqueDepois, produto.getPreco(),
@@ -164,12 +168,15 @@ public class ProdutoService {
 
     @Transactional(readOnly = true)
     public Page<ProdutoResponse> listarLancamentos(Pageable pageable) {
-        return toResponsePage(produtoRepository.findAll(ProdutoSpecification.ativo(), pageable));
+        return toResponsePage(produtoRepository.findAll(ProdutoSpecification.disponivel()
+                .and(ProdutoSpecification.naoClassico())
+                .and(ProdutoSpecification.lancamentoOuRecente(java.time.OffsetDateTime.now().minusDays(30))), pageable));
     }
 
     @Transactional(readOnly = true)
     public Page<ProdutoResponse> listarClassicos(Pageable pageable) {
-        return toResponsePage(produtoRepository.findAll(ProdutoSpecification.ativo(), pageable));
+        return toResponsePage(produtoRepository.findAll(ProdutoSpecification.disponivel()
+                .and(ProdutoSpecification.classico()), pageable));
     }
 
     private ProdutoResponse toResponse(Produto produto) {

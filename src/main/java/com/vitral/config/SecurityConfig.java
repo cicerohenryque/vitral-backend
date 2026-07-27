@@ -49,6 +49,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/home").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/ofertas/minhas").hasRole("SEBO")
                         .requestMatchers(HttpMethod.GET, "/api/v1/sebos/**", "/api/v1/produtos/**", "/api/v1/busca/**",
                                 "/api/v1/categorias/**", "/api/v1/ofertas/**", "/api/v1/uploads/images/**").permitAll()

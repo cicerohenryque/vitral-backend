@@ -1,6 +1,8 @@
 package com.vitral.specification;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.Collection;
 
 import org.springframework.data.jpa.domain.Specification;
 
@@ -19,6 +21,27 @@ public class ProdutoSpecification {
                 cb.isTrue(root.get("sebo").get("account").get("ativo")),
                 cb.equal(root.get("sebo").get("statusVerificacao"),
                         com.vitral.enumerations.StatusVerificacaoSebo.VERIFICADO));
+    }
+
+    public static Specification<Produto> disponivel() {
+        return ativo().and((root, query, cb) -> cb.greaterThan(root.get("estoque"), 0));
+    }
+
+    public static Specification<Produto> classico() {
+        return (root, query, cb) -> cb.isTrue(root.get("classico"));
+    }
+
+    public static Specification<Produto> naoClassico() {
+        return (root, query, cb) -> cb.isFalse(root.get("classico"));
+    }
+
+    public static Specification<Produto> lancamentoOuRecente(OffsetDateTime desde) {
+        return (root, query, cb) -> cb.or(cb.isTrue(root.get("lancamento")),
+                cb.greaterThanOrEqualTo(root.get("createdAt"), desde));
+    }
+
+    public static Specification<Produto> idsFora(Collection<Long> ids) {
+        return (root, query, cb) -> ids == null || ids.isEmpty() ? cb.conjunction() : cb.not(root.get("id").in(ids));
     }
 
     public static Specification<Produto> tituloContem(String termo) {

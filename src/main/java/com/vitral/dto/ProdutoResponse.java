@@ -9,6 +9,7 @@ import com.vitral.enumerations.BookGenre;
 public record ProdutoResponse(
         Long id,
         Long seboId,
+        String seboNome,
         Long categoriaId,
         String categoriaNome,
         BookGenre bookGenre,
@@ -23,6 +24,9 @@ public record ProdutoResponse(
         CondicaoProduto condicao,
         String fotoUrl,
         Boolean ativo,
+        Boolean disponivel,
+        Boolean classico,
+        Boolean lancamento,
         OffsetDateTime dataPublicacao) {
 
     public ProdutoResponse(
@@ -41,7 +45,8 @@ public record ProdutoResponse(
             CondicaoProduto condicao,
             String fotoUrl,
             Boolean ativo) {
-        this(id, seboId, categoriaId, categoriaNome, null, catalogoLivroId, isbn, titulo, autor, descricao, preco,
-                precoPromocional, estoque, condicao, fotoUrl, ativo, null);
+        this(id, seboId, null, categoriaId, categoriaNome, null, catalogoLivroId, isbn, titulo, autor, descricao, preco,
+                precoPromocional, estoque, condicao, fotoUrl, ativo, Boolean.TRUE.equals(ativo) && estoque != null && estoque > 0,
+                false, false, null);
     }
 }

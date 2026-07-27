@@ -152,6 +152,8 @@ CREATE TABLE produto (
     condicao    VARCHAR(20)    NOT NULL,
     foto_url    VARCHAR(500),
     ativo       BOOLEAN        NOT NULL DEFAULT TRUE,
+    classico    BOOLEAN        NOT NULL DEFAULT FALSE,
+    lancamento  BOOLEAN        NOT NULL DEFAULT FALSE,
     created_at  TIMESTAMP      NOT NULL,
     updated_at  TIMESTAMP      NOT NULL,
     CONSTRAINT fk_produto_sebo FOREIGN KEY (sebo_id) REFERENCES sebo (id) ON DELETE CASCADE,

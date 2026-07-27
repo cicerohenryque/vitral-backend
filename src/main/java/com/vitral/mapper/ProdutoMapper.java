@@ -12,11 +12,13 @@ import com.vitral.entity.Produto;
 public interface ProdutoMapper {
 
     @Mapping(target = "seboId", source = "produto.sebo.id")
+    @Mapping(target = "seboNome", source = "produto.sebo.account.name")
     @Mapping(target = "categoriaId", source = "produto.categoria.id")
     @Mapping(target = "categoriaNome", source = "produto.categoria.nome")
     @Mapping(target = "catalogoLivroId", source = "produto.catalogoLivro.id")
     @Mapping(target = "isbn", source = "produto.catalogoLivro.isbn")
     @Mapping(target = "precoPromocional", source = "precoPromocional")
     @Mapping(target = "dataPublicacao", source = "produto.createdAt")
+    @Mapping(target = "disponivel", expression = "java(Boolean.TRUE.equals(produto.getAtivo()) && produto.getEstoque() != null && produto.getEstoque() > 0)")
     ProdutoResponse toResponse(Produto produto, BigDecimal precoPromocional);
 }

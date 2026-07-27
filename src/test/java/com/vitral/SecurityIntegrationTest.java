@@ -141,6 +141,13 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    @DisplayName("Home dinamica deve aceitar visitante sem token")
+    void home_visitante_temAcesso() throws Exception {
+        mockMvc.perform(get("/api/v1/home"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("Token emitido antes da troca de senha deve ser rejeitado")
     void tokenComVersaoAntiga_eBloqueado() throws Exception {
         Account usuario = accountRepository.findByEmail("usuario-seguranca@vitral.com").orElseThrow();

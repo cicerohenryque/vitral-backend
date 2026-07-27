@@ -73,4 +73,12 @@ public class Produto extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private Boolean ativo = Boolean.TRUE;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean classico = Boolean.FALSE;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean lancamento = Boolean.FALSE;
 }

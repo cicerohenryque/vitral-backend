@@ -490,6 +490,23 @@ class ProdutoServiceTest {
                 .isEqualTo(com.vitral.enumerations.BookGenre.ROMANCE);
     }
 
+    @Test
+    void criarProduto_persisteClassicoELancamentoExplicitamente() {
+        Categoria livros = Categoria.builder().nome("Livros").slug("livros").build();
+        setId(livros, 7L);
+        ProdutoRequest classificado = new ProdutoRequest(null, "Edicao especial", 7L, null, "Autor", null,
+                BigDecimal.TEN, 1, CondicaoProduto.NOVO, null, true, true);
+        when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
+        when(categoriaService.buscarPermitida(7L)).thenReturn(livros);
+        when(produtoRepository.save(produtoCaptor.capture())).thenAnswer(i -> i.getArgument(0));
+        when(precoService.precoPromocionalVigente(any())).thenReturn(Optional.empty());
+
+        produtoService.criar(contaDona, classificado);
+
+        assertThat(produtoCaptor.getValue().getClassico()).isTrue();
+        assertThat(produtoCaptor.getValue().getLancamento()).isTrue();
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"livros", "cds", "vinis", "hqs-mangas"})
     void criarProdutoNasQuatroCategoriasOficiais(String slug) {

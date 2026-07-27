@@ -22,10 +22,17 @@ public record ProdutoRequest(
         @NotNull @DecimalMin(value = "0.0", inclusive = true) @Digits(integer = 10, fraction = 2) BigDecimal preco,
         @Min(0) Integer estoque,
         @NotNull CondicaoProduto condicao,
-        @Size(max = 500) String fotoUrl) {
+        @Size(max = 500) String fotoUrl,
+        Boolean classico,
+        Boolean lancamento) {
 
     public ProdutoRequest(String isbn, String titulo, Long categoriaId, String autor, String descricao,
             BigDecimal preco, Integer estoque, CondicaoProduto condicao, String fotoUrl) {
-        this(isbn, titulo, categoriaId, null, autor, descricao, preco, estoque, condicao, fotoUrl);
+        this(isbn, titulo, categoriaId, null, autor, descricao, preco, estoque, condicao, fotoUrl, false, false);
+    }
+
+    public ProdutoRequest(String isbn, String titulo, Long categoriaId, BookGenre bookGenre, String autor,
+            String descricao, BigDecimal preco, Integer estoque, CondicaoProduto condicao, String fotoUrl) {
+        this(isbn, titulo, categoriaId, bookGenre, autor, descricao, preco, estoque, condicao, fotoUrl, false, false);
     }
 }
