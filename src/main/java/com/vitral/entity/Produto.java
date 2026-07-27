@@ -3,6 +3,7 @@ package com.vitral.entity;
 import java.math.BigDecimal;
 
 import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.enumerations.BookGenre;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -37,6 +38,10 @@ public class Produto extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "categoria_id")
     private Categoria categoria;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "book_genre", length = 20)
+    private BookGenre bookGenre;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "catalogo_livro_id")

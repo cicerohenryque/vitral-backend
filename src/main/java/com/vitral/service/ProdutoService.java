@@ -20,6 +20,7 @@ import org.springframework.data.jpa.domain.Specification;
 import com.vitral.specification.ProdutoSpecification;
 import com.vitral.dto.RegistrarVendaFisicaRequest;
 import com.vitral.enumerations.TipoMovimentacaoEstoque;
+import com.vitral.enumerations.BookGenre;
 import com.vitral.entity.Account;
 import com.vitral.entity.Categoria;
 import com.vitral.entity.Produto;
@@ -47,9 +48,11 @@ public class ProdutoService {
     public ProdutoResponse criar(Account account, ProdutoRequest request) {
         Sebo sebo = seboService.buscarEntidadePorAccount(account.getId());
         Categoria categoria = obterCategoria(request.categoriaId());
+        validarGenero(categoria, request.bookGenre());
         Produto produto = Produto.builder()
                 .sebo(sebo)
                 .categoria(categoria)
+                .bookGenre(request.bookGenre())
                 .catalogoLivro(catalogoLivroService.obterOuCriar(request))
                 .titulo(request.titulo())
                 .autor(request.autor())
@@ -72,7 +75,10 @@ public class ProdutoService {
     @Transactional
     public ProdutoResponse atualizar(Account account, Long produtoId, ProdutoRequest request) {
         Produto produto = obterProdutoDoDono(account, produtoId);
-        produto.setCategoria(obterCategoria(request.categoriaId()));
+        Categoria categoria = obterCategoria(request.categoriaId());
+        validarGenero(categoria, request.bookGenre());
+        produto.setCategoria(categoria);
+        produto.setBookGenre("livros".equals(categoria.getSlug()) ? request.bookGenre() : null);
         produto.setCatalogoLivro(catalogoLivroService.obterOuCriar(request));
         produto.setTitulo(request.titulo());
         produto.setAutor(request.autor());
@@ -143,11 +149,17 @@ public class ProdutoService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ProdutoResponse> listarPorCategoria(Long categoriaId, Pageable pageable) {
-        categoriaService.buscarEntidade(categoriaId);
+    public Page<ProdutoResponse> listarPorCategoria(Long categoriaId, BookGenre bookGenre, Pageable pageable) {
+        Categoria categoria = categoriaService.buscarPermitida(categoriaId);
+        validarFiltroGenero(categoria, bookGenre);
         Specification<Produto> spec = ProdutoSpecification.ativo()
-                .and((root, query, cb) -> cb.equal(root.get("categoria").get("id"), categoriaId));
+                .and(ProdutoSpecification.daCategoria(categoriaId));
+        if (bookGenre != null) spec = spec.and(ProdutoSpecification.comBookGenre(bookGenre));
         return toResponsePage(produtoRepository.findAll(spec, pageable));
+    }
+
+    public Page<ProdutoResponse> listarPorCategoria(Long categoriaId, Pageable pageable) {
+        return listarPorCategoria(categoriaId, null, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -181,9 +193,19 @@ public class ProdutoService {
 
     private Categoria obterCategoria(Long categoriaId) {
         if (categoriaId == null) {
-            return null;
+            throw new BusinessException("Categoria e obrigatoria", HttpStatus.BAD_REQUEST);
         }
-        return categoriaService.buscarEntidade(categoriaId);
+        return categoriaService.buscarPermitida(categoriaId);
+    }
+
+    private void validarGenero(Categoria categoria, BookGenre bookGenre) {
+        if (bookGenre != null && !"livros".equals(categoria.getSlug())) {
+            throw new BusinessException("bookGenre somente pode ser informado para a categoria Livros", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private void validarFiltroGenero(Categoria categoria, BookGenre bookGenre) {
+        validarGenero(categoria, bookGenre);
     }
 
     private int normalizarEstoque(Integer estoque) {

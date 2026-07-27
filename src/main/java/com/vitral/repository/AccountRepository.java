@@ -18,5 +18,7 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     boolean existsByUsername(String username);
 
+    boolean existsByCpfAndIdNot(String cpf, Long id);
+
     boolean existsByType(com.vitral.enumerations.AccountType type);
 }

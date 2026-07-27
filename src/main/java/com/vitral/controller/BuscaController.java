@@ -14,6 +14,7 @@ import com.vitral.dto.ProdutoResponse;
 import com.vitral.dto.SeboResponse;
 import com.vitral.enumerations.CondicaoProduto;
 import com.vitral.enumerations.TipoOperacaoSebo;
+import com.vitral.enumerations.BookGenre;
 import com.vitral.service.BuscaService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,7 +52,10 @@ public class BuscaController {
             @RequestParam(required = false) CondicaoProduto condicao,
             @RequestParam(required = false) BigDecimal precoMin,
             @RequestParam(required = false) BigDecimal precoMax,
+            @RequestParam(required = false) Long categoriaId,
+            @RequestParam(required = false) BookGenre bookGenre,
             Pageable pageable) {
-        return ResponseEntity.ok(PageResponse.from(buscaService.buscarProdutos(q, seboId, condicao, precoMin, precoMax, pageable)));
+        return ResponseEntity.ok(PageResponse.from(buscaService.buscarProdutos(q, seboId, condicao, precoMin, precoMax,
+                categoriaId, bookGenre, pageable)));
     }
 }

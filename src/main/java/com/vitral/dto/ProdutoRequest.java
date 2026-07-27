@@ -3,6 +3,7 @@ package com.vitral.dto;
 import java.math.BigDecimal;
 
 import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.enumerations.BookGenre;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -14,11 +15,17 @@ import jakarta.validation.constraints.Size;
 public record ProdutoRequest(
         @Size(max = 20) String isbn,
         @NotBlank @Size(max = 255) String titulo,
-        Long categoriaId,
+        @NotNull(message = "Categoria e obrigatoria") Long categoriaId,
+        BookGenre bookGenre,
         @Size(max = 255) String autor,
         @Size(max = 2000) String descricao,
         @NotNull @DecimalMin(value = "0.0", inclusive = true) @Digits(integer = 10, fraction = 2) BigDecimal preco,
         @Min(0) Integer estoque,
         @NotNull CondicaoProduto condicao,
         @Size(max = 500) String fotoUrl) {
+
+    public ProdutoRequest(String isbn, String titulo, Long categoriaId, String autor, String descricao,
+            BigDecimal preco, Integer estoque, CondicaoProduto condicao, String fotoUrl) {
+        this(isbn, titulo, categoriaId, null, autor, descricao, preco, estoque, condicao, fotoUrl);
+    }
 }

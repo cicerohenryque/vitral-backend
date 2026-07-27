@@ -24,6 +24,8 @@ import com.vitral.dto.VendedorProdutoResponse;
 import java.util.List;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.service.ProdutoService;
+import com.vitral.enumerations.BookGenre;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -93,8 +95,13 @@ public class ProdutoController {
 
     @GetMapping("/categoria/{categoriaId}")
     @Operation(summary = "Lista produtos ativos de uma categoria")
-    public ResponseEntity<PageResponse<ProdutoResponse>> listarPorCategoria(@PathVariable Long categoriaId, Pageable pageable) {
-        return ResponseEntity.ok(PageResponse.from(produtoService.listarPorCategoria(categoriaId, pageable)));
+    public ResponseEntity<PageResponse<ProdutoResponse>> listarPorCategoria(@PathVariable Long categoriaId,
+            @RequestParam(required = false) BookGenre bookGenre, Pageable pageable) {
+        return ResponseEntity.ok(PageResponse.from(produtoService.listarPorCategoria(categoriaId, bookGenre, pageable)));
+    }
+
+    ResponseEntity<PageResponse<ProdutoResponse>> listarPorCategoria(Long categoriaId, Pageable pageable) {
+        return listarPorCategoria(categoriaId, null, pageable);
     }
 
     @GetMapping("/lancamentos")

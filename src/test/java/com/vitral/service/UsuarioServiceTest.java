@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,8 @@ import com.vitral.entity.Account;
 import com.vitral.enumerations.AccountType;
 import com.vitral.mapper.AccountMapper;
 import com.vitral.repository.AccountRepository;
+import com.vitral.exception.BusinessException;
+import com.vitral.exception.ConflictException;
 
 @ExtendWith(MockitoExtension.class)
 class UsuarioServiceTest {
@@ -50,7 +53,7 @@ class UsuarioServiceTest {
                 .type(AccountType.USUARIO)
                 .emailVerificado(true)
                 .build();
-        AtualizarPerfilRequest request = new AtualizarPerfilRequest("Maria Clara", "/api/v1/uploads/images/perfil.jpg");
+        AtualizarPerfilRequest request = perfil("Maria Clara", "/api/v1/uploads/images/perfil.jpg");
         AccountResponse expectedResponse = new AccountResponse(1L, "Maria Clara", "maria", "maria@vitral.com", AccountType.USUARIO, "/api/v1/uploads/images/perfil.jpg");
 
         when(accountRepository.save(accountCaptor.capture())).thenReturn(account);
@@ -73,7 +76,7 @@ class UsuarioServiceTest {
                 .type(AccountType.SEBO)
                 .emailVerificado(true)
                 .build();
-        AtualizarPerfilRequest request = new AtualizarPerfilRequest("Livraria Novo Nome", null);
+        AtualizarPerfilRequest request = perfil("Livraria Novo Nome", null);
 
         when(accountRepository.save(accountCaptor.capture())).thenReturn(account);
         when(accountMapper.toResponse(account)).thenReturn(
@@ -99,5 +102,35 @@ class UsuarioServiceTest {
         verify(anonimizacaoContaService).anonimizarUsuario(account);
         verify(accountRepository, never()).delete(account);
         assertThat(response.mensagem()).isEqualTo("Conta excluida com sucesso");
+    }
+
+    @Test
+    void atualizarPerfil_normalizaCpfCepEUf() {
+        Account account = Account.builder().name("Maria").email("maria@x.com").type(AccountType.USUARIO).build();
+        when(accountRepository.save(account)).thenReturn(account);
+
+        usuarioService.atualizarPerfil(account, perfil("Maria", null));
+
+        assertThat(account.getCpf()).isEqualTo("52998224725");
+        assertThat(account.getCep()).isEqualTo("60000000");
+        assertThat(account.getEstado()).isEqualTo("CE");
+    }
+
+    @Test
+    void atualizarPerfil_rejeitaCpfInvalidoOuDuplicado() {
+        Account account = Account.builder().name("Maria").email("maria@x.com").type(AccountType.USUARIO).build();
+        AtualizarPerfilRequest invalido = new AtualizarPerfilRequest("Maria", null, "11111111111", "60000000",
+                "Rua", "1", null, "Centro", "Fortaleza", "CE");
+        assertThatThrownBy(() -> usuarioService.atualizarPerfil(account, invalido))
+                .isInstanceOf(BusinessException.class).hasMessage("CPF invalido");
+
+        when(accountRepository.existsByCpfAndIdNot("52998224725", null)).thenReturn(true);
+        assertThatThrownBy(() -> usuarioService.atualizarPerfil(account, perfil("Maria", null)))
+                .isInstanceOf(ConflictException.class).hasMessage("CPF ja cadastrado");
+    }
+
+    private AtualizarPerfilRequest perfil(String nome, String fotoUrl) {
+        return new AtualizarPerfilRequest(nome, fotoUrl, "529.982.247-25", "60000-000", "Rua Exemplo", "100",
+                null, "Centro", "Fortaleza", "ce");
     }
 }

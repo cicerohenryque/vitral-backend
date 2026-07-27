@@ -4,12 +4,14 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.enumerations.BookGenre;
 
 public record ProdutoResponse(
         Long id,
         Long seboId,
         Long categoriaId,
         String categoriaNome,
+        BookGenre bookGenre,
         Long catalogoLivroId,
         String isbn,
         String titulo,
@@ -39,7 +41,7 @@ public record ProdutoResponse(
             CondicaoProduto condicao,
             String fotoUrl,
             Boolean ativo) {
-        this(id, seboId, categoriaId, categoriaNome, catalogoLivroId, isbn, titulo, autor, descricao, preco,
+        this(id, seboId, categoriaId, categoriaNome, null, catalogoLivroId, isbn, titulo, autor, descricao, preco,
                 precoPromocional, estoque, condicao, fotoUrl, ativo, null);
     }
 }

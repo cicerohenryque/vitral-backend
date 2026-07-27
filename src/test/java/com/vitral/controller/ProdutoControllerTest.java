@@ -87,7 +87,7 @@ class ProdutoControllerTest {
         ProdutoResponse produto = produto(30L, BigDecimal.valueOf(45), 3);
         when(produtoService.buscarPorId(30L)).thenReturn(produto);
         when(produtoService.listarPorSebo(10L, pageable)).thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
-        when(produtoService.listarPorCategoria(5L, pageable)).thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
+        when(produtoService.listarPorCategoria(5L, null, pageable)).thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
         when(produtoService.listarLancamentos(pageable)).thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
         when(produtoService.listarClassicos(pageable)).thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
 

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import com.vitral.entity.Produto;
 import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.enumerations.BookGenre;
 
 public class ProdutoSpecification {
 
@@ -28,6 +29,14 @@ public class ProdutoSpecification {
 
     public static Specification<Produto> doSebo(Long seboId) {
         return (root, query, cb) -> cb.equal(root.get("sebo").get("id"), seboId);
+    }
+
+    public static Specification<Produto> daCategoria(Long categoriaId) {
+        return (root, query, cb) -> cb.equal(root.get("categoria").get("id"), categoriaId);
+    }
+
+    public static Specification<Produto> comBookGenre(BookGenre bookGenre) {
+        return (root, query, cb) -> cb.equal(root.get("bookGenre"), bookGenre);
     }
 
     public static Specification<Produto> comCondicao(CondicaoProduto condicao) {

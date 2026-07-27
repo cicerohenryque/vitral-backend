@@ -38,8 +38,8 @@ class CategoriaServiceTest {
     @Test
     @DisplayName("Deve criar categoria normalizando nome acentuado para slug")
     void criar_sucesso_geraSlugNormalizado() {
-        CategoriaRequest request = new CategoriaRequest(" Ficcao Cientifica ", "Livros de ficcao");
-        when(categoriaRepository.existsBySlug("ficcao-cientifica")).thenReturn(false);
+        CategoriaRequest request = new CategoriaRequest(" Livros ", "Livros");
+        when(categoriaRepository.existsBySlug("livros")).thenReturn(false);
         when(categoriaRepository.save(any(Categoria.class))).thenAnswer(invocation -> {
             Categoria categoria = invocation.getArgument(0);
             ReflectionTestUtils.setField(categoria, "id", 1L);
@@ -49,16 +49,16 @@ class CategoriaServiceTest {
         var response = categoriaService.criar(request);
 
         assertThat(response.id()).isEqualTo(1L);
-        assertThat(response.nome()).isEqualTo("Ficcao Cientifica");
-        assertThat(response.slug()).isEqualTo("ficcao-cientifica");
+        assertThat(response.nome()).isEqualTo("Livros");
+        assertThat(response.slug()).isEqualTo("livros");
     }
 
     @Test
     @DisplayName("Deve rejeitar categoria com slug ja cadastrado")
     void criar_slugDuplicado_lancaConflictException() {
-        when(categoriaRepository.existsBySlug("romance")).thenReturn(true);
+        when(categoriaRepository.existsBySlug("livros")).thenReturn(true);
 
-        assertThatThrownBy(() -> categoriaService.criar(new CategoriaRequest("Romance", null)))
+        assertThatThrownBy(() -> categoriaService.criar(new CategoriaRequest("Livros", null)))
                 .isInstanceOf(ConflictException.class);
 
         verify(categoriaRepository, never()).save(any());
@@ -67,16 +67,17 @@ class CategoriaServiceTest {
     @Test
     @DisplayName("Deve listar categorias paginadas")
     void listar_retornaCategorias() {
-        Categoria categoria = Categoria.builder().nome("Romance").slug("romance").build();
+        Categoria categoria = Categoria.builder().nome("Livros").slug("livros").build();
         ReflectionTestUtils.setField(categoria, "id", 2L);
         var pageable = PageRequest.of(0, 10);
-        when(categoriaRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(categoria), pageable, 1));
+        when(categoriaRepository.findPermitidas(CategoriaService.SLUGS_PERMITIDOS, pageable))
+                .thenReturn(new PageImpl<>(List.of(categoria), pageable, 1));
 
         var resultado = categoriaService.listar(pageable);
 
         assertThat(resultado.getContent()).singleElement().satisfies(item -> {
             assertThat(item.id()).isEqualTo(2L);
-            assertThat(item.slug()).isEqualTo("romance");
+            assertThat(item.slug()).isEqualTo("livros");
         });
     }
 

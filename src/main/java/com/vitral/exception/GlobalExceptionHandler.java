@@ -44,7 +44,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiError> handleUnreadableBody(HttpMessageNotReadableException exception, WebRequest request) {
-        return build(HttpStatus.BAD_REQUEST, "Corpo da requisicao invalido", request, List.of());
+        String message = causaMenciona(exception, "BookGenre") ? "bookGenre invalido" : "Corpo da requisicao invalido";
+        return build(HttpStatus.BAD_REQUEST, message, request, List.of());
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -75,6 +76,13 @@ public class GlobalExceptionHandler {
 
     private ApiError.FieldErrorItem toFieldError(FieldError fieldError) {
         return new ApiError.FieldErrorItem(fieldError.getField(), fieldError.getDefaultMessage());
+    }
+
+    private boolean causaMenciona(Throwable throwable, String texto) {
+        for (Throwable atual = throwable; atual != null; atual = atual.getCause()) {
+            if (atual.getMessage() != null && atual.getMessage().contains(texto)) return true;
+        }
+        return false;
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message, WebRequest request,

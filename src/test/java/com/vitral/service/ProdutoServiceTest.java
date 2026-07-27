@@ -18,6 +18,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
@@ -113,7 +115,8 @@ class ProdutoServiceTest {
         request = new ProdutoRequest(
                 null,
                 "Dom Casmurro",
-                null,
+                7L,
+                com.vitral.enumerations.BookGenre.ROMANCE,
                 "Machado de Assis",
                 "Edicao de 1899, capa dura",
                 new BigDecimal("49.90"),
@@ -125,10 +128,13 @@ class ProdutoServiceTest {
     @Test
     @DisplayName("Deve criar produto vinculado ao sebo da conta autenticada com ativo igual a true")
     void shouldCreateProductLinkedToOwnerSeboWithAtivoTrue() {
+        Categoria categoria = Categoria.builder().nome("Livros").slug("livros").build();
+        setId(categoria, 7L);
         ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, null, null, null, null, request.titulo(), request.autor(),
                 request.descricao(), request.preco(), null, request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
 
         when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
+        when(categoriaService.buscarPermitida(7L)).thenReturn(categoria);
         when(produtoRepository.save(produtoCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
         when(precoService.precoPromocionalVigente(any())).thenReturn(Optional.empty());
         when(produtoMapper.toResponse(produtoCaptor.capture(), any())).thenReturn(responseEsperado);
@@ -149,7 +155,7 @@ class ProdutoServiceTest {
     @Test
     @DisplayName("Deve criar produto com estoque padrao e categoria quando estoque vier nulo")
     void criar_estoqueNulo_usaPadraoECategoria() {
-        Categoria categoria = Categoria.builder().nome("Romance").slug("romance").build();
+        Categoria categoria = Categoria.builder().nome("Livros").slug("livros").build();
         setId(categoria, 7L);
         ProdutoRequest requestSemEstoque = new ProdutoRequest(null, "Dom Casmurro", 7L, "Machado",
                 "Descricao", BigDecimal.TEN, null, CondicaoProduto.USADO, null);
@@ -157,7 +163,7 @@ class ProdutoServiceTest {
                 "Dom Casmurro", "Machado", "Descricao", BigDecimal.TEN, null, 1, CondicaoProduto.USADO, null, true);
 
         when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
-        when(categoriaService.buscarEntidade(7L)).thenReturn(categoria);
+        when(categoriaService.buscarPermitida(7L)).thenReturn(categoria);
         when(produtoRepository.save(produtoCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
         when(precoService.precoPromocionalVigente(any())).thenReturn(Optional.empty());
         when(produtoMapper.toResponse(produtoCaptor.capture(), any())).thenReturn(responseEsperado);
@@ -185,6 +191,8 @@ class ProdutoServiceTest {
     @Test
     @DisplayName("Deve atualizar campos do produto quando o sebo dono e o da conta autenticada")
     void shouldUpdateProductWhenOwnedByAuthenticatedAccount() {
+        Categoria categoria = Categoria.builder().nome("Livros").slug("livros").build();
+        setId(categoria, 7L);
         Produto produto = Produto.builder()
                 .sebo(seboDono)
                 .titulo("Antigo")
@@ -197,6 +205,7 @@ class ProdutoServiceTest {
                 request.descricao(), request.preco(), null, request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
 
         when(produtoRepository.findById(50L)).thenReturn(Optional.of(produto));
+        when(categoriaService.buscarPermitida(7L)).thenReturn(categoria);
         when(precoService.precoPromocionalVigente(any())).thenReturn(Optional.empty());
         when(produtoMapper.toResponse(eq(produto), any())).thenReturn(esperado);
 
@@ -395,14 +404,14 @@ class ProdutoServiceTest {
     @Test
     @DisplayName("Deve listar produtos ativos por categoria")
     void listarPorCategoria_retornaProdutosAtivos() {
-        Categoria categoria = Categoria.builder().nome("Romance").slug("romance").build();
+        Categoria categoria = Categoria.builder().nome("Livros").slug("livros").build();
         setId(categoria, 7L);
         Produto produto = Produto.builder().sebo(seboDono).categoria(categoria).ativo(true).build();
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
         ProdutoResponse response = new ProdutoResponse(1L, 1L, 7L, "Romance", null, null, "A", null, null,
                 BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
-        when(categoriaService.buscarEntidade(7L)).thenReturn(categoria);
+        when(categoriaService.buscarPermitida(7L)).thenReturn(categoria);
         when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
@@ -411,7 +420,7 @@ class ProdutoServiceTest {
         Page<ProdutoResponse> resultado = produtoService.listarPorCategoria(7L, pageable);
 
         assertThat(resultado.getContent()).containsExactly(response);
-        verify(categoriaService).buscarEntidade(7L);
+        verify(categoriaService).buscarPermitida(7L);
     }
 
     @Test
@@ -464,6 +473,73 @@ class ProdutoServiceTest {
         assertThat(resultado.getContent()).isEmpty();
         assertThat(resultado.getTotalElements()).isZero();
         verify(produtoRepository).findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable));
+    }
+
+    @Test
+    void criarLivroComGenero_persisteGenero() {
+        Categoria livros = Categoria.builder().nome("Livros").slug("livros").build();
+        setId(livros, 7L);
+        when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
+        when(categoriaService.buscarPermitida(7L)).thenReturn(livros);
+        when(produtoRepository.save(produtoCaptor.capture())).thenAnswer(i -> i.getArgument(0));
+        when(precoService.precoPromocionalVigente(any())).thenReturn(Optional.empty());
+
+        produtoService.criar(contaDona, request);
+
+        assertThat(produtoCaptor.getValue().getBookGenre())
+                .isEqualTo(com.vitral.enumerations.BookGenre.ROMANCE);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"livros", "cds", "vinis", "hqs-mangas"})
+    void criarProdutoNasQuatroCategoriasOficiais(String slug) {
+        Categoria categoria = Categoria.builder().nome(slug).slug(slug).build();
+        setId(categoria, 7L);
+        ProdutoRequest produtoSemGenero = new ProdutoRequest(null, "Produto", 7L, null, null,
+                BigDecimal.TEN, 1, CondicaoProduto.NOVO, null);
+        when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
+        when(categoriaService.buscarPermitida(7L)).thenReturn(categoria);
+        when(produtoRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(precoService.precoPromocionalVigente(any())).thenReturn(Optional.empty());
+
+        produtoService.criar(contaDona, produtoSemGenero);
+
+        verify(produtoRepository).save(any());
+    }
+
+    @Test
+    void criarCdComGenero_rejeitaPayloadInconsistente() {
+        Categoria cds = Categoria.builder().nome("CDs").slug("cds").build();
+        setId(cds, 8L);
+        ProdutoRequest cd = new ProdutoRequest(null, "Album", 8L,
+                com.vitral.enumerations.BookGenre.FANTASIA, null, null, BigDecimal.TEN, 1,
+                CondicaoProduto.NOVO, null);
+        when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
+        when(categoriaService.buscarPermitida(8L)).thenReturn(cds);
+
+        assertThatThrownBy(() -> produtoService.criar(contaDona, cd))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("somente pode ser informado");
+        verify(produtoRepository, never()).save(any());
+    }
+
+    @Test
+    void alterarLivroParaVinil_removeGeneroAnterior() {
+        Categoria vinis = Categoria.builder().nome("Vinis").slug("vinis").build();
+        setId(vinis, 9L);
+        Produto produto = Produto.builder().sebo(seboDono).titulo("Livro").estoque(1)
+                .bookGenre(com.vitral.enumerations.BookGenre.FANTASIA).preco(BigDecimal.TEN)
+                .condicao(CondicaoProduto.USADO).ativo(true).build();
+        setId(produto, 90L);
+        ProdutoRequest vinil = new ProdutoRequest(null, "Disco", 9L, null, null,
+                BigDecimal.TEN, 1, CondicaoProduto.USADO, null);
+        when(produtoRepository.findById(90L)).thenReturn(Optional.of(produto));
+        when(categoriaService.buscarPermitida(9L)).thenReturn(vinis);
+        when(precoService.precoPromocionalVigente(any())).thenReturn(Optional.empty());
+
+        produtoService.atualizar(contaDona, 90L, vinil);
+
+        assertThat(produto.getBookGenre()).isNull();
     }
 
     private void setId(Object entity, Long id) {
