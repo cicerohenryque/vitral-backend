@@ -70,6 +70,9 @@ class PedidoServiceTest {
     @Mock
     private MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
 
+    @Mock
+    private PerfilCompraValidator perfilCompraValidator;
+
     @InjectMocks
     private PedidoService pedidoService;
 

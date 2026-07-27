@@ -84,7 +84,7 @@ class SeboServiceTest {
         request = new SeboRequest(
                 "Sebo familiar com livros raros",
                 "8399999-0000",
-                "12345678000199",
+                "11222333000181",
                 "https://cdn/foto.jpg",
                 null);
     }
@@ -195,12 +195,12 @@ class SeboServiceTest {
     void shouldReturnSeboWhenIdExists() {
         Sebo sebo = Sebo.builder().account(contaSebo).build();
         SeboResponse responseEsperado = new SeboResponse(7L, 10L, "Sebo do Joao", "sebo@vitral.com",
-                null, null, "12345678000199", StatusVerificacaoSebo.VERIFICADO, null,
+                null, null, "11222333000181", StatusVerificacaoSebo.VERIFICADO, null,
                 null, null, null, null, null, TipoOperacaoSebo.VIRTUAL);
 
         when(seboRepository.findByIdAndAccountAtivoTrueAndStatusVerificacao(
                 7L, StatusVerificacaoSebo.VERIFICADO)).thenReturn(Optional.of(sebo));
-        when(seboMapper.toResponse(sebo)).thenReturn(responseEsperado);
+        when(seboMapper.toPublicResponse(sebo)).thenReturn(responseEsperado);
 
         SeboResponse resultado = seboService.buscarPorId(7L);
 
@@ -259,7 +259,7 @@ class SeboServiceTest {
         SeboRequest requestFisico = new SeboRequest(
                 "Sebo familiar com livros raros",
                 "8399999-0000",
-                "12345678000199",
+                "11222333000181",
                 "https://cdn/foto.jpg",
                 TipoOperacaoSebo.FISICO,
                 "58.000-000",
@@ -269,7 +269,7 @@ class SeboServiceTest {
                 "Seg a sex");
 
         when(seboRepository.existsByAccountId(10L)).thenReturn(false);
-        when(seboRepository.existsByCnpj("12345678000199")).thenReturn(false);
+        when(seboRepository.existsByCnpj("11222333000181")).thenReturn(false);
         when(seboRepository.save(any(Sebo.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(seboMapper.toResponse(any(Sebo.class))).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 requestFisico.descricao(), requestFisico.telefone(), requestFisico.cnpj(), StatusVerificacaoSebo.PENDENTE,
@@ -291,7 +291,7 @@ class SeboServiceTest {
         SeboRequest requestHibrido = new SeboRequest(
                 "Sebo com atendimento online e retirada",
                 "8399999-0000",
-                "12345678000199",
+                "11222333000181",
                 "https://cdn/foto.jpg",
                 TipoOperacaoSebo.HIBRIDO,
                 "58000-123",
@@ -301,7 +301,7 @@ class SeboServiceTest {
                 null);
 
         when(seboRepository.existsByAccountId(10L)).thenReturn(false);
-        when(seboRepository.existsByCnpj("12345678000199")).thenReturn(false);
+        when(seboRepository.existsByCnpj("11222333000181")).thenReturn(false);
         when(seboRepository.save(any(Sebo.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(seboMapper.toResponse(any(Sebo.class))).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 requestHibrido.descricao(), requestHibrido.telefone(), requestHibrido.cnpj(), StatusVerificacaoSebo.PENDENTE,
@@ -324,12 +324,12 @@ class SeboServiceTest {
         SeboRequest requestFisico = new SeboRequest(
                 "Sebo familiar com livros raros",
                 "8399999-0000",
-                "12345678000199",
+                "11222333000181",
                 "https://cdn/foto.jpg",
                 TipoOperacaoSebo.FISICO);
 
         when(seboRepository.existsByAccountId(10L)).thenReturn(false);
-        when(seboRepository.existsByCnpj("12345678000199")).thenReturn(false);
+        when(seboRepository.existsByCnpj("11222333000181")).thenReturn(false);
 
         assertThatThrownBy(() -> seboService.criar(contaSebo, requestFisico))
                 .isInstanceOf(BusinessException.class)
@@ -372,7 +372,7 @@ class SeboServiceTest {
         SeboRequest requestFisico = new SeboRequest(
                 "Sebo familiar com livros raros",
                 "8399999-0000",
-                "12345678000199",
+                "11222333000181",
                 "https://cdn/foto.jpg",
                 TipoOperacaoSebo.FISICO,
                 "58000-000",
@@ -409,7 +409,7 @@ class SeboServiceTest {
         SeboRequest requestMesmoCep = new SeboRequest(
                 "Descricao atualizada",
                 "8399999-0000",
-                "12345678000199",
+                "11222333000181",
                 "https://cdn/foto.jpg",
                 TipoOperacaoSebo.FISICO,
                 "58000-000",
@@ -445,7 +445,7 @@ class SeboServiceTest {
         SeboRequest requestMesmoCep = new SeboRequest(
                 "Descricao atualizada",
                 "8399999-0000",
-                "12345678000199",
+                "11222333000181",
                 "https://cdn/foto.jpg",
                 TipoOperacaoSebo.FISICO,
                 "58000-000",

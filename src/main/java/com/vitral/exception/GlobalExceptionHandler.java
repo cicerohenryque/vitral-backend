@@ -26,7 +26,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiError> handleBusiness(BusinessException exception, WebRequest request) {
-        return build(exception.getStatus(), exception.getMessage(), request, List.of());
+        List<ApiError.FieldErrorItem> fields = exception.getFields().stream()
+                .map(field -> new ApiError.FieldErrorItem(field, "Campo ausente ou invalido"))
+                .toList();
+        return build(exception.getStatus(), exception.getCode(), exception.getMessage(), request, fields);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
@@ -87,10 +90,16 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message, WebRequest request,
             List<ApiError.FieldErrorItem> fieldErrors) {
+        return build(status, null, message, request, fieldErrors);
+    }
+
+    private ResponseEntity<ApiError> build(HttpStatus status, String code, String message, WebRequest request,
+            List<ApiError.FieldErrorItem> fieldErrors) {
         ApiError body = new ApiError(
                 OffsetDateTime.now(),
                 status.value(),
                 status.getReasonPhrase(),
+                code,
                 message,
                 path(request),
                 fieldErrors);

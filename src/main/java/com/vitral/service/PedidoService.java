@@ -50,9 +50,11 @@ public class PedidoService {
     private final PrecoService precoService;
     private final MovimentacaoEstoqueService movimentacaoEstoqueService;
     private final MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
+    private final PerfilCompraValidator perfilCompraValidator;
 
     @Transactional
     public PedidoResponse confirmarPedido(Account account, ConfirmarPedidoRequest pagamento) {
+        perfilCompraValidator.validar(account);
         List<CestaItem> itens = cestaItemRepository.findByAccountIdComProdutoESebo(account.getId());
         if (itens.isEmpty()) {
             throw new BusinessException("A cesta esta vazia", HttpStatus.BAD_REQUEST);

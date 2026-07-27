@@ -103,7 +103,7 @@ class BuscaServiceTest {
     void shouldReturnFilteredSebosWhenParametersProvided() {
         Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+        when(seboMapper.toPublicResponse(sebo)).thenReturn(seboResponse);
 
         Page<SeboResponse> resultado = buscaService.buscarSebos("Livraria", pageable);
 
@@ -117,7 +117,7 @@ class BuscaServiceTest {
     void shouldListAllSebosWhenNoFiltersProvided() {
         Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+        when(seboMapper.toPublicResponse(sebo)).thenReturn(seboResponse);
 
         Page<SeboResponse> resultado = buscaService.buscarSebos(null, pageable);
 
@@ -130,7 +130,7 @@ class BuscaServiceTest {
     void shouldFilterSebosByOperationType() {
         Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+        when(seboMapper.toPublicResponse(sebo)).thenReturn(seboResponse);
 
         Page<SeboResponse> resultado = buscaService.buscarSebos(null, TipoOperacaoSebo.HIBRIDO, null, null, pageable);
 
@@ -143,7 +143,7 @@ class BuscaServiceTest {
     void shouldFilterSebosByCity() {
         Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+        when(seboMapper.toPublicResponse(sebo)).thenReturn(seboResponse);
 
         Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, "Joao Pessoa", null, pageable);
 
@@ -156,7 +156,7 @@ class BuscaServiceTest {
     void shouldFilterSebosByState() {
         Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+        when(seboMapper.toPublicResponse(sebo)).thenReturn(seboResponse);
 
         Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, "pb", pageable);
 
@@ -169,7 +169,7 @@ class BuscaServiceTest {
     void shouldListOnlyActiveSebos() {
         Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+        when(seboMapper.toPublicResponse(sebo)).thenReturn(seboResponse);
 
         Page<SeboResponse> resultado = buscaService.buscarSebos(null, pageable);
 
@@ -270,11 +270,11 @@ class BuscaServiceTest {
 
         when(seboRepository.findAll(anySeboSpecification()))
                 .thenReturn(List.of(seboDistante, seboSemCoordenadas, seboProximo));
-        when(seboMapper.toResponse(eq(seboProximo), any()))
+        when(seboMapper.toPublicResponse(eq(seboProximo), any()))
                 .thenAnswer(inv -> responseComDistancia(1L, "Proximo", inv.getArgument(1)));
-        when(seboMapper.toResponse(eq(seboDistante), any()))
+        when(seboMapper.toPublicResponse(eq(seboDistante), any()))
                 .thenAnswer(inv -> responseComDistancia(2L, "Distante", inv.getArgument(1)));
-        when(seboMapper.toResponse(eq(seboSemCoordenadas), any()))
+        when(seboMapper.toPublicResponse(eq(seboSemCoordenadas), any()))
                 .thenAnswer(inv -> responseComDistancia(3L, "SemCoordenadas", inv.getArgument(1)));
 
         // Referencia proxima a Joao Pessoa/PB
@@ -293,7 +293,7 @@ class BuscaServiceTest {
     void shouldIgnoreProximitySortingWhenOnlyOneCoordinateProvided() {
         Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(seboMapper.toResponse(sebo)).thenReturn(seboResponse);
+        when(seboMapper.toPublicResponse(sebo)).thenReturn(seboResponse);
 
         Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, null, -7.1150, null, pageable);
 

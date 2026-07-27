@@ -1,6 +1,7 @@
 package com.vitral.service;
 
 import java.time.OffsetDateTime;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -24,10 +25,15 @@ import com.vitral.mapper.SeboMapper;
 import com.vitral.repository.SeboRepository;
 
 import lombok.RequiredArgsConstructor;
+import com.vitral.util.DocumentoFiscalUtils;
 
 @Service
 @RequiredArgsConstructor
 public class SeboService {
+
+    private static final Set<String> UFS = Set.of("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
+            "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP",
+            "SE", "TO");
 
     private final SeboRepository seboRepository;
     private final SeboMapper seboMapper;
@@ -46,7 +52,8 @@ public class SeboService {
         if (seboRepository.existsByAccountId(account.getId())) {
             throw new ConflictException("Sebo ja cadastrado para esta conta");
         }
-        if (seboRepository.existsByCnpj(request.cnpj())) {
+        String cnpj = validarCnpj(request.cnpj());
+        if (seboRepository.existsByCnpj(cnpj)) {
             throw new ConflictException("CNPJ ja cadastrado");
         }
         // Fluxo real: novo cadastro comeca PENDENTE ate um ADMIN revisar
@@ -56,7 +63,7 @@ public class SeboService {
                 .account(account)
                 .descricao(request.descricao())
                 .telefone(request.telefone())
-                .cnpj(request.cnpj())
+                .cnpj(cnpj)
                 .fotoUrl(request.fotoUrl())
                 .build();
         aplicarModalidade(sebo, request);
@@ -76,11 +83,12 @@ public class SeboService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
         sebo.setDescricao(request.descricao());
         sebo.setTelefone(request.telefone());
-        if (!java.util.Objects.equals(sebo.getCnpj(), request.cnpj())) {
-            if (seboRepository.existsByCnpj(request.cnpj())) {
+        String cnpj = validarCnpj(request.cnpj());
+        if (!java.util.Objects.equals(sebo.getCnpj(), cnpj)) {
+            if (seboRepository.existsByCnpjAndIdNot(cnpj, sebo.getId())) {
                 throw new ConflictException("CNPJ ja cadastrado");
             }
-            sebo.setCnpj(request.cnpj());
+            sebo.setCnpj(cnpj);
             // Fluxo real: alterar o CNPJ reabre a verificacao (volta pra PENDENTE ate um ADMIN revisar).
             sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
             sebo.setVerificadoEm(null);
@@ -114,7 +122,7 @@ public class SeboService {
         Sebo sebo = seboRepository.findByIdAndAccountAtivoTrueAndStatusVerificacao(
                 id, StatusVerificacaoSebo.VERIFICADO)
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado"));
-        return seboMapper.toResponse(sebo);
+        return seboMapper.toPublicResponse(sebo);
     }
 
     @Transactional(readOnly = true)
@@ -159,8 +167,11 @@ public class SeboService {
             throw new BusinessException("CEP, logradouro, cidade e UF sao obrigatorios para sebo fisico ou hibrido",
                     HttpStatus.BAD_REQUEST);
         }
-        if (uf.length() != 2) {
-            throw new BusinessException("UF deve conter 2 caracteres", HttpStatus.BAD_REQUEST);
+        if (!cep.matches("\\d{8}")) {
+            throw new BusinessException("CEP deve conter 8 numeros", HttpStatus.BAD_REQUEST);
+        }
+        if (!UFS.contains(uf.toUpperCase())) {
+            throw new BusinessException("UF invalida", HttpStatus.BAD_REQUEST);
         }
         sebo.setCep(cep);
         sebo.setLogradouro(logradouro);
@@ -186,6 +197,14 @@ public class SeboService {
         }
         String digitos = texto.replaceAll("\\D", "");
         return digitos.isBlank() ? null : digitos;
+    }
+
+    private String validarCnpj(String valor) {
+        String cnpj = DocumentoFiscalUtils.somenteDigitos(valor);
+        if (!DocumentoFiscalUtils.cnpjValido(cnpj)) {
+            throw new BusinessException("CNPJ invalido", HttpStatus.BAD_REQUEST);
+        }
+        return cnpj;
     }
 
     /**

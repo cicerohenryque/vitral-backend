@@ -13,6 +13,7 @@ import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
 import org.springframework.http.HttpStatus;
 import java.util.Locale;
+import com.vitral.util.DocumentoFiscalUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,54 +27,50 @@ public class UsuarioService {
 
     @Transactional
     public AccountResponse atualizarPerfil(Account account, AtualizarPerfilRequest request) {
-        String cpf = somenteDigitos(request.cpf());
-        String cep = somenteDigitos(request.cep());
-        if (!cpfValido(cpf)) {
+        account.setName(request.name());
+        account.setFotoUrl(request.fotoUrl());
+        if (request.cpf() != null) atualizarCpf(account, request.cpf());
+        if (request.cep() != null) atualizarCep(account, request.cep());
+        if (request.logradouro() != null) account.setLogradouro(normalizarOpcional(request.logradouro()));
+        if (request.numero() != null) account.setNumero(normalizarOpcional(request.numero()));
+        if (request.complemento() != null) account.setComplemento(normalizarOpcional(request.complemento()));
+        if (request.bairro() != null) account.setBairro(normalizarOpcional(request.bairro()));
+        if (request.cidade() != null) account.setCidade(normalizarOpcional(request.cidade()));
+        if (request.estado() != null) account.setEstado(normalizarOpcional(request.estado()) == null
+                ? null : request.estado().trim().toUpperCase(Locale.ROOT));
+        Account saved = accountRepository.save(account);
+        return accountMapper.toResponse(saved);
+    }
+
+    private void atualizarCpf(Account account, String valor) {
+        if (valor.isBlank()) {
+            account.setCpf(null);
+            return;
+        }
+        String cpf = DocumentoFiscalUtils.somenteDigitos(valor);
+        if (!DocumentoFiscalUtils.cpfValido(cpf)) {
             throw new BusinessException("CPF invalido", HttpStatus.BAD_REQUEST);
         }
         if (accountRepository.existsByCpfAndIdNot(cpf, account.getId())) {
             throw new ConflictException("CPF ja cadastrado");
         }
-        if (cep.length() != 8) {
-            throw new BusinessException("CEP deve conter 8 numeros", HttpStatus.BAD_REQUEST);
-        }
-        account.setName(request.name());
-        account.setFotoUrl(request.fotoUrl());
         account.setCpf(cpf);
-        account.setCep(cep);
-        account.setLogradouro(request.logradouro().trim());
-        account.setNumero(request.numero().trim());
-        account.setComplemento(normalizarOpcional(request.complemento()));
-        account.setBairro(request.bairro().trim());
-        account.setCidade(request.cidade().trim());
-        account.setEstado(request.estado().toUpperCase(Locale.ROOT));
-        Account saved = accountRepository.save(account);
-        return accountMapper.toResponse(saved);
     }
 
-    private String somenteDigitos(String valor) {
-        return valor == null ? "" : valor.replaceAll("\\D", "");
+    private void atualizarCep(Account account, String valor) {
+        if (valor.isBlank()) {
+            account.setCep(null);
+            return;
+        }
+        String cep = DocumentoFiscalUtils.somenteDigitos(valor);
+        if (cep == null || cep.length() != 8) {
+            throw new BusinessException("CEP deve conter 8 numeros", HttpStatus.BAD_REQUEST);
+        }
+        account.setCep(cep);
     }
 
     private String normalizarOpcional(String valor) {
         return valor == null || valor.isBlank() ? null : valor.trim();
-    }
-
-    static boolean cpfValido(String cpf) {
-        if (cpf == null || !cpf.matches("\\d{11}") || cpf.chars().distinct().count() == 1) return false;
-        int soma1 = 0;
-        int soma2 = 0;
-        for (int i = 0; i < 9; i++) {
-            int digito = cpf.charAt(i) - '0';
-            soma1 += digito * (10 - i);
-            soma2 += digito * (11 - i);
-        }
-        int d1 = 11 - soma1 % 11;
-        if (d1 >= 10) d1 = 0;
-        soma2 += d1 * 2;
-        int d2 = 11 - soma2 % 11;
-        if (d2 >= 10) d2 = 0;
-        return cpf.charAt(9) - '0' == d1 && cpf.charAt(10) - '0' == d2;
     }
 
     @Transactional

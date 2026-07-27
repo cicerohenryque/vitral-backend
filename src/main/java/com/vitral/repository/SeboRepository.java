@@ -20,6 +20,8 @@ public interface SeboRepository extends JpaRepository<Sebo, Long>, JpaSpecificat
 
     boolean existsByCnpj(String cnpj);
 
+    boolean existsByCnpjAndIdNot(String cnpj, Long id);
+
     Page<Sebo> findByStatusVerificacao(com.vitral.enumerations.StatusVerificacaoSebo status, Pageable pageable);
 
     Page<Sebo> findByAccountNameContainingIgnoreCase(String termo, Pageable pageable);

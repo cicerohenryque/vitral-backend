@@ -73,14 +73,14 @@ public class BuscaService {
         if (lat != null && lng != null) {
             return buscarSebosPorProximidade(spec, lat, lng, pageable);
         }
-        return seboRepository.findAll(spec, pageable).map(seboMapper::toResponse);
+        return seboRepository.findAll(spec, pageable).map(seboMapper::toPublicResponse);
     }
 
     private Page<SeboResponse> buscarSebosPorProximidade(Specification<Sebo> spec, double lat, double lng,
             Pageable pageable) {
         List<Sebo> encontrados = seboRepository.findAll(spec);
         List<SeboResponse> ordenados = encontrados.stream()
-                .map(sebo -> seboMapper.toResponse(sebo, distanciaKm(sebo, lat, lng)))
+                .map(sebo -> seboMapper.toPublicResponse(sebo, distanciaKm(sebo, lat, lng)))
                 .sorted(Comparator.comparing(SeboResponse::distanciaKm, Comparator.nullsLast(Double::compareTo)))
                 .toList();
 
