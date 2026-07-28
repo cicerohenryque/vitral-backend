@@ -61,17 +61,12 @@ public class HomeService {
                         Sort.by(Sort.Order.desc("lancamento"), Sort.Order.desc("createdAt"))));
         destacados.addAll(ids(lancamentos));
 
-        Page<Produto> recentes = produtoRepository.findAll(base.and(ProdutoSpecification.idsFora(destacados)),
-                Pageable.unpaged(Sort.by(Sort.Direction.DESC, "createdAt")));
-        destacados.addAll(ids(recentes));
-
         HomeSectionResponse recomendados = montarRecomendados(account, base, destacados);
         List<HomeCategoriaResponse> categorias = montarCategorias(base, seboId, destacados);
 
         return new HomeResponse(
                 secao("Lancamentos", lancamentos),
                 secao("Classicos", classicos),
-                secao("Adicionados recentemente", recentes),
                 recomendados,
                 categorias);
     }

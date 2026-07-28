@@ -23,7 +23,7 @@ public class HomeController {
     private final HomeService homeService;
 
     @GetMapping
-    @Operation(summary = "Retorna lancamentos, classicos, recentes, recomendacoes e categorias disponiveis")
+    @Operation(summary = "Retorna lancamentos, classicos, recomendacoes e categorias disponiveis")
     public ResponseEntity<HomeResponse> carregar(@AuthenticationPrincipal AccountUserDetails principal) {
         return ResponseEntity.ok(homeService.carregar(principal == null ? null : principal.getAccount()));
     }

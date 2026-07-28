@@ -25,7 +25,7 @@ class HomeControllerTest {
     @Test
     void visitanteCarregaHomeSemPrincipal() {
         HomeSectionResponse vazia = new HomeSectionResponse("Secao", List.of(), 0);
-        HomeResponse esperado = new HomeResponse(vazia, vazia, vazia, null, List.of());
+        HomeResponse esperado = new HomeResponse(vazia, vazia, null, List.of());
         when(homeService.carregar(null)).thenReturn(esperado);
 
         var resposta = controller.carregar(null);

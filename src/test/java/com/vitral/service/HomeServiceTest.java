@@ -49,7 +49,6 @@ class HomeServiceTest {
 
     private Produto classico;
     private Produto lancamento;
-    private Produto recente;
     private Produto categoriaProduto;
     private Categoria livros;
 
@@ -59,7 +58,6 @@ class HomeServiceTest {
         setId(livros, 10L);
         classico = produto(1L, "Classico", true, false);
         lancamento = produto(2L, "Lancamento", false, true);
-        recente = produto(3L, "Recente", false, false);
         categoriaProduto = produto(4L, "Categoria", false, false);
     }
 
@@ -75,7 +73,6 @@ class HomeServiceTest {
 
         assertThat(home.classicos().produtos()).extracting(ProdutoResponse::id).containsExactly(1L);
         assertThat(home.lancamentos().produtos()).extracting(ProdutoResponse::id).containsExactly(2L);
-        assertThat(home.recentes().produtos()).extracting(ProdutoResponse::id).containsExactly(3L);
         assertThat(home.classicos().total()).isEqualTo(8);
         assertThat(home.lancamentos().total()).isEqualTo(7);
         assertThat(home.categorias()).singleElement().satisfies(c -> {
@@ -87,7 +84,7 @@ class HomeServiceTest {
         verify(seboService, never()).buscarEntidadePorAccount(any());
 
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(produtoRepository, org.mockito.Mockito.times(4)).findAll(
+        verify(produtoRepository, org.mockito.Mockito.times(3)).findAll(
                 org.mockito.ArgumentMatchers.<Specification<Produto>>any(), pageable.capture());
         assertThat(pageable.getAllValues()).allMatch(Pageable::isUnpaged);
     }
@@ -118,7 +115,7 @@ class HomeServiceTest {
         when(favoritoRepository.findCategoriaIdsByAccountId(40L)).thenReturn(List.of(10L));
         when(produtoRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(classico)), new PageImpl<>(List.of(lancamento)),
-                        new PageImpl<>(List.of(recente)), new PageImpl<>(List.of(categoriaProduto)));
+                        new PageImpl<>(List.of(categoriaProduto)));
         when(categoriaRepository.findComProdutosDisponiveis(null)).thenReturn(List.of());
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(any(), any())).thenAnswer(i -> response(i.getArgument(0)));
@@ -133,7 +130,6 @@ class HomeServiceTest {
         when(produtoRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(classico), Pageable.unpaged(), 8),
                         new PageImpl<>(List.of(lancamento), Pageable.unpaged(), 7),
-                        new PageImpl<>(List.of(recente), Pageable.unpaged(), 6),
                         new PageImpl<>(List.of(categoriaProduto), Pageable.unpaged(), 5));
     }
 
