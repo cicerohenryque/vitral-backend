@@ -17,17 +17,20 @@ import com.vitral.repository.SeboRepository;
 
 @ExtendWith(MockitoExtension.class)
 class AnonimizacaoContaServiceTest {
+
+    @Mock com.vitral.repository.RecomendacaoEventoRepository recomendacaoEventoRepository;
     @Mock SeboRepository seboRepository;
     @Mock ProdutoRepository produtoRepository;
     @InjectMocks AnonimizacaoContaService service;
 
     @Test
-    void anonimizaUsuarioSemExcluirHistorico() {
+    void anonimizaUsuarioEExcluiHistoricoDeRecomendacao() {
         Account account = Account.builder().name("Maria").email("maria@email.com").passwordHash("hash").authVersion(3).build();
         service.anonimizarUsuario(account);
         assertThat(account.getAtivo()).isFalse();
         assertThat(account.getEmail()).endsWith("@invalid.local");
         assertThat(account.getAuthVersion()).isEqualTo(4);
+        verify(recomendacaoEventoRepository).deleteByAccountId(account.getId());
     }
 
     @Test

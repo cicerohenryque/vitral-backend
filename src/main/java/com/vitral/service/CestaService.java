@@ -18,6 +18,7 @@ import com.vitral.repository.CestaItemRepository;
 import com.vitral.repository.ProdutoRepository;
 
 import lombok.RequiredArgsConstructor;
+import com.vitral.enumerations.TipoEventoRecomendacao;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +27,7 @@ public class CestaService {
     private final CestaItemRepository cestaItemRepository;
     private final ProdutoRepository produtoRepository;
     private final PrecoService precoService;
+    private final RecomendacaoEventoService recomendacaoEventoService;
 
     @Transactional
     public MensagemResponse adicionarItem(Account account, Long produtoId) {
@@ -49,6 +51,7 @@ public class CestaService {
         validarEstoque(produto, novaQuantidade);
         item.setQuantidade(novaQuantidade);
         cestaItemRepository.save(item);
+        recomendacaoEventoService.registrarProduto(account, TipoEventoRecomendacao.CESTA_ADICIONADO, produto);
         return new MensagemResponse("Produto adicionado a cesta");
     }
 
@@ -90,6 +93,7 @@ public class CestaService {
                 .findByAccountIdAndProdutoId(account.getId(), produtoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Item nao encontrado na cesta"));
         cestaItemRepository.delete(item);
+        recomendacaoEventoService.registrarProduto(account, TipoEventoRecomendacao.CESTA_REMOVIDO, item.getProduto());
         return new MensagemResponse("Produto removido da cesta");
     }
 

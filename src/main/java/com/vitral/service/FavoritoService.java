@@ -18,6 +18,7 @@ import com.vitral.repository.FavoritoRepository;
 import com.vitral.repository.ProdutoRepository;
 
 import lombok.RequiredArgsConstructor;
+import com.vitral.enumerations.TipoEventoRecomendacao;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +27,7 @@ public class FavoritoService {
     private final FavoritoRepository favoritoRepository;
     private final ProdutoRepository produtoRepository;
     private final PrecoService precoService;
+    private final RecomendacaoEventoService recomendacaoEventoService;
 
     @Transactional
     public MensagemResponse favoritar(Account account, Long produtoId) {
@@ -39,6 +41,7 @@ public class FavoritoService {
                 .produto(produto)
                 .build();
         favoritoRepository.save(favorito);
+        recomendacaoEventoService.registrarProduto(account, TipoEventoRecomendacao.FAVORITO_ADICIONADO, produto);
         return new MensagemResponse("Produto favoritado com sucesso");
     }
 
@@ -66,6 +69,8 @@ public class FavoritoService {
                 .findByAccountIdAndProdutoId(account.getId(), produtoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Favorito nao encontrado"));
         favoritoRepository.delete(favorito);
+        recomendacaoEventoService.registrarProduto(account, TipoEventoRecomendacao.FAVORITO_REMOVIDO,
+                favorito.getProduto());
         return new MensagemResponse("Favorito removido com sucesso");
     }
 }

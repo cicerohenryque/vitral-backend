@@ -42,6 +42,8 @@ import com.vitral.repository.SeboRepository;
 @ExtendWith(MockitoExtension.class)
 class BuscaServiceTest {
 
+    @Mock RecomendacaoEventoService recomendacaoEventoService;
+
     @Mock
     private SeboRepository seboRepository;
 

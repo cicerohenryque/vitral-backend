@@ -64,6 +64,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/mensagens/**").authenticated()
                         .requestMatchers("/api/v1/cesta/**").hasRole("USUARIO")
                         .requestMatchers("/api/v1/favoritos/**").hasRole("USUARIO")
+                        .requestMatchers("/api/v1/recomendacoes/**").hasRole("USUARIO")
                         .requestMatchers(HttpMethod.POST, "/api/v1/pedidos").hasRole("USUARIO")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/pedidos/*/cancelar").hasRole("USUARIO")
                         .requestMatchers(HttpMethod.GET, "/api/v1/pedidos/meus-pedidos").hasRole("USUARIO")

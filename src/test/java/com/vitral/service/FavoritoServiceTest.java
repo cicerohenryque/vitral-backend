@@ -36,6 +36,8 @@ import com.vitral.repository.ProdutoRepository;
 @ExtendWith(MockitoExtension.class)
 class FavoritoServiceTest {
 
+    @Mock RecomendacaoEventoService recomendacaoEventoService;
+
     @Mock
     private FavoritoRepository favoritoRepository;
 
@@ -115,6 +117,8 @@ class FavoritoServiceTest {
 
         assertThat(response.mensagem()).isEqualTo("Produto favoritado com sucesso");
         verify(favoritoRepository).save(any(Favorito.class));
+        verify(recomendacaoEventoService).registrarProduto(account,
+                com.vitral.enumerations.TipoEventoRecomendacao.FAVORITO_ADICIONADO, produto);
     }
 
     @Test
@@ -177,5 +181,7 @@ class FavoritoServiceTest {
 
         assertThat(response.mensagem()).isEqualTo("Favorito removido com sucesso");
         verify(favoritoRepository).delete(favorito);
+        verify(recomendacaoEventoService).registrarProduto(account,
+                com.vitral.enumerations.TipoEventoRecomendacao.FAVORITO_REMOVIDO, produto);
     }
 }

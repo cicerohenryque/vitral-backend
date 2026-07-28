@@ -25,24 +25,28 @@ import com.vitral.entity.Produto;
 import com.vitral.enumerations.AccountType;
 import com.vitral.mapper.ProdutoMapper;
 import com.vitral.repository.CategoriaRepository;
-import com.vitral.repository.FavoritoRepository;
 import com.vitral.repository.ProdutoRepository;
 import com.vitral.specification.ProdutoSpecification;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.vitral.config.RecomendacaoProperties;
 
 @Service
 @RequiredArgsConstructor
 public class HomeService {
+    private static final Logger log = LoggerFactory.getLogger(HomeService.class);
 
     static final int DIAS_PRODUTO_RECENTE = 30;
 
     private final ProdutoRepository produtoRepository;
     private final CategoriaRepository categoriaRepository;
-    private final FavoritoRepository favoritoRepository;
     private final ProdutoMapper produtoMapper;
     private final PrecoService precoService;
     private final SeboService seboService;
+    private final RecomendacaoService recomendacaoService;
+    private final RecomendacaoProperties recomendacaoProperties;
 
     @Transactional(readOnly = true)
     public HomeResponse carregar(Account account) {
@@ -62,6 +66,9 @@ public class HomeService {
         destacados.addAll(ids(lancamentos));
 
         HomeSectionResponse recomendados = montarRecomendados(account, base, destacados);
+        if (recomendados != null) {
+            recomendados.produtos().stream().map(ProdutoResponse::id).forEach(destacados::add);
+        }
         List<HomeCategoriaResponse> categorias = montarCategorias(base, seboId, destacados);
 
         return new HomeResponse(
@@ -78,14 +85,15 @@ public class HomeService {
 
     private HomeSectionResponse montarRecomendados(Account account, Specification<Produto> base, Set<Long> destacados) {
         if (account == null || account.getType() != AccountType.USUARIO) return null;
-        List<Long> categoriasFavoritas = favoritoRepository.findCategoriaIdsByAccountId(account.getId());
-        if (categoriasFavoritas.isEmpty()) return null;
-        Specification<Produto> spec = base
-                .and((root, query, cb) -> root.get("categoria").get("id").in(categoriasFavoritas))
-                .and(ProdutoSpecification.idsFora(destacados));
-        Page<Produto> page = produtoRepository.findAll(spec,
-                Pageable.unpaged(Sort.by(Sort.Direction.DESC, "createdAt")));
-        return secao("Recomendados para voce", page);
+        try {
+            return recomendacaoService.paraHome(account, destacados);
+        } catch (RuntimeException exception) {
+            log.warn("Falha ao personalizar home; usando recomendacoes genericas");
+            Page<Produto> genericos = produtoRepository.findAll(base.and(ProdutoSpecification.idsFora(destacados)),
+                    org.springframework.data.domain.PageRequest.of(0, recomendacaoProperties.candidatosMaximo(),
+                            Sort.by(Sort.Direction.DESC, "createdAt")));
+            return secao("Recomendados para voce", genericos);
+        }
     }
 
     private List<HomeCategoriaResponse> montarCategorias(Specification<Produto> base, Long seboId,

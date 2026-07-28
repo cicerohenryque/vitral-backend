@@ -14,9 +14,11 @@ import lombok.RequiredArgsConstructor;
 public class AnonimizacaoContaService {
     private final SeboRepository seboRepository;
     private final ProdutoRepository produtoRepository;
+    private final com.vitral.repository.RecomendacaoEventoRepository recomendacaoEventoRepository;
 
     @Transactional
     public void anonimizarUsuario(Account account) {
+        recomendacaoEventoRepository.deleteByAccountId(account.getId());
         anonimizarConta(account);
     }
 

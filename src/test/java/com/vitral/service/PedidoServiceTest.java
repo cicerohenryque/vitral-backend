@@ -73,6 +73,9 @@ class PedidoServiceTest {
     @Mock
     private PerfilCompraValidator perfilCompraValidator;
 
+    @Mock
+    private RecomendacaoEventoService recomendacaoEventoService;
+
     @InjectMocks
     private PedidoService pedidoService;
 
@@ -361,6 +364,7 @@ class PedidoServiceTest {
         assertThat(pedido.getStatus()).isEqualTo(StatusPedido.CONFIRMADO);
         assertThat(pedido.getConfirmadoEm()).isNotNull();
         assertThat(produto.getAtivo()).isFalse();
+        verify(recomendacaoEventoService).registrarCompra(pedido.getAccount(), pedido, produto);
     }
 
     @Test

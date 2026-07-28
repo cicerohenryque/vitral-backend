@@ -36,6 +36,8 @@ import com.vitral.repository.SeboRepository;
 import com.vitral.repository.MovimentacaoEstoqueRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -51,6 +53,7 @@ public class PedidoService {
     private final MovimentacaoEstoqueService movimentacaoEstoqueService;
     private final MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
     private final PerfilCompraValidator perfilCompraValidator;
+    private final RecomendacaoEventoService recomendacaoEventoService;
 
     @Transactional
     public PedidoResponse confirmarPedido(Account account, ConfirmarPedidoRequest pagamento) {
@@ -177,10 +180,23 @@ public class PedidoService {
                         TipoMovimentacaoEstoque.VENDA_ONLINE, item.getQuantidade(), estoqueAtual, novoEstoque,
                         item.getPrecoSnapshot(), "Pedido online #" + pedido.getId());
             });
+            registrarComprasAposCommit(pedido);
         } else {
             pedido.setCanceladoEm(OffsetDateTime.now());
         }
         return toResponse(pedido);
+    }
+
+    private void registrarComprasAposCommit(Pedido pedido) {
+        Runnable registrar = () -> pedido.getItens().forEach(item -> recomendacaoEventoService.registrarCompra(
+                pedido.getAccount(), pedido, item.getProduto()));
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCommit() { registrar.run(); }
+            });
+        } else {
+            registrar.run();
+        }
     }
 
     @Transactional

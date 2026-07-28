@@ -20,6 +20,8 @@ import com.vitral.service.BuscaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.vitral.security.AccountUserDetails;
 
 @RestController
 @RequestMapping("/api/v1/busca")
@@ -54,8 +56,10 @@ public class BuscaController {
             @RequestParam(required = false) BigDecimal precoMax,
             @RequestParam(required = false) Long categoriaId,
             @RequestParam(required = false) BookGenre bookGenre,
+            @AuthenticationPrincipal AccountUserDetails principal,
             Pageable pageable) {
-        return ResponseEntity.ok(PageResponse.from(buscaService.buscarProdutos(q, seboId, condicao, precoMin, precoMax,
+        return ResponseEntity.ok(PageResponse.from(buscaService.buscarProdutos(
+                principal == null ? null : principal.getAccount(), q, seboId, condicao, precoMin, precoMax,
                 categoriaId, bookGenre, pageable)));
     }
 }

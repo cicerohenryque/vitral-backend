@@ -53,6 +53,8 @@ import com.vitral.repository.ProdutoRepository;
 @ExtendWith(MockitoExtension.class)
 class ProdutoServiceTest {
 
+    @Mock RecomendacaoEventoService recomendacaoEventoService;
+
     @Mock
     private ProdutoRepository produtoRepository;
 
@@ -288,6 +290,8 @@ class ProdutoServiceTest {
         ProdutoResponse resultado = produtoService.buscarPorId(5L);
 
         assertThat(resultado).isEqualTo(esperado);
+        verify(recomendacaoEventoService).registrarProduto(null,
+                com.vitral.enumerations.TipoEventoRecomendacao.VISUALIZACAO, produto);
     }
 
     @Test

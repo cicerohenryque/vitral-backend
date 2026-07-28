@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.vitral.dto.ProdutoResponse;
 import com.vitral.dto.SeboResponse;
 import com.vitral.entity.Produto;
+import com.vitral.entity.Account;
+import com.vitral.entity.Categoria;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.CondicaoProduto;
 import com.vitral.enumerations.TipoOperacaoSebo;
@@ -40,6 +42,7 @@ public class BuscaService {
     private final ProdutoMapper produtoMapper;
     private final PrecoService precoService;
     private final CategoriaService categoriaService;
+    private final RecomendacaoEventoService recomendacaoEventoService;
 
     @Transactional(readOnly = true)
     public Page<SeboResponse> buscarSebos(String termo, Pageable pageable) {
@@ -99,7 +102,14 @@ public class BuscaService {
     @Transactional(readOnly = true)
     public Page<ProdutoResponse> buscarProdutos(String termo, Long seboId, CondicaoProduto condicao,
             BigDecimal precoMin, BigDecimal precoMax, Long categoriaId, BookGenre bookGenre, Pageable pageable) {
+        return buscarProdutos(null, termo, seboId, condicao, precoMin, precoMax, categoriaId, bookGenre, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProdutoResponse> buscarProdutos(Account account, String termo, Long seboId, CondicaoProduto condicao,
+            BigDecimal precoMin, BigDecimal precoMax, Long categoriaId, BookGenre bookGenre, Pageable pageable) {
         Specification<Produto> spec = ProdutoSpecification.ativo();
+        Categoria categoriaPesquisa = null;
 
         if (termo != null && !termo.isBlank()) {
             spec = spec.and(ProdutoSpecification.tituloContem(termo));
@@ -118,6 +128,7 @@ public class BuscaService {
         }
         if (categoriaId != null) {
             var categoria = categoriaService.buscarPermitida(categoriaId);
+            categoriaPesquisa = categoria;
             if (bookGenre != null && !"livros".equals(categoria.getSlug())) {
                 throw new com.vitral.exception.BusinessException(
                         "bookGenre somente pode ser informado para a categoria Livros", org.springframework.http.HttpStatus.BAD_REQUEST);
@@ -130,6 +141,14 @@ public class BuscaService {
         if (bookGenre != null) spec = spec.and(ProdutoSpecification.comBookGenre(bookGenre));
 
         Page<Produto> produtos = produtoRepository.findAll(spec, pageable);
+        Produto primeiroResultado = produtos.isEmpty() ? null : produtos.getContent().getFirst();
+        Categoria categoriaSinal = categoriaPesquisa != null ? categoriaPesquisa
+                : (primeiroResultado == null ? null : primeiroResultado.getCategoria());
+        BookGenre generoSinal = bookGenre != null ? bookGenre
+                : (primeiroResultado == null ? null : primeiroResultado.getBookGenre());
+        BigDecimal precoSinal = primeiroResultado == null ? null : primeiroResultado.getPreco();
+        recomendacaoEventoService.registrarPesquisa(account, termo, categoriaSinal, generoSinal,
+                precoMin != null ? precoMin : precoSinal, precoMax != null ? precoMax : precoSinal);
         List<Long> ids = produtos.getContent().stream().map(Produto::getId).toList();
         Map<Long, BigDecimal> promocionais = precoService.precosPromocionaisVigentes(ids);
         return produtos.map(p -> produtoMapper.toResponse(p, promocionais.get(p.getId())));

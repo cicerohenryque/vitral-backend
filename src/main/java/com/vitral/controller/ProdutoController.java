@@ -77,7 +77,12 @@ public class ProdutoController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Consulta publica de um produto ativo pelo id")
-    public ResponseEntity<ProdutoResponse> buscarPorId(@PathVariable Long id) {
+    public ResponseEntity<ProdutoResponse> buscarPorId(@PathVariable Long id,
+            @AuthenticationPrincipal AccountUserDetails principal) {
+        return ResponseEntity.ok(produtoService.buscarPorId(id, principal == null ? null : principal.getAccount()));
+    }
+
+    ResponseEntity<ProdutoResponse> buscarPorId(Long id) {
         return ResponseEntity.ok(produtoService.buscarPorId(id));
     }
 

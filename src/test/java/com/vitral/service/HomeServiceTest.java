@@ -16,7 +16,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -33,7 +32,6 @@ import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.CondicaoProduto;
 import com.vitral.mapper.ProdutoMapper;
 import com.vitral.repository.CategoriaRepository;
-import com.vitral.repository.FavoritoRepository;
 import com.vitral.repository.ProdutoRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,11 +39,11 @@ class HomeServiceTest {
 
     @Mock ProdutoRepository produtoRepository;
     @Mock CategoriaRepository categoriaRepository;
-    @Mock FavoritoRepository favoritoRepository;
+    @Mock RecomendacaoService recomendacaoService;
     @Mock ProdutoMapper produtoMapper;
     @Mock PrecoService precoService;
     @Mock SeboService seboService;
-    @InjectMocks HomeService homeService;
+    HomeService homeService;
 
     private Produto classico;
     private Produto lancamento;
@@ -54,6 +52,9 @@ class HomeServiceTest {
 
     @BeforeEach
     void setUp() {
+        homeService = new HomeService(produtoRepository, categoriaRepository, produtoMapper, precoService, seboService,
+                recomendacaoService, new com.vitral.config.RecomendacaoProperties(
+                        1000, 200, 20, 30, 365, 30, 3, 90, 50));
         livros = Categoria.builder().nome("Livros").slug("livros").build();
         setId(livros, 10L);
         classico = produto(1L, "Classico", true, false);
@@ -112,10 +113,10 @@ class HomeServiceTest {
     void usuarioUsaCategoriasDosFavoritosParaRecomendacoes() {
         Account account = Account.builder().type(AccountType.USUARIO).build();
         setId(account, 40L);
-        when(favoritoRepository.findCategoriaIdsByAccountId(40L)).thenReturn(List.of(10L));
+        when(recomendacaoService.paraHome(eq(account), any())).thenReturn(
+                new com.vitral.dto.HomeSectionResponse("Recomendados para voce", List.of(response(categoriaProduto)), 1));
         when(produtoRepository.findAll(any(Specification.class), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of(classico)), new PageImpl<>(List.of(lancamento)),
-                        new PageImpl<>(List.of(categoriaProduto)));
+                .thenReturn(new PageImpl<>(List.of(classico)), new PageImpl<>(List.of(lancamento)));
         when(categoriaRepository.findComProdutosDisponiveis(null)).thenReturn(List.of());
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(any(), any())).thenAnswer(i -> response(i.getArgument(0)));

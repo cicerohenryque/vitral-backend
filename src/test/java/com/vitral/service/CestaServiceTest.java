@@ -34,6 +34,8 @@ import com.vitral.repository.ProdutoRepository;
 @ExtendWith(MockitoExtension.class)
 class CestaServiceTest {
 
+    @Mock RecomendacaoEventoService recomendacaoEventoService;
+
     @Mock
     private CestaItemRepository cestaItemRepository;
 
@@ -115,6 +117,8 @@ class CestaServiceTest {
 
         assertThat(response.mensagem()).isEqualTo("Produto adicionado a cesta");
         verify(cestaItemRepository).save(any(CestaItem.class));
+        verify(recomendacaoEventoService).registrarProduto(account,
+                com.vitral.enumerations.TipoEventoRecomendacao.CESTA_ADICIONADO, produto);
     }
 
     @Test
@@ -192,5 +196,7 @@ class CestaServiceTest {
 
         assertThat(response.mensagem()).isEqualTo("Produto removido da cesta");
         verify(cestaItemRepository).delete(cestaItem);
+        verify(recomendacaoEventoService).registrarProduto(account,
+                com.vitral.enumerations.TipoEventoRecomendacao.CESTA_REMOVIDO, produto);
     }
 }

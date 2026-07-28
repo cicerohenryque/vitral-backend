@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS recomendacao_evento;
 DROP TABLE IF EXISTS pedido_item;
 DROP TABLE IF EXISTS pedido;
 DROP TABLE IF EXISTS movimentacao_estoque;
@@ -282,3 +283,30 @@ CREATE TABLE pedido_item (
     CONSTRAINT fk_pedido_item_produto FOREIGN KEY (produto_id) REFERENCES produto (id),
     CONSTRAINT ck_pedido_item_quantidade CHECK (quantidade > 0)
 );
+
+CREATE TABLE recomendacao_evento (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    account_id BIGINT NOT NULL,
+    tipo VARCHAR(30) NOT NULL,
+    produto_id BIGINT,
+    categoria_id BIGINT,
+    sebo_id BIGINT,
+    pedido_id BIGINT,
+    tipo_produto VARCHAR(40),
+    genero VARCHAR(40),
+    autor_artista VARCHAR(255),
+    faixa_preco VARCHAR(30),
+    termo_pesquisa VARCHAR(160),
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_rec_account FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE,
+    CONSTRAINT fk_rec_produto FOREIGN KEY (produto_id) REFERENCES produto(id) ON DELETE SET NULL,
+    CONSTRAINT fk_rec_categoria FOREIGN KEY (categoria_id) REFERENCES categoria(id) ON DELETE SET NULL,
+    CONSTRAINT fk_rec_sebo FOREIGN KEY (sebo_id) REFERENCES sebo(id) ON DELETE SET NULL,
+    CONSTRAINT fk_rec_pedido FOREIGN KEY (pedido_id) REFERENCES pedido(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_rec_usuario_data ON recomendacao_evento(account_id, created_at);
+CREATE INDEX idx_rec_usuario_tipo_data ON recomendacao_evento(account_id, tipo, created_at);
+CREATE INDEX idx_rec_produto_data ON recomendacao_evento(produto_id, created_at);
+CREATE INDEX idx_rec_categoria_data ON recomendacao_evento(categoria_id, created_at);

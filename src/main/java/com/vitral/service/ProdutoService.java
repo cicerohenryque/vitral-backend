@@ -43,6 +43,7 @@ public class ProdutoService {
     private final PrecoService precoService;
     private final CatalogoLivroService catalogoLivroService;
     private final MovimentacaoEstoqueService movimentacaoEstoqueService;
+    private final RecomendacaoEventoService recomendacaoEventoService;
 
     @Transactional
     public ProdutoResponse criar(Account account, ProdutoRequest request) {
@@ -121,9 +122,16 @@ public class ProdutoService {
 
     @Transactional(readOnly = true)
     public ProdutoResponse buscarPorId(Long id) {
+        return buscarPorId(id, null);
+    }
+
+    @Transactional(readOnly = true)
+    public ProdutoResponse buscarPorId(Long id, Account visitante) {
         Produto produto = produtoRepository.findByIdAndAtivoTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
         validarSeboVerificado(produto);
+        recomendacaoEventoService.registrarProduto(visitante,
+                com.vitral.enumerations.TipoEventoRecomendacao.VISUALIZACAO, produto);
         return toResponse(produto);
     }
 
