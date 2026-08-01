@@ -103,6 +103,7 @@ class AuthServiceTest {
         when(passwordEncoder.encode("senha1234")).thenReturn("hash");
         when(accountRepository.save(accountCaptor.capture())).thenReturn(savedAccount);
         when(tokenRepository.save(tokenCaptor.capture())).thenReturn(new TokenVerificacaoEmail());
+        when(emailService.isMailEnabled()).thenReturn(true);
 
         MensagemResponse result = authService.register(request);
 
