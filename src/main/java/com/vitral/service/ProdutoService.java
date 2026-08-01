@@ -12,13 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
-import com.vitral.dto.VendaFisicaRequest;
 import com.vitral.dto.VendedorProdutoResponse;
 import com.vitral.enumerations.StatusVerificacaoSebo;
 import java.util.Comparator;
 import org.springframework.data.jpa.domain.Specification;
 import com.vitral.specification.ProdutoSpecification;
-import com.vitral.dto.RegistrarVendaFisicaRequest;
 import com.vitral.enumerations.TipoMovimentacaoEstoque;
 import com.vitral.enumerations.BookGenre;
 import com.vitral.entity.Account;
@@ -41,7 +39,6 @@ public class ProdutoService {
     private final SeboService seboService;
     private final CategoriaService categoriaService;
     private final PrecoService precoService;
-    private final CatalogoLivroService catalogoLivroService;
     private final MovimentacaoEstoqueService movimentacaoEstoqueService;
     private final RecomendacaoEventoService recomendacaoEventoService;
 
@@ -54,10 +51,10 @@ public class ProdutoService {
                 .sebo(sebo)
                 .categoria(categoria)
                 .bookGenre(request.bookGenre())
-                .catalogoLivro(catalogoLivroService.obterOuCriar(request))
                 .titulo(request.titulo())
                 .autor(request.autor())
                 .descricao(request.descricao())
+                .ano(request.ano())
                 .preco(request.preco())
                 .estoque(normalizarEstoque(request.estoque()))
                 .condicao(request.condicao())
@@ -82,10 +79,10 @@ public class ProdutoService {
         validarGenero(categoria, request.bookGenre());
         produto.setCategoria(categoria);
         produto.setBookGenre("livros".equals(categoria.getSlug()) ? request.bookGenre() : null);
-        produto.setCatalogoLivro(catalogoLivroService.obterOuCriar(request));
         produto.setTitulo(request.titulo());
         produto.setAutor(request.autor());
         produto.setDescricao(request.descricao());
+        produto.setAno(request.ano());
         produto.setPreco(request.preco());
         int estoqueAntes = produto.getEstoque();
         int estoqueDepois = normalizarEstoque(request.estoque());
@@ -111,15 +108,6 @@ public class ProdutoService {
         seboService.registrarAtividade(produto.getSebo());
     }
 
-    @Transactional
-    public ProdutoResponse registrarVendaFisica(Account account, Long produtoId, VendaFisicaRequest request) {
-        Produto produto = obterProdutoDoDono(account, produtoId);
-        BigDecimal valor = precoService.precoEfetivo(produto);
-        movimentacaoEstoqueService.registrarVendaFisica(account,
-                new RegistrarVendaFisicaRequest(produtoId, request.quantidade(), valor, "Venda fisica (endpoint legado)"));
-        return toResponse(produto);
-    }
-
     @Transactional(readOnly = true)
     public ProdutoResponse buscarPorId(Long id) {
         return buscarPorId(id, null);
@@ -139,10 +127,7 @@ public class ProdutoService {
     public List<VendedorProdutoResponse> listarVendedores(Long produtoId) {
         Produto referencia = produtoRepository.findByIdAndAtivoTrue(produtoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
-        List<Produto> candidatos = referencia.getCatalogoLivro() == null
-                ? List.of(referencia)
-                : produtoRepository.vendedoresAtivosPorCatalogo(referencia.getCatalogoLivro().getId());
-        return candidatos.stream()
+        return List.of(referencia).stream()
                 .map(produto -> {
                     BigDecimal promocional = precoService.precoPromocionalVigente(produto).orElse(null);
                     BigDecimal efetivo = promocional == null ? produto.getPreco() : promocional;

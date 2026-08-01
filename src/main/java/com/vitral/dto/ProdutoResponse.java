@@ -13,11 +13,10 @@ public record ProdutoResponse(
         Long categoriaId,
         String categoriaNome,
         BookGenre bookGenre,
-        Long catalogoLivroId,
-        String isbn,
         String titulo,
         String autor,
         String descricao,
+        Integer ano,
         BigDecimal preco,
         BigDecimal precoPromocional,
         Integer estoque,
@@ -34,8 +33,6 @@ public record ProdutoResponse(
             Long seboId,
             Long categoriaId,
             String categoriaNome,
-            Long catalogoLivroId,
-            String isbn,
             String titulo,
             String autor,
             String descricao,
@@ -45,8 +42,9 @@ public record ProdutoResponse(
             CondicaoProduto condicao,
             String fotoUrl,
             Boolean ativo) {
-        this(id, seboId, null, categoriaId, categoriaNome, null, catalogoLivroId, isbn, titulo, autor, descricao, preco,
-                precoPromocional, estoque, condicao, fotoUrl, ativo, Boolean.TRUE.equals(ativo) && estoque != null && estoque > 0,
+        this(id, seboId, null, categoriaId, categoriaNome, null, titulo, autor, descricao, null,
+                preco, precoPromocional, estoque, condicao, fotoUrl, ativo,
+                Boolean.TRUE.equals(ativo) && estoque != null && estoque > 0,
                 false, false, null);
     }
 }

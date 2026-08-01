@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,12 +19,13 @@ import org.springframework.http.HttpStatus;
 
 import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
-import com.vitral.dto.VendaFisicaRequest;
+import com.vitral.dto.SugestaoProdutoResponse;
 import com.vitral.dto.VendedorProdutoResponse;
 import com.vitral.entity.Account;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.CondicaoProduto;
 import com.vitral.security.AccountUserDetails;
+import com.vitral.service.MetadadosProdutoService;
 import com.vitral.service.ProdutoService;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,8 +34,25 @@ class ProdutoControllerTest {
     @Mock
     private ProdutoService produtoService;
 
+    @Mock
+    private MetadadosProdutoService metadadosProdutoService;
+
     @InjectMocks
     private ProdutoController controller;
+
+    @Test
+    @DisplayName("Deve delegar a busca de sugestoes de metadados para o servico e devolver 200")
+    void shouldDelegateMetadataSuggestionsToService() {
+        SugestaoProdutoResponse sugestao = new SugestaoProdutoResponse("Dom Casmurro", "Machado de Assis", 1900,
+                "Romance", 12L, "livros", "Livros", "capa.jpg", "OPEN_LIBRARY");
+        when(metadadosProdutoService.sugerir("dom casmurro")).thenReturn(List.of(sugestao));
+
+        var resultado = controller.sugestoes("dom casmurro");
+
+        assertThat(resultado.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resultado.getBody()).containsExactly(sugestao);
+        verify(metadadosProdutoService).sugerir("dom casmurro");
+    }
 
     @Test
     void criarAtualizarERemoverProdutoDoSebo() {
@@ -50,20 +69,6 @@ class ProdutoControllerTest {
         verify(produtoService).criar(account, request);
         verify(produtoService).atualizar(account, 30L, request);
         verify(produtoService).remover(account, 30L);
-    }
-
-    @Test
-    void registrarVendaFisicaSincronizaEstoquePeloServico() {
-        Account account = account();
-        AccountUserDetails principal = new AccountUserDetails(account);
-        VendaFisicaRequest request = new VendaFisicaRequest(2);
-        ProdutoResponse response = produto(30L, BigDecimal.valueOf(45), 2);
-        when(produtoService.registrarVendaFisica(account, 30L, request)).thenReturn(response);
-
-        var result = controller.registrarVendaFisica(principal, 30L, request);
-
-        assertThat(result.getBody()).isSameAs(response);
-        verify(produtoService).registrarVendaFisica(account, 30L, request);
     }
 
     @Test
@@ -103,12 +108,12 @@ class ProdutoControllerTest {
     }
 
     private ProdutoRequest request() {
-        return new ProdutoRequest("978857164", "Dom Casmurro", 5L, "Machado de Assis", "Classico",
+        return new ProdutoRequest( "Dom Casmurro", 5L, "Machado de Assis", "Classico",
                 BigDecimal.valueOf(45), 4, CondicaoProduto.USADO, null);
     }
 
     private ProdutoResponse produto(Long id, BigDecimal preco, int estoque) {
-        return new ProdutoResponse(id, 10L, 5L, "Literatura", null, "978857164", "Dom Casmurro",
+        return new ProdutoResponse(id, 10L, 5L, "Literatura", "Dom Casmurro",
                 "Machado de Assis", "Classico", preco, null, estoque, CondicaoProduto.USADO, null, true);
     }
 }

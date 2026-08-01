@@ -28,7 +28,6 @@ import com.vitral.entity.Account;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.StatusVerificacaoSebo;
-import com.vitral.enumerations.TipoOperacaoSebo;
 import com.vitral.exception.BusinessException;
 import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
@@ -86,7 +85,10 @@ class SeboServiceTest {
                 "8399999-0000",
                 "11222333000181",
                 "https://cdn/foto.jpg",
-                null);
+                "58000-000",
+                "Rua das Letras",
+                "Joao Pessoa",
+                "pb");
     }
 
     @Test
@@ -94,7 +96,7 @@ class SeboServiceTest {
     void shouldCreateSeboWhenAccountIsSeboAndHasNoProfileYet() {
         SeboResponse responseEsperado = new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
-                null, null, null, null, null, request.fotoUrl(), TipoOperacaoSebo.VIRTUAL);
+                null, null, null, null, null, request.fotoUrl());
 
         when(seboRepository.existsByAccountId(10L)).thenReturn(false);
         when(seboRepository.save(seboCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -123,7 +125,7 @@ class SeboServiceTest {
             Sebo sebo = invocation.getArgument(0);
             return new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
                     request.descricao(), request.telefone(), request.cnpj(), sebo.getStatusVerificacao(),
-                    null, null, null, null, null, request.fotoUrl(), TipoOperacaoSebo.VIRTUAL);
+                    null, null, null, null, null, request.fotoUrl());
         });
 
         SeboResponse resultado = seboService.criar(contaSebo, request);
@@ -166,7 +168,7 @@ class SeboServiceTest {
                 .build();
         SeboResponse responseEsperado = new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
-                null, null, null, null, null, request.fotoUrl(), TipoOperacaoSebo.VIRTUAL);
+                null, null, null, null, null, request.fotoUrl());
 
         when(seboRepository.findByAccountId(10L)).thenReturn(Optional.of(existente));
         when(seboMapper.toResponse(existente)).thenReturn(responseEsperado);
@@ -196,7 +198,7 @@ class SeboServiceTest {
         Sebo sebo = Sebo.builder().account(contaSebo).build();
         SeboResponse responseEsperado = new SeboResponse(7L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 null, null, "11222333000181", StatusVerificacaoSebo.VERIFICADO, null,
-                null, null, null, null, null, TipoOperacaoSebo.VIRTUAL);
+                null, null, null, null, null);
 
         when(seboRepository.findByIdAndAccountAtivoTrueAndStatusVerificacao(
                 7L, StatusVerificacaoSebo.VERIFICADO)).thenReturn(Optional.of(sebo));
@@ -240,28 +242,13 @@ class SeboServiceTest {
     }
 
     @Test
-    @DisplayName("Deve assumir sebo virtual quando o tipo de operacao nao for informado")
-    void shouldDefaultToVirtualWhenTipoOperacaoIsNotProvided() {
-        when(seboRepository.existsByAccountId(10L)).thenReturn(false);
-        when(seboRepository.save(any(Sebo.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(seboMapper.toResponse(any(Sebo.class))).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
-                request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
-                null, null, null, null, null, request.fotoUrl(), TipoOperacaoSebo.VIRTUAL, false));
-
-        SeboResponse response = seboService.criar(contaSebo, request);
-
-        assertThat(response.tipoOperacao()).isEqualTo(TipoOperacaoSebo.VIRTUAL);
-    }
-
-    @Test
-    @DisplayName("Deve criar sebo fisico quando endereco minimo for informado")
-    void shouldCreatePhysicalSeboWhenAddressIsProvided() {
+    @DisplayName("Deve criar sebo com o endereco informado e geocodificar")
+    void shouldCreateSeboWithAddressAndGeocode() {
         SeboRequest requestFisico = new SeboRequest(
                 "Sebo familiar com livros raros",
                 "8399999-0000",
                 "11222333000181",
                 "https://cdn/foto.jpg",
-                TipoOperacaoSebo.FISICO,
                 "58.000-000",
                 "Rua das Letras",
                 "Joao Pessoa",
@@ -273,60 +260,26 @@ class SeboServiceTest {
         when(seboRepository.save(any(Sebo.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(seboMapper.toResponse(any(Sebo.class))).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
                 requestFisico.descricao(), requestFisico.telefone(), requestFisico.cnpj(), StatusVerificacaoSebo.PENDENTE,
-                null, null, null, null, null, requestFisico.fotoUrl(), TipoOperacaoSebo.FISICO,
+                null, null, null, null, null, requestFisico.fotoUrl(),
                 "58000000", "Rua das Letras", "Joao Pessoa", "PB", "Seg a sex", false));
 
         seboService.criar(contaSebo, requestFisico);
 
         verify(seboRepository).save(seboCaptor.capture());
-        assertThat(seboCaptor.getValue().getTipoOperacao()).isEqualTo(TipoOperacaoSebo.FISICO);
         assertThat(seboCaptor.getValue().getCep()).isEqualTo("58000000");
         assertThat(seboCaptor.getValue().getUf()).isEqualTo("PB");
         verify(seboGeocodingService).geocodificar(any(Sebo.class));
     }
 
     @Test
-    @DisplayName("Deve criar sebo hibrido quando endereco minimo for informado")
-    void shouldCreateHybridSeboWhenAddressIsProvided() {
-        SeboRequest requestHibrido = new SeboRequest(
-                "Sebo com atendimento online e retirada",
-                "8399999-0000",
-                "11222333000181",
-                "https://cdn/foto.jpg",
-                TipoOperacaoSebo.HIBRIDO,
-                "58000-123",
-                "Avenida Central",
-                "Campina Grande",
-                "pb",
-                null);
-
-        when(seboRepository.existsByAccountId(10L)).thenReturn(false);
-        when(seboRepository.existsByCnpj("11222333000181")).thenReturn(false);
-        when(seboRepository.save(any(Sebo.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(seboMapper.toResponse(any(Sebo.class))).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
-                requestHibrido.descricao(), requestHibrido.telefone(), requestHibrido.cnpj(), StatusVerificacaoSebo.PENDENTE,
-                null, null, null, null, null, requestHibrido.fotoUrl(), TipoOperacaoSebo.HIBRIDO,
-                "58000123", "Avenida Central", "Campina Grande", "PB", null, false));
-
-        SeboResponse response = seboService.criar(contaSebo, requestHibrido);
-
-        verify(seboRepository).save(seboCaptor.capture());
-        assertThat(response.tipoOperacao()).isEqualTo(TipoOperacaoSebo.HIBRIDO);
-        assertThat(seboCaptor.getValue().getTipoOperacao()).isEqualTo(TipoOperacaoSebo.HIBRIDO);
-        assertThat(seboCaptor.getValue().getCep()).isEqualTo("58000123");
-        assertThat(seboCaptor.getValue().getUf()).isEqualTo("PB");
-        verify(seboGeocodingService).geocodificar(any(Sebo.class));
-    }
-
-    @Test
-    @DisplayName("Deve rejeitar sebo fisico sem endereco minimo")
-    void shouldRejectPhysicalSeboWithoutRequiredAddress() {
+    @DisplayName("Deve rejeitar sebo sem o endereco obrigatorio")
+    void shouldRejectSeboWithoutRequiredAddress() {
         SeboRequest requestFisico = new SeboRequest(
                 "Sebo familiar com livros raros",
                 "8399999-0000",
                 "11222333000181",
                 "https://cdn/foto.jpg",
-                TipoOperacaoSebo.FISICO);
+                null, null, null, null);
 
         when(seboRepository.existsByAccountId(10L)).thenReturn(false);
         when(seboRepository.existsByCnpj("11222333000181")).thenReturn(false);
@@ -337,44 +290,16 @@ class SeboServiceTest {
     }
 
     @Test
-    @DisplayName("Deve limpar campos fisicos quando modalidade virtual for informada")
-    void shouldClearPhysicalFieldsWhenVirtualModeIsProvided() {
-        Sebo existente = Sebo.builder()
-                .account(contaSebo)
-                .tipoOperacao(TipoOperacaoSebo.HIBRIDO)
-                .cep("58000000")
-                .logradouro("Rua Antiga")
-                .cidade("Joao Pessoa")
-                .uf("PB")
-                .horarioFuncionamento("Seg a sex")
-                .build();
-
-        when(seboRepository.findByAccountId(10L)).thenReturn(Optional.of(existente));
-        when(seboMapper.toResponse(existente)).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao", "sebo@vitral.com",
-                request.descricao(), request.telefone(), request.cnpj(), StatusVerificacaoSebo.PENDENTE,
-                null, null, null, null, null, request.fotoUrl(), TipoOperacaoSebo.VIRTUAL, false));
-
-        seboService.atualizarMeuSebo(contaSebo, request);
-
-        assertThat(existente.getTipoOperacao()).isEqualTo(TipoOperacaoSebo.VIRTUAL);
-        assertThat(existente.getCep()).isNull();
-        assertThat(existente.getCidade()).isNull();
-        verify(seboGeocodingService).geocodificar(existente);
-    }
-
-    @Test
     @DisplayName("Deve geocodificar quando o CEP muda ao atualizar o sebo")
     void shouldGeocodeWhenCepChangesOnUpdate() {
         Sebo existente = Sebo.builder()
                 .account(contaSebo)
-                .tipoOperacao(TipoOperacaoSebo.VIRTUAL)
                 .build();
         SeboRequest requestFisico = new SeboRequest(
                 "Sebo familiar com livros raros",
                 "8399999-0000",
                 "11222333000181",
                 "https://cdn/foto.jpg",
-                TipoOperacaoSebo.FISICO,
                 "58000-000",
                 "Rua das Letras",
                 "Joao Pessoa",
@@ -385,7 +310,7 @@ class SeboServiceTest {
         when(seboMapper.toResponse(existente)).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao",
                 "sebo@vitral.com", requestFisico.descricao(), requestFisico.telefone(), requestFisico.cnpj(),
                 StatusVerificacaoSebo.PENDENTE, null, null, null, null, null, requestFisico.fotoUrl(),
-                TipoOperacaoSebo.FISICO, "58000000", "Rua das Letras", "Joao Pessoa", "PB", "Seg a sex", false));
+                "58000000", "Rua das Letras", "Joao Pessoa", "PB", "Seg a sex", false));
 
         seboService.atualizarMeuSebo(contaSebo, requestFisico);
 
@@ -397,7 +322,6 @@ class SeboServiceTest {
     void shouldNotRegeocodeWhenCepIsUnchangedOnUpdate() {
         Sebo existente = Sebo.builder()
                 .account(contaSebo)
-                .tipoOperacao(TipoOperacaoSebo.FISICO)
                 .cep("58000000")
                 .logradouro("Rua das Letras")
                 .cidade("Joao Pessoa")
@@ -411,7 +335,6 @@ class SeboServiceTest {
                 "8399999-0000",
                 "11222333000181",
                 "https://cdn/foto.jpg",
-                TipoOperacaoSebo.FISICO,
                 "58000-000",
                 "Rua das Letras",
                 "Joao Pessoa",
@@ -422,7 +345,7 @@ class SeboServiceTest {
         when(seboMapper.toResponse(existente)).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao",
                 "sebo@vitral.com", requestMesmoCep.descricao(), requestMesmoCep.telefone(), requestMesmoCep.cnpj(),
                 StatusVerificacaoSebo.PENDENTE, null, null, null, null, null, requestMesmoCep.fotoUrl(),
-                TipoOperacaoSebo.FISICO, "58000000", "Rua das Letras", "Joao Pessoa", "PB", "Seg a sex", false));
+                "58000000", "Rua das Letras", "Joao Pessoa", "PB", "Seg a sex", false));
 
         seboService.atualizarMeuSebo(contaSebo, requestMesmoCep);
 
@@ -435,7 +358,6 @@ class SeboServiceTest {
     void shouldRegeocodeWhenCepUnchangedButCoordinatesStillMissing() {
         Sebo existente = Sebo.builder()
                 .account(contaSebo)
-                .tipoOperacao(TipoOperacaoSebo.FISICO)
                 .cep("58000000")
                 .logradouro("Rua das Letras")
                 .cidade("Joao Pessoa")
@@ -447,7 +369,6 @@ class SeboServiceTest {
                 "8399999-0000",
                 "11222333000181",
                 "https://cdn/foto.jpg",
-                TipoOperacaoSebo.FISICO,
                 "58000-000",
                 "Rua das Letras",
                 "Joao Pessoa",
@@ -458,7 +379,7 @@ class SeboServiceTest {
         when(seboMapper.toResponse(existente)).thenAnswer(invocation -> new SeboResponse(1L, 10L, "Sebo do Joao",
                 "sebo@vitral.com", requestMesmoCep.descricao(), requestMesmoCep.telefone(), requestMesmoCep.cnpj(),
                 StatusVerificacaoSebo.PENDENTE, null, null, null, null, null, requestMesmoCep.fotoUrl(),
-                TipoOperacaoSebo.FISICO, "58000000", "Rua das Letras", "Joao Pessoa", "PB", "Seg a sex", false));
+                "58000000", "Rua das Letras", "Joao Pessoa", "PB", "Seg a sex", false));
 
         seboService.atualizarMeuSebo(contaSebo, requestMesmoCep);
 

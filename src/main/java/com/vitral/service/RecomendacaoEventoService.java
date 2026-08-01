@@ -17,7 +17,6 @@ import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.BookGenre;
 import com.vitral.enumerations.FaixaPrecoRecomendacao;
 import com.vitral.enumerations.TipoEventoRecomendacao;
-import com.vitral.repository.RecomendacaoEventoRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,7 +25,6 @@ import lombok.RequiredArgsConstructor;
 public class RecomendacaoEventoService {
     private static final Logger log = LoggerFactory.getLogger(RecomendacaoEventoService.class);
 
-    private final RecomendacaoEventoRepository repository;
     private final RecomendacaoEventoPersistenceService persistence;
     private final NormalizadorPesquisaService normalizador;
     private final RecomendacaoProperties properties;
@@ -41,8 +39,6 @@ public class RecomendacaoEventoService {
 
     public void registrarCompra(Account account, Pedido pedido, Produto produto) {
         try {
-            if (!rastreavel(account) || repository.existsByPedidoIdAndProdutoIdAndTipo(
-                    pedido.getId(), produto.getId(), TipoEventoRecomendacao.COMPRA_CONCLUIDA)) return;
             registrarProdutoInterno(account, TipoEventoRecomendacao.COMPRA_CONCLUIDA, produto, pedido);
         } catch (RuntimeException exception) {
             log.warn("Falha ao registrar evento de compra para recomendacao");
@@ -64,46 +60,49 @@ public class RecomendacaoEventoService {
         String normalizado = normalizador.normalizar(termo);
         if (normalizado == null && categoria == null && genero == null && precoMin == null && precoMax == null) return;
         OffsetDateTime agora = OffsetDateTime.now();
-        if (normalizado != null && (repository.existsByAccountIdAndTipoAndTermoPesquisaAndCreatedAtAfter(
-                account.getId(), TipoEventoRecomendacao.PESQUISA, normalizado,
-                agora.minusMinutes(properties.janelaVisualizacaoMinutos()))
-                || repository.countByAccountIdAndTipoAndTermoPesquisaAndCreatedAtAfter(account.getId(),
-                        TipoEventoRecomendacao.PESQUISA, normalizado, inicioDoDia(agora))
-                        >= properties.eventosRepetidosDiaMaximo())) return;
         BigDecimal referencia = precoMin != null && precoMax != null
                 ? precoMin.add(precoMax).divide(BigDecimal.valueOf(2)) : (precoMin != null ? precoMin : precoMax);
-        salvarSeguro(RecomendacaoEvento.builder().account(account).tipo(TipoEventoRecomendacao.PESQUISA)
+        RecomendacaoEvento evento = RecomendacaoEvento.builder().account(account)
+                .tipo(TipoEventoRecomendacao.PESQUISA)
                 .categoria(categoria).tipoProduto(categoria == null ? null : categoria.getSlug())
                 .genero(genero == null ? null : genero.name())
                 .faixaPreco(referencia == null ? null : FaixaPrecoRecomendacao.de(referencia).name())
-                .termoPesquisa(normalizado).build());
+                .termoPesquisa(normalizado).build();
+        executarSeguro(evento.getTipo(), () -> persistence.salvarPesquisa(evento,
+                agora.minusMinutes(properties.janelaVisualizacaoMinutos()), inicioDoDia(agora),
+                properties.eventosRepetidosDiaMaximo()));
     }
 
     private void registrarProdutoInterno(Account account, TipoEventoRecomendacao tipo, Produto produto, Pedido pedido) {
         if (!rastreavel(account) || produto == null) return;
-        if (tipo == TipoEventoRecomendacao.VISUALIZACAO && repository
-                .existsByAccountIdAndProdutoIdAndTipoAndCreatedAtAfter(account.getId(), produto.getId(), tipo,
-                        OffsetDateTime.now().minusMinutes(properties.janelaVisualizacaoMinutos()))) return;
-        if (tipo == TipoEventoRecomendacao.VISUALIZACAO && repository
-                .countByAccountIdAndProdutoIdAndTipoAndCreatedAtAfter(account.getId(), produto.getId(), tipo,
-                        inicioDoDia(OffsetDateTime.now())) >= properties.eventosRepetidosDiaMaximo()) return;
-        salvarSeguro(RecomendacaoEvento.builder().account(account).tipo(tipo).produto(produto)
+        OffsetDateTime agora = OffsetDateTime.now();
+        RecomendacaoEvento evento = RecomendacaoEvento.builder().account(account).tipo(tipo).produto(produto)
                 .categoria(produto.getCategoria()).sebo(produto.getSebo()).pedido(pedido)
                 .tipoProduto(produto.getCategoria() == null ? null : produto.getCategoria().getSlug())
                 .genero(produto.getBookGenre() == null ? null : produto.getBookGenre().name())
                 .autorArtista(normalizarTexto(produto.getAutor()))
-                .faixaPreco(FaixaPrecoRecomendacao.de(produto.getPreco()).name()).build());
+                .faixaPreco(FaixaPrecoRecomendacao.de(produto.getPreco()).name()).build();
+        executarSeguro(tipo, () -> {
+            if (tipo == TipoEventoRecomendacao.VISUALIZACAO) {
+                persistence.salvarVisualizacao(evento, agora.minusMinutes(properties.janelaVisualizacaoMinutos()),
+                        inicioDoDia(agora), properties.eventosRepetidosDiaMaximo());
+            } else if (tipo == TipoEventoRecomendacao.COMPRA_CONCLUIDA) {
+                persistence.salvarCompra(evento);
+            } else {
+                persistence.salvar(evento);
+            }
+        });
     }
 
     private boolean rastreavel(Account account) {
         return account != null && account.getId() != null && account.getType() == AccountType.USUARIO;
     }
 
-    private void salvarSeguro(RecomendacaoEvento evento) {
+    private void executarSeguro(TipoEventoRecomendacao tipo, Runnable registro) {
         try {
-            persistence.salvar(evento);
+            registro.run();
         } catch (RuntimeException exception) {
-            log.warn("Falha ao registrar evento de recomendacao do tipo {}", evento.getTipo());
+            log.warn("Falha ao registrar evento de recomendacao do tipo {}", tipo);
         }
     }
 

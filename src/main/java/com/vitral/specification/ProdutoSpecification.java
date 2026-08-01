@@ -58,6 +58,12 @@ public class ProdutoSpecification {
         return (root, query, cb) -> cb.equal(root.get("categoria").get("id"), categoriaId);
     }
 
+    public static Specification<Produto> dasCategorias(Collection<Long> categoriaIds) {
+        return (root, query, cb) -> categoriaIds == null || categoriaIds.isEmpty()
+                ? cb.disjunction()
+                : root.get("categoria").get("id").in(categoriaIds);
+    }
+
     public static Specification<Produto> comBookGenre(BookGenre bookGenre) {
         return (root, query, cb) -> cb.equal(root.get("bookGenre"), bookGenre);
     }

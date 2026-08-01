@@ -15,7 +15,7 @@ class RecomendacaoEventoRepositoryTest {
     @Autowired RecomendacaoEventoRepository repository;
 
     @Test void consultaAgregadaDePopularidadeFuncionaSemHistorico() {
-        assertThat(repository.pontuacaoPopularidade(OffsetDateTime.now().minusDays(90))).isEmpty();
+        assertThat(repository.contagemPorProdutoETipo(OffsetDateTime.now().minusDays(90))).isEmpty();
     }
 
     @Test void limpezaDeRetencaoECompativelComUsuariosExistentes() {

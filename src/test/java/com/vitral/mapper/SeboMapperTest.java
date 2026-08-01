@@ -35,4 +35,44 @@ class SeboMapperTest {
         assertThat(response.dataCriacao()).isEqualTo(dataCriacao);
         assertThat(response.ultimaAtividade()).isEqualTo(ultimaAtividade);
     }
+
+    @Test
+    void toResponse_retornaCnpjCompletoSemMascaraParaODonoDoSebo() {
+        Account account = Account.builder().name("Sebo").email("sebo@vitral.com").type(AccountType.SEBO).build();
+        Sebo sebo = Sebo.builder().account(account).cnpj("83877580000127").build();
+
+        SeboResponse response = mapper.toResponse(sebo);
+
+        assertThat(response.cnpj()).isEqualTo("83877580000127");
+    }
+
+    @Test
+    void toResponseComDistancia_retornaCnpjCompletoSemMascaraParaODonoDoSebo() {
+        Account account = Account.builder().name("Sebo").email("sebo@vitral.com").type(AccountType.SEBO).build();
+        Sebo sebo = Sebo.builder().account(account).cnpj("83877580000127").build();
+
+        SeboResponse response = mapper.toResponse(sebo, 12.3);
+
+        assertThat(response.cnpj()).isEqualTo("83877580000127");
+    }
+
+    @Test
+    void toPublicResponse_mascaraOCnpjParaVisitantes() {
+        Account account = Account.builder().name("Sebo").email("sebo@vitral.com").type(AccountType.SEBO).build();
+        Sebo sebo = Sebo.builder().account(account).cnpj("83877580000127").build();
+
+        SeboResponse response = mapper.toPublicResponse(sebo);
+
+        assertThat(response.cnpj()).isEqualTo("**.***.***/****-27");
+    }
+
+    @Test
+    void toPublicResponseComDistancia_mascaraOCnpjParaVisitantes() {
+        Account account = Account.builder().name("Sebo").email("sebo@vitral.com").type(AccountType.SEBO).build();
+        Sebo sebo = Sebo.builder().account(account).cnpj("83877580000127").build();
+
+        SeboResponse response = mapper.toPublicResponse(sebo, 5.0);
+
+        assertThat(response.cnpj()).isEqualTo("**.***.***/****-27");
+    }
 }

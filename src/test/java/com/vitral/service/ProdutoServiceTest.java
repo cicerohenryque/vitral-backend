@@ -38,7 +38,6 @@ import com.vitral.dto.VendedorProdutoResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.BaseEntity;
 import com.vitral.entity.Categoria;
-import com.vitral.entity.CatalogoLivro;
 import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
@@ -70,8 +69,6 @@ class ProdutoServiceTest {
     @Mock
     private PrecoService precoService;
 
-    @Mock
-    private CatalogoLivroService catalogoLivroService;
 
     @Mock
     private MovimentacaoEstoqueService movimentacaoEstoqueService;
@@ -115,7 +112,6 @@ class ProdutoServiceTest {
         setId(seboOutro, 2L);
 
         request = new ProdutoRequest(
-                null,
                 "Dom Casmurro",
                 7L,
                 com.vitral.enumerations.BookGenre.ROMANCE,
@@ -132,7 +128,7 @@ class ProdutoServiceTest {
     void shouldCreateProductLinkedToOwnerSeboWithAtivoTrue() {
         Categoria categoria = Categoria.builder().nome("Livros").slug("livros").build();
         setId(categoria, 7L);
-        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, null, null, null, null, request.titulo(), request.autor(),
+        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, null, null, request.titulo(), request.autor(),
                 request.descricao(), request.preco(), null, request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
 
         when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
@@ -159,9 +155,9 @@ class ProdutoServiceTest {
     void criar_estoqueNulo_usaPadraoECategoria() {
         Categoria categoria = Categoria.builder().nome("Livros").slug("livros").build();
         setId(categoria, 7L);
-        ProdutoRequest requestSemEstoque = new ProdutoRequest(null, "Dom Casmurro", 7L, "Machado",
+        ProdutoRequest requestSemEstoque = new ProdutoRequest( "Dom Casmurro", 7L, "Machado",
                 "Descricao", BigDecimal.TEN, null, CondicaoProduto.USADO, null);
-        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, 7L, "Romance", null, null,
+        ProdutoResponse responseEsperado = new ProdutoResponse(1L, 1L, 7L, "Romance",
                 "Dom Casmurro", "Machado", "Descricao", BigDecimal.TEN, null, 1, CondicaoProduto.USADO, null, true);
 
         when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
@@ -203,7 +199,7 @@ class ProdutoServiceTest {
                 .ativo(Boolean.TRUE)
                 .build();
         setId(produto, 50L);
-        ProdutoResponse esperado = new ProdutoResponse(50L, 1L, null, null, null, null, request.titulo(), request.autor(),
+        ProdutoResponse esperado = new ProdutoResponse(50L, 1L, null, null, request.titulo(), request.autor(),
                 request.descricao(), request.preco(), null, request.estoque(), request.condicao(), request.fotoUrl(), Boolean.TRUE);
 
         when(produtoRepository.findById(50L)).thenReturn(Optional.of(produto));
@@ -280,7 +276,7 @@ class ProdutoServiceTest {
     void shouldReturnActiveProductWhenSearchedById() {
         Produto produto = Produto.builder().sebo(seboDono).ativo(Boolean.TRUE).build();
         setId(produto, 5L);
-        ProdutoResponse esperado = new ProdutoResponse(5L, 1L, null, null, null, null, "T", null, null,
+        ProdutoResponse esperado = new ProdutoResponse(5L, 1L, null, null, "T", null, null,
                 BigDecimal.TEN, null, 1, CondicaoProduto.NOVO, null, Boolean.TRUE);
 
         when(produtoRepository.findByIdAndAtivoTrue(5L)).thenReturn(Optional.of(produto));
@@ -319,33 +315,8 @@ class ProdutoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve listar vendedores verificados do mesmo produto pelo menor preco efetivo")
-    void shouldListVerifiedSellersByEffectivePrice() {
-        CatalogoLivro catalogo = CatalogoLivro.builder().isbn("9788535914849").titulo("Dom Casmurro").build();
-        setId(catalogo, 20L);
-        Produto referencia = Produto.builder().sebo(seboDono).titulo("Dom Casmurro")
-                .catalogoLivro(catalogo).preco(new BigDecimal("50.00")).estoque(2)
-                .condicao(CondicaoProduto.USADO).ativo(true).build();
-        setId(referencia, 10L);
-        Produto concorrente = Produto.builder().sebo(seboOutro).titulo("dom casmurro").catalogoLivro(catalogo)
-                .preco(new BigDecimal("40.00")).estoque(1).condicao(CondicaoProduto.SEMINOVO).ativo(true).build();
-        setId(concorrente, 11L);
-
-        when(produtoRepository.findByIdAndAtivoTrue(10L)).thenReturn(Optional.of(referencia));
-        when(produtoRepository.vendedoresAtivosPorCatalogo(20L))
-                .thenReturn(List.of(referencia, concorrente));
-        when(precoService.precoPromocionalVigente(referencia)).thenReturn(Optional.of(new BigDecimal("45.00")));
-        when(precoService.precoPromocionalVigente(concorrente)).thenReturn(Optional.empty());
-
-        List<VendedorProdutoResponse> vendedores = produtoService.listarVendedores(10L);
-
-        assertThat(vendedores).extracting(VendedorProdutoResponse::produtoId).containsExactly(11L, 10L);
-        assertThat(vendedores.getFirst().precoEfetivo()).isEqualByComparingTo("40.00");
-    }
-
-    @Test
-    @DisplayName("Deve listar apenas o produto de referencia quando nao ha catalogo")
-    void listarVendedores_semCatalogo_retornaReferencia() {
+    @DisplayName("Deve listar apenas o produto de referencia como vendedor")
+    void shouldListOnlyReferenceProductAsSeller() {
         Produto referencia = Produto.builder().sebo(seboDono).titulo("Avulso")
                 .preco(new BigDecimal("30.00")).estoque(2).condicao(CondicaoProduto.USADO)
                 .ativo(true).build();
@@ -360,26 +331,6 @@ class ProdutoServiceTest {
         assertThat(vendedores.getFirst().precoEfetivo()).isEqualByComparingTo("30.00");
     }
 
-    @Test
-    @DisplayName("Deve registrar venda fisica pelo endpoint legado")
-    void registrarVendaFisica_delegaParaMovimentacaoEstoque() {
-        Produto produto = Produto.builder().sebo(seboDono).preco(new BigDecimal("50.00")).ativo(true).build();
-        setId(produto, 10L);
-        ProdutoResponse esperado = new ProdutoResponse(10L, 1L, null, null, null, null, "Dom", null, null,
-                BigDecimal.TEN, null, 2, CondicaoProduto.USADO, null, true);
-        when(produtoRepository.findById(10L)).thenReturn(Optional.of(produto));
-        when(precoService.precoEfetivo(produto)).thenReturn(new BigDecimal("45.00"));
-        when(precoService.precoPromocionalVigente(produto)).thenReturn(Optional.of(new BigDecimal("45.00")));
-        when(produtoMapper.toResponse(produto, new BigDecimal("45.00"))).thenReturn(esperado);
-
-        ProdutoResponse response = produtoService.registrarVendaFisica(contaDona, 10L, new com.vitral.dto.VendaFisicaRequest(2));
-
-        assertThat(response).isSameAs(esperado);
-        verify(movimentacaoEstoqueService).registrarVendaFisica(eq(contaDona),
-                org.mockito.ArgumentMatchers.argThat(req -> req.produtoId().equals(10L)
-                        && req.quantidade().equals(2)
-                        && req.valorUnitario().compareTo(new BigDecimal("45.00")) == 0));
-    }
 
     @Test
     @DisplayName("Deve listar produtos ativos de um sebo de forma paginada")
@@ -390,8 +341,8 @@ class ProdutoServiceTest {
         setId(p2, 2L);
         Pageable pageable = PageRequest.of(0, 10);
         Page<Produto> pagina = new PageImpl<>(List.of(p1, p2), pageable, 2);
-        ProdutoResponse r1 = new ProdutoResponse(1L, 1L, null, null, null, null, "A", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
-        ProdutoResponse r2 = new ProdutoResponse(2L, 1L, null, null, null, null, "B", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
+        ProdutoResponse r1 = new ProdutoResponse(1L, 1L, null, null, "A", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
+        ProdutoResponse r2 = new ProdutoResponse(2L, 1L, null, null, "B", null, null, BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
 
         when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(pagina);
@@ -413,7 +364,7 @@ class ProdutoServiceTest {
         Produto produto = Produto.builder().sebo(seboDono).categoria(categoria).ativo(true).build();
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
-        ProdutoResponse response = new ProdutoResponse(1L, 1L, 7L, "Romance", null, null, "A", null, null,
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, 7L, "Romance", "A", null, null,
                 BigDecimal.ONE, null, 1, CondicaoProduto.NOVO, null, true);
         when(categoriaService.buscarPermitida(7L)).thenReturn(categoria);
         when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
@@ -433,7 +384,7 @@ class ProdutoServiceTest {
         Produto produto = Produto.builder().sebo(seboDono).ativo(true).build();
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
-        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, null, null, "Lancamento", null, null,
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Lancamento", null, null,
                 BigDecimal.TEN, null, 2, CondicaoProduto.NOVO, null, true);
         when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
@@ -452,7 +403,7 @@ class ProdutoServiceTest {
         Produto produto = Produto.builder().sebo(seboDono).ativo(true).build();
         setId(produto, 1L);
         Pageable pageable = PageRequest.of(0, 10);
-        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, null, null, "Classico", null, null,
+        ProdutoResponse response = new ProdutoResponse(1L, 1L, null, null, "Classico", null, null,
                 BigDecimal.TEN, null, 1, CondicaoProduto.USADO, null, true);
         when(produtoRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Produto>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(produto), pageable, 1));
@@ -498,7 +449,7 @@ class ProdutoServiceTest {
     void criarProduto_persisteClassicoELancamentoExplicitamente() {
         Categoria livros = Categoria.builder().nome("Livros").slug("livros").build();
         setId(livros, 7L);
-        ProdutoRequest classificado = new ProdutoRequest(null, "Edicao especial", 7L, null, "Autor", null,
+        ProdutoRequest classificado = new ProdutoRequest("Edicao especial", 7L, null, "Autor", null,
                 BigDecimal.TEN, 1, CondicaoProduto.NOVO, null, true, true);
         when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
         when(categoriaService.buscarPermitida(7L)).thenReturn(livros);
@@ -516,7 +467,7 @@ class ProdutoServiceTest {
     void criarProdutoNasQuatroCategoriasOficiais(String slug) {
         Categoria categoria = Categoria.builder().nome(slug).slug(slug).build();
         setId(categoria, 7L);
-        ProdutoRequest produtoSemGenero = new ProdutoRequest(null, "Produto", 7L, null, null,
+        ProdutoRequest produtoSemGenero = new ProdutoRequest( "Produto", 7L, null, null,
                 BigDecimal.TEN, 1, CondicaoProduto.NOVO, null);
         when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
         when(categoriaService.buscarPermitida(7L)).thenReturn(categoria);
@@ -532,7 +483,7 @@ class ProdutoServiceTest {
     void criarCdComGenero_rejeitaPayloadInconsistente() {
         Categoria cds = Categoria.builder().nome("CDs").slug("cds").build();
         setId(cds, 8L);
-        ProdutoRequest cd = new ProdutoRequest(null, "Album", 8L,
+        ProdutoRequest cd = new ProdutoRequest( "Album", 8L,
                 com.vitral.enumerations.BookGenre.FANTASIA, null, null, BigDecimal.TEN, 1,
                 CondicaoProduto.NOVO, null);
         when(seboService.buscarEntidadePorAccount(100L)).thenReturn(seboDono);
@@ -552,7 +503,7 @@ class ProdutoServiceTest {
                 .bookGenre(com.vitral.enumerations.BookGenre.FANTASIA).preco(BigDecimal.TEN)
                 .condicao(CondicaoProduto.USADO).ativo(true).build();
         setId(produto, 90L);
-        ProdutoRequest vinil = new ProdutoRequest(null, "Disco", 9L, null, null,
+        ProdutoRequest vinil = new ProdutoRequest( "Disco", 9L, null, null,
                 BigDecimal.TEN, 1, CondicaoProduto.USADO, null);
         when(produtoRepository.findById(90L)).thenReturn(Optional.of(produto));
         when(categoriaService.buscarPermitida(9L)).thenReturn(vinis);

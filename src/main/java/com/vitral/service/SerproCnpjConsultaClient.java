@@ -16,9 +16,9 @@ public class SerproCnpjConsultaClient implements CnpjConsultaClient {
 
     @Override
     public Resultado consultar(String cnpj) {
-        if (!properties.enabled()) return indisponivel("Consulta automatica nao configurada");
+        if (!properties.enabled()) return semIntegracaoConfigurada("Consulta automatica nao configurada");
         if (vazio(properties.clientId()) || vazio(properties.clientSecret()) || vazio(properties.tokenUrl()) || vazio(properties.consultaUrl())) {
-            return indisponivel("Credenciais da consulta CNPJ incompletas");
+            return semIntegracaoConfigurada("Credenciais da consulta CNPJ incompletas");
         }
         try {
             var form = new LinkedMultiValueMap<String, String>();
@@ -46,6 +46,21 @@ public class SerproCnpjConsultaClient implements CnpjConsultaClient {
     private String primeiroTexto(JsonNode body, String... campos) {
         for (String campo : campos) if (body.hasNonNull(campo) && !body.path(campo).asText().isBlank()) return body.path(campo).asText();
         return null;
+    }
+
+    /**
+     * MOCK TEMPORARIO (ainda nao existe integracao SERPRO configurada em producao):
+     * quando a consulta automatica nao esta disponivel (desabilitada ou sem credenciais),
+     * considera o CNPJ ativo em vez de travar a aprovacao do sebo em INDISPONIVEL para
+     * sempre. Defina app.cnpj-consulta.mock-auto-aprovar=false quando a integracao real
+     * (SERPRO ou equivalente) estiver configurada, para que a consulta oficial volte a valer.
+     */
+    private Resultado semIntegracaoConfigurada(String motivo) {
+        if (!properties.mockAutoAprovar()) {
+            return indisponivel(motivo);
+        }
+        return new Resultado(null, StatusConsultaCnpj.ATIVA,
+                "Mock: " + motivo + ". CNPJ considerado ativo ate a integracao oficial ser configurada.");
     }
 
     private Resultado indisponivel(String mensagem) { return new Resultado(null, StatusConsultaCnpj.INDISPONIVEL, mensagem); }

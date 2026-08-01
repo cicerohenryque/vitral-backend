@@ -33,7 +33,6 @@ import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.CondicaoProduto;
 import com.vitral.enumerations.StatusVerificacaoSebo;
-import com.vitral.enumerations.TipoOperacaoSebo;
 import com.vitral.mapper.ProdutoMapper;
 import com.vitral.mapper.SeboMapper;
 import com.vitral.repository.ProdutoRepository;
@@ -96,7 +95,7 @@ class BuscaServiceTest {
                 .build();
         ReflectionTestUtils.setField(produto, "id", 1L);
 
-        produtoResponse = new ProdutoResponse(1L, 1L, null, null, null, null, "Dom Casmurro", null, null,
+        produtoResponse = new ProdutoResponse(1L, 1L, null, null, "Dom Casmurro", null, null,
                 BigDecimal.valueOf(25.00), null, 1, CondicaoProduto.USADO, null, true);
     }
 
@@ -134,7 +133,7 @@ class BuscaServiceTest {
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
         when(seboMapper.toPublicResponse(sebo)).thenReturn(seboResponse);
 
-        Page<SeboResponse> resultado = buscaService.buscarSebos(null, TipoOperacaoSebo.HIBRIDO, null, null, pageable);
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
         verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
@@ -147,7 +146,7 @@ class BuscaServiceTest {
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
         when(seboMapper.toPublicResponse(sebo)).thenReturn(seboResponse);
 
-        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, "Joao Pessoa", null, pageable);
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, "Joao Pessoa", null, pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
         verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
@@ -160,7 +159,7 @@ class BuscaServiceTest {
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
         when(seboMapper.toPublicResponse(sebo)).thenReturn(seboResponse);
 
-        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, "pb", pageable);
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, "pb", pageable);
 
         assertThat(resultado.getContent()).hasSize(1);
         verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
@@ -280,7 +279,7 @@ class BuscaServiceTest {
                 .thenAnswer(inv -> responseComDistancia(3L, "SemCoordenadas", inv.getArgument(1)));
 
         // Referencia proxima a Joao Pessoa/PB
-        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, null, -7.1150, -34.8631, pageable);
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, -7.1150, -34.8631, pageable);
 
         assertThat(resultado.getContent()).extracting(SeboResponse::nome)
                 .containsExactly("Proximo", "Distante", "SemCoordenadas");
@@ -297,7 +296,7 @@ class BuscaServiceTest {
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
         when(seboMapper.toPublicResponse(sebo)).thenReturn(seboResponse);
 
-        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, null, -7.1150, null, pageable);
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, -7.1150, null, pageable);
 
         assertThat(resultado.getContent()).containsExactly(seboResponse);
         verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
@@ -305,7 +304,7 @@ class BuscaServiceTest {
 
     private SeboResponse responseComDistancia(Long id, String nome, Double distanciaKm) {
         return new SeboResponse(id, 1L, nome, nome + "@email.com", null, null, String.valueOf(id),
-                StatusVerificacaoSebo.VERIFICADO, null, null, null, null, null, null, null, null, null, null, null,
+                StatusVerificacaoSebo.VERIFICADO, null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, distanciaKm);
     }
 

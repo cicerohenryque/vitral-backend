@@ -65,7 +65,6 @@ CREATE TABLE sebo (
     longitude              DOUBLE PRECISION,
     data_criacao           TIMESTAMP,
     ultima_atividade       TIMESTAMP,
-    tipo_operacao          VARCHAR(20) NOT NULL DEFAULT 'VIRTUAL',
     confirmado             BOOLEAN     NOT NULL DEFAULT FALSE,
     created_at             TIMESTAMP    NOT NULL,
     updated_at             TIMESTAMP    NOT NULL,
@@ -125,29 +124,15 @@ CREATE TABLE categoria (
     CONSTRAINT uk_categoria_slug UNIQUE (slug)
 );
 
-CREATE TABLE catalogo_livro (
-    id             BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    isbn           VARCHAR(13) NOT NULL UNIQUE,
-    titulo         VARCHAR(255) NOT NULL,
-    autores        VARCHAR(500),
-    editora        VARCHAR(255),
-    edicao         VARCHAR(100),
-    ano_publicacao INTEGER,
-    idioma         VARCHAR(50),
-    capa_url       VARCHAR(500),
-    created_at     TIMESTAMP NOT NULL,
-    updated_at     TIMESTAMP NOT NULL
-);
-
 CREATE TABLE produto (
     id          BIGINT         NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     sebo_id     BIGINT         NOT NULL,
     categoria_id BIGINT,
     book_genre VARCHAR(20),
-    catalogo_livro_id BIGINT,
     titulo      VARCHAR(255)   NOT NULL,
     autor       VARCHAR(255),
     descricao   VARCHAR(2000),
+    ano         INTEGER,
     preco       NUMERIC(12, 2) NOT NULL,
     estoque     INTEGER        NOT NULL DEFAULT 1,
     condicao    VARCHAR(20)    NOT NULL,
@@ -159,7 +144,6 @@ CREATE TABLE produto (
     updated_at  TIMESTAMP      NOT NULL,
     CONSTRAINT fk_produto_sebo FOREIGN KEY (sebo_id) REFERENCES sebo (id) ON DELETE CASCADE,
     CONSTRAINT fk_produto_categoria FOREIGN KEY (categoria_id) REFERENCES categoria (id),
-    CONSTRAINT fk_produto_catalogo FOREIGN KEY (catalogo_livro_id) REFERENCES catalogo_livro (id),
     CONSTRAINT ck_produto_condicao CHECK (condicao IN ('NOVO', 'USADO', 'SEMINOVO')),
     CONSTRAINT ck_produto_preco CHECK (preco >= 0),
     CONSTRAINT ck_produto_estoque CHECK (estoque >= 0)
@@ -310,3 +294,6 @@ CREATE INDEX idx_rec_usuario_data ON recomendacao_evento(account_id, created_at)
 CREATE INDEX idx_rec_usuario_tipo_data ON recomendacao_evento(account_id, tipo, created_at);
 CREATE INDEX idx_rec_produto_data ON recomendacao_evento(produto_id, created_at);
 CREATE INDEX idx_rec_categoria_data ON recomendacao_evento(categoria_id, created_at);
+-- Equivalente ao indice parcial da V35: o H2 nao suporta indice com WHERE, e como pedido_id
+-- so e preenchido em eventos de compra, o indice completo cobre o mesmo caso.
+CREATE UNIQUE INDEX uk_rec_compra_pedido_produto ON recomendacao_evento(pedido_id, produto_id, tipo);

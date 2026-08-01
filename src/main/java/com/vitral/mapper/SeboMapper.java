@@ -10,18 +10,18 @@ import com.vitral.entity.Sebo;
 @Mapper(componentModel = "spring")
 public interface SeboMapper {
 
+    // toResponse() e usado apenas pelo dono do sebo (criar/atualizar/"/me") ou por um ADMIN
+    // revisando documentos: ambos precisam ver o CNPJ completo, sem mascara.
     @Mapping(target = "accountId", source = "account.id")
     @Mapping(target = "nome", source = "account.name")
     @Mapping(target = "email", source = "account.email")
     @Mapping(target = "distanciaKm", ignore = true)
-    @Mapping(target = "cnpj", source = "cnpj", qualifiedByName = "maskCnpj")
     SeboResponse toResponse(Sebo sebo);
 
     @Mapping(target = "accountId", source = "sebo.account.id")
     @Mapping(target = "nome", source = "sebo.account.name")
     @Mapping(target = "email", source = "sebo.account.email")
     @Mapping(target = "distanciaKm", source = "distanciaKm")
-    @Mapping(target = "cnpj", source = "sebo.cnpj", qualifiedByName = "maskCnpj")
     SeboResponse toResponse(Sebo sebo, Double distanciaKm);
 
     @Mapping(target = "accountId", source = "account.id")

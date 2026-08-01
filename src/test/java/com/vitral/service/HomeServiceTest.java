@@ -53,8 +53,7 @@ class HomeServiceTest {
     @BeforeEach
     void setUp() {
         homeService = new HomeService(produtoRepository, categoriaRepository, produtoMapper, precoService, seboService,
-                recomendacaoService, new com.vitral.config.RecomendacaoProperties(
-                        1000, 200, 20, 30, 365, 30, 3, 90, 50));
+                recomendacaoService, new com.vitral.config.RecomendacaoProperties(1000, 200, 20, 30, 365, 30, 3, 90, 50, 90));
         livros = Categoria.builder().nome("Livros").slug("livros").build();
         setId(livros, 10L);
         classico = produto(1L, "Classico", true, false);
@@ -65,7 +64,7 @@ class HomeServiceTest {
     @Test
     void visitanteRecebeSecoesSemDuplicacaoComTodosOsProdutosETotal() {
         prepararPaginas();
-        when(categoriaRepository.findComProdutosDisponiveis(null)).thenReturn(List.of(livros));
+        when(categoriaRepository.findComProdutosDisponiveis(null, com.vitral.service.CategoriaService.SLUGS_PERMITIDOS)).thenReturn(List.of(livros));
         when(produtoRepository.count(org.mockito.ArgumentMatchers.<Specification<Produto>>any())).thenReturn(9L);
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(any(), any())).thenAnswer(i -> response(i.getArgument(0)));
@@ -98,7 +97,7 @@ class HomeServiceTest {
         setId(sebo, 30L);
         when(seboService.buscarEntidadePorAccount(20L)).thenReturn(sebo);
         prepararPaginas();
-        when(categoriaRepository.findComProdutosDisponiveis(30L)).thenReturn(List.of(livros));
+        when(categoriaRepository.findComProdutosDisponiveis(30L, com.vitral.service.CategoriaService.SLUGS_PERMITIDOS)).thenReturn(List.of(livros));
         when(produtoRepository.count(org.mockito.ArgumentMatchers.<Specification<Produto>>any())).thenReturn(1L);
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(any(), any())).thenAnswer(i -> response(i.getArgument(0)));
@@ -106,7 +105,7 @@ class HomeServiceTest {
         homeService.carregar(account);
 
         verify(seboService).buscarEntidadePorAccount(20L);
-        verify(categoriaRepository).findComProdutosDisponiveis(30L);
+        verify(categoriaRepository).findComProdutosDisponiveis(30L, com.vitral.service.CategoriaService.SLUGS_PERMITIDOS);
     }
 
     @Test
@@ -117,7 +116,7 @@ class HomeServiceTest {
                 new com.vitral.dto.HomeSectionResponse("Recomendados para voce", List.of(response(categoriaProduto)), 1));
         when(produtoRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(classico)), new PageImpl<>(List.of(lancamento)));
-        when(categoriaRepository.findComProdutosDisponiveis(null)).thenReturn(List.of());
+        when(categoriaRepository.findComProdutosDisponiveis(null, com.vitral.service.CategoriaService.SLUGS_PERMITIDOS)).thenReturn(List.of());
         when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         when(produtoMapper.toResponse(any(), any())).thenAnswer(i -> response(i.getArgument(0)));
 
@@ -147,7 +146,7 @@ class HomeServiceTest {
 
     private ProdutoResponse response(Produto produto) {
         return new ProdutoResponse(produto.getId(), produto.getSebo().getId(), produto.getSebo().getAccount().getName(),
-                livros.getId(), livros.getNome(), null, null, null, produto.getTitulo(), null, null,
+                livros.getId(), livros.getNome(), null, produto.getTitulo(), null, null, null,
                 produto.getPreco(), null, produto.getEstoque(), produto.getCondicao(), null, true, true,
                 produto.getClassico(), produto.getLancamento(), null);
     }

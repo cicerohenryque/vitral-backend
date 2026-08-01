@@ -2,7 +2,6 @@ package com.vitral.dto;
 
 import com.vitral.enumerations.StatusVerificacaoSebo;
 import com.vitral.enumerations.StatusConsultaCnpj;
-import com.vitral.enumerations.TipoOperacaoSebo;
 import java.time.OffsetDateTime;
 
 public record SeboResponse(
@@ -20,7 +19,6 @@ public record SeboResponse(
         OffsetDateTime cnpjConsultadoEm,
         String mensagemConsultaCnpj,
         String fotoUrl,
-        TipoOperacaoSebo tipoOperacao,
         String cep,
         String logradouro,
         String cidade,
@@ -46,7 +44,6 @@ public record SeboResponse(
             OffsetDateTime cnpjConsultadoEm,
             String mensagemConsultaCnpj,
             String fotoUrl,
-            TipoOperacaoSebo tipoOperacao,
             String cep,
             String logradouro,
             String cidade,
@@ -57,7 +54,7 @@ public record SeboResponse(
             Boolean confirmado) {
         this(id, accountId, nome, email, descricao, telefone, cnpj, statusVerificacao, motivoRejeicao,
                 razaoSocialReceita, statusConsultaCnpj, cnpjConsultadoEm, mensagemConsultaCnpj, fotoUrl,
-                tipoOperacao, cep, logradouro, cidade, uf, horarioFuncionamento, dataCriacao, ultimaAtividade,
+                cep, logradouro, cidade, uf, horarioFuncionamento, dataCriacao, ultimaAtividade,
                 confirmado, null);
     }
 
@@ -75,11 +72,10 @@ public record SeboResponse(
             StatusConsultaCnpj statusConsultaCnpj,
             OffsetDateTime cnpjConsultadoEm,
             String mensagemConsultaCnpj,
-            String fotoUrl,
-            TipoOperacaoSebo tipoOperacao) {
+            String fotoUrl) {
         this(id, accountId, nome, email, descricao, telefone, cnpj, statusVerificacao, motivoRejeicao,
                 razaoSocialReceita, statusConsultaCnpj, cnpjConsultadoEm, mensagemConsultaCnpj, fotoUrl,
-                tipoOperacao, null, null, null, null, null, null, null, Boolean.FALSE);
+                null, null, null, null, null, null, null, Boolean.FALSE);
     }
 
     public SeboResponse(
@@ -97,11 +93,10 @@ public record SeboResponse(
             OffsetDateTime cnpjConsultadoEm,
             String mensagemConsultaCnpj,
             String fotoUrl,
-            TipoOperacaoSebo tipoOperacao,
             Boolean confirmado) {
         this(id, accountId, nome, email, descricao, telefone, cnpj, statusVerificacao, motivoRejeicao,
                 razaoSocialReceita, statusConsultaCnpj, cnpjConsultadoEm, mensagemConsultaCnpj, fotoUrl,
-                tipoOperacao, null, null, null, null, null, null, null, confirmado);
+                null, null, null, null, null, null, null, confirmado);
     }
 
     public SeboResponse(
@@ -119,7 +114,6 @@ public record SeboResponse(
             OffsetDateTime cnpjConsultadoEm,
             String mensagemConsultaCnpj,
             String fotoUrl,
-            TipoOperacaoSebo tipoOperacao,
             String cep,
             String logradouro,
             String cidade,
@@ -128,6 +122,6 @@ public record SeboResponse(
             Boolean confirmado) {
         this(id, accountId, nome, email, descricao, telefone, cnpj, statusVerificacao, motivoRejeicao,
                 razaoSocialReceita, statusConsultaCnpj, cnpjConsultadoEm, mensagemConsultaCnpj, fotoUrl,
-                tipoOperacao, cep, logradouro, cidade, uf, horarioFuncionamento, null, null, confirmado);
+                cep, logradouro, cidade, uf, horarioFuncionamento, null, null, confirmado);
     }
 }

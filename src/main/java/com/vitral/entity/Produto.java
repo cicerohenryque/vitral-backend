@@ -43,10 +43,6 @@ public class Produto extends BaseEntity {
     @Column(name = "book_genre", length = 20)
     private BookGenre bookGenre;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "catalogo_livro_id")
-    private CatalogoLivro catalogoLivro;
-
     @Column(nullable = false, length = 255)
     private String titulo;
 
@@ -55,6 +51,9 @@ public class Produto extends BaseEntity {
 
     @Column(length = 2000)
     private String descricao;
+
+    @Column(name = "ano")
+    private Integer ano;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal preco;

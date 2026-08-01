@@ -19,10 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 import com.vitral.dto.PageResponse;
 import com.vitral.dto.ProdutoRequest;
 import com.vitral.dto.ProdutoResponse;
-import com.vitral.dto.VendaFisicaRequest;
+import com.vitral.dto.SugestaoProdutoResponse;
 import com.vitral.dto.VendedorProdutoResponse;
 import java.util.List;
 import com.vitral.security.AccountUserDetails;
+import com.vitral.service.MetadadosProdutoService;
 import com.vitral.service.ProdutoService;
 import com.vitral.enumerations.BookGenre;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -39,6 +40,14 @@ import lombok.RequiredArgsConstructor;
 public class ProdutoController {
 
     private final ProdutoService produtoService;
+    private final MetadadosProdutoService metadadosProdutoService;
+
+    @GetMapping("/sugestoes")
+    @PreAuthorize("hasRole('SEBO')")
+    @Operation(summary = "Sugere metadados de um produto a partir do titulo, consultando catalogos publicos")
+    public ResponseEntity<List<SugestaoProdutoResponse>> sugestoes(@RequestParam String termo) {
+        return ResponseEntity.ok(metadadosProdutoService.sugerir(termo));
+    }
 
     @PostMapping
     @PreAuthorize("hasRole('SEBO')")
@@ -63,16 +72,6 @@ public class ProdutoController {
             @PathVariable Long id) {
         produtoService.remover(principal.getAccount(), id);
         return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{id}/venda-fisica")
-    @PreAuthorize("hasRole('SEBO')")
-    @Operation(summary = "Registra uma venda presencial e sincroniza o estoque compartilhado")
-    public ResponseEntity<ProdutoResponse> registrarVendaFisica(
-            @AuthenticationPrincipal AccountUserDetails principal,
-            @PathVariable Long id,
-            @Valid @RequestBody VendaFisicaRequest request) {
-        return ResponseEntity.ok(produtoService.registrarVendaFisica(principal.getAccount(), id, request));
     }
 
     @GetMapping("/{id}")

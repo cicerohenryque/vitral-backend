@@ -33,7 +33,6 @@ import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.repository.CestaItemRepository;
 import com.vitral.repository.PedidoRepository;
 import com.vitral.repository.SeboRepository;
-import com.vitral.repository.MovimentacaoEstoqueRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -51,7 +50,6 @@ public class PedidoService {
     private final EmailService emailService;
     private final PrecoService precoService;
     private final MovimentacaoEstoqueService movimentacaoEstoqueService;
-    private final MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
     private final PerfilCompraValidator perfilCompraValidator;
     private final RecomendacaoEventoService recomendacaoEventoService;
 
@@ -265,19 +263,13 @@ public class PedidoService {
         Sebo sebo = seboRepository.findByAccountId(account.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
         Map<Integer, BigDecimal> online = porMes(pedidoRepository.vendasOnlineMensais(sebo.getId(), ano));
-        Map<Integer, BigDecimal> fisicas = porMes(movimentacaoEstoqueRepository.vendasFisicasMensais(sebo.getId(), ano));
-        Map<Integer, BigDecimal> estornos = porMes(movimentacaoEstoqueRepository.estornosFisicosMensais(sebo.getId(), ano));
         Map<Integer, BigDecimal> reembolsos = porMes(pedidoRepository.reembolsosMensais(sebo.getId(), ano));
         return java.util.stream.IntStream.rangeClosed(1, 12)
                 .mapToObj(mes -> {
                     BigDecimal vendasOnline = online.getOrDefault(mes, BigDecimal.ZERO);
-                    BigDecimal vendasFisicas = fisicas.getOrDefault(mes, BigDecimal.ZERO);
-                    BigDecimal valorEstornos = estornos.getOrDefault(mes, BigDecimal.ZERO);
                     BigDecimal valorReembolsos = reembolsos.getOrDefault(mes, BigDecimal.ZERO);
-                    BigDecimal deducoes = valorEstornos.add(valorReembolsos);
-                    BigDecimal liquido = vendasOnline.add(vendasFisicas).subtract(deducoes);
-                    return new FaturamentoMensalResponse(ano, mes, vendasOnline, vendasFisicas,
-                            valorEstornos, valorReembolsos, deducoes, liquido, liquido);
+                    BigDecimal liquido = vendasOnline.subtract(valorReembolsos);
+                    return new FaturamentoMensalResponse(ano, mes, vendasOnline, valorReembolsos, liquido, liquido);
                 })
                 .toList();
     }

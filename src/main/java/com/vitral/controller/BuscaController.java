@@ -13,7 +13,6 @@ import com.vitral.dto.PageResponse;
 import com.vitral.dto.ProdutoResponse;
 import com.vitral.dto.SeboResponse;
 import com.vitral.enumerations.CondicaoProduto;
-import com.vitral.enumerations.TipoOperacaoSebo;
 import com.vitral.enumerations.BookGenre;
 import com.vitral.service.BuscaService;
 
@@ -36,14 +35,13 @@ public class BuscaController {
             + "ordena por proximidade quando lat/lng sao informados")
     public ResponseEntity<PageResponse<SeboResponse>> buscarSebos(
             @RequestParam(required = false) String q,
-            @RequestParam(required = false) TipoOperacaoSebo tipoOperacao,
             @RequestParam(required = false) String cidade,
             @RequestParam(required = false) String uf,
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng,
             Pageable pageable) {
         return ResponseEntity.ok(
-                PageResponse.from(buscaService.buscarSebos(q, tipoOperacao, cidade, uf, lat, lng, pageable)));
+                PageResponse.from(buscaService.buscarSebos(q, cidade, uf, lat, lng, pageable)));
     }
 
     @GetMapping("/produtos")

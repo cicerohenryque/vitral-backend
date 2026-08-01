@@ -3,6 +3,8 @@ package com.vitral.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
 
@@ -16,6 +18,7 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -50,11 +53,11 @@ class RecomendacaoServiceTest {
 
     @BeforeEach void setUp() {
         service = new RecomendacaoService(eventoRepository, produtoRepository, produtoMapper, precoService,
-                new RecenciaRecomendacaoService(), new RecomendacaoProperties(1000, 200, 20, 30, 365, 30, 3, 90, 50));
+                new RecenciaRecomendacaoService(), new RecomendacaoProperties(1000, 200, 20, 30, 365, 30, 3, 90, 50, 90));
         usuario = Account.builder().type(AccountType.USUARIO).build(); set(usuario, "id", 1L);
         livros = Categoria.builder().nome("Livros").slug("livros").build(); set(livros, "id", 10L);
         vinis = Categoria.builder().nome("Vinis").slug("vinis").build(); set(vinis, "id", 20L);
-        lenient().when(eventoRepository.pontuacaoPopularidade(any())).thenReturn(List.of());
+        lenient().when(eventoRepository.contagemPorProdutoETipo(any())).thenReturn(List.of());
         lenient().when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         lenient().when(produtoMapper.toResponse(any(), any())).thenAnswer(i -> response(i.getArgument(0)));
     }
@@ -93,6 +96,63 @@ class RecomendacaoServiceTest {
                 .extracting(ProdutoResponse::id).doesNotHaveDuplicates();
     }
 
+    @Test void naoRecomendaProdutoCompradoRecentemente() {
+        Produto livro = produto(1L, livros, 101L);
+        RecomendacaoEvento compra = RecomendacaoEvento.builder().account(usuario)
+                .tipo(TipoEventoRecomendacao.COMPRA_CONCLUIDA).categoria(livros).produto(livro).build();
+        set(compra, "createdAt", OffsetDateTime.now().minusDays(1));
+        when(eventoRepository.findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any()))
+                .thenReturn(List.of(compra));
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        service.recomendar(usuario, PageRequest.of(0, 10), Set.of());
+
+        ArgumentCaptor<org.springframework.data.jpa.domain.Specification<Produto>> captor =
+                ArgumentCaptor.forClass(org.springframework.data.jpa.domain.Specification.class);
+        verify(produtoRepository, atLeastOnce()).findAll(captor.capture(), any(PageRequest.class));
+        assertThat(captor.getAllValues()).isNotEmpty();
+    }
+
+    @Test void buscaCandidatosTambemNasCategoriasDeInteresse() {
+        Produto livro = produto(1L, livros, 101L);
+        RecomendacaoEvento evento = RecomendacaoEvento.builder().account(usuario)
+                .tipo(TipoEventoRecomendacao.COMPRA_CONCLUIDA).categoria(livros).tipoProduto("livros").build();
+        set(evento, "createdAt", OffsetDateTime.now().minusDays(1));
+        when(eventoRepository.findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any()))
+                .thenReturn(List.of(evento));
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(livro)));
+
+        service.recomendar(usuario, PageRequest.of(0, 10), Set.of());
+
+        verify(produtoRepository, org.mockito.Mockito.times(2))
+                .findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class));
+    }
+
+    @Test void popularidadeUsaOPesoDefinidoNoEnumDeEvento() {
+        Produto popular = produto(1L, livros, 101L);
+        Produto comum = produto(2L, livros, 102L);
+        when(eventoRepository.findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any()))
+                .thenReturn(List.of());
+        when(eventoRepository.contagemPorProdutoETipo(any()))
+                .thenReturn(List.of(contagem(1L, TipoEventoRecomendacao.COMPRA_CONCLUIDA, 2L)));
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(comum, popular)));
+
+        assertThat(service.recomendar(usuario, PageRequest.of(0, 10), Set.of()).getContent())
+                .extracting(ProdutoResponse::id).containsExactly(1L, 2L);
+    }
+
+    private com.vitral.repository.ProdutoEventoContagemProjection contagem(Long produtoId,
+            TipoEventoRecomendacao tipo, long quantidade) {
+        return new com.vitral.repository.ProdutoEventoContagemProjection() {
+            @Override public Long getProdutoId() { return produtoId; }
+            @Override public TipoEventoRecomendacao getTipo() { return tipo; }
+            @Override public long getQuantidade() { return quantidade; }
+        };
+    }
+
     @Test void rejeitaPaginaAcimaDoLimiteConfigurado() {
         assertThatThrownBy(() -> service.recomendar(usuario, PageRequest.of(0, 51), Set.of()))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("50");
@@ -108,7 +168,7 @@ class RecomendacaoServiceTest {
 
     private ProdutoResponse response(Produto p) {
         return new ProdutoResponse(p.getId(), p.getSebo().getId(), "Sebo", p.getCategoria().getId(),
-                p.getCategoria().getNome(), null, null, null, p.getTitulo(), null, null, p.getPreco(), null,
+                p.getCategoria().getNome(), null, p.getTitulo(), null, null, null, p.getPreco(), null,
                 1, CondicaoProduto.NOVO, null, true, true, false, false, null);
     }
 

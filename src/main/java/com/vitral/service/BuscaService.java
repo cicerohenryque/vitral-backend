@@ -19,7 +19,6 @@ import com.vitral.entity.Account;
 import com.vitral.entity.Categoria;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.CondicaoProduto;
-import com.vitral.enumerations.TipoOperacaoSebo;
 import com.vitral.enumerations.BookGenre;
 import com.vitral.service.CategoriaService;
 import com.vitral.mapper.ProdutoMapper;
@@ -46,25 +45,21 @@ public class BuscaService {
 
     @Transactional(readOnly = true)
     public Page<SeboResponse> buscarSebos(String termo, Pageable pageable) {
-        return buscarSebos(termo, null, null, null, pageable);
+        return buscarSebos(termo, null, null, pageable);
     }
 
     @Transactional(readOnly = true)
-    public Page<SeboResponse> buscarSebos(String termo, TipoOperacaoSebo tipoOperacao,
-            String cidade, String uf, Pageable pageable) {
-        return buscarSebos(termo, tipoOperacao, cidade, uf, null, null, pageable);
+    public Page<SeboResponse> buscarSebos(String termo, String cidade, String uf, Pageable pageable) {
+        return buscarSebos(termo, cidade, uf, null, null, pageable);
     }
 
     @Transactional(readOnly = true)
-    public Page<SeboResponse> buscarSebos(String termo, TipoOperacaoSebo tipoOperacao,
-            String cidade, String uf, Double lat, Double lng, Pageable pageable) {
+    public Page<SeboResponse> buscarSebos(String termo, String cidade, String uf, Double lat, Double lng,
+            Pageable pageable) {
         Specification<Sebo> spec = SeboSpecification.ativo();
 
         if (termo != null && !termo.isBlank()) {
             spec = spec.and(SeboSpecification.nomeContem(termo));
-        }
-        if (tipoOperacao != null) {
-            spec = spec.and(SeboSpecification.tipoOperacao(tipoOperacao));
         }
         if (cidade != null && !cidade.isBlank()) {
             spec = spec.and(SeboSpecification.cidadeContem(cidade));

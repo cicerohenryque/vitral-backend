@@ -41,18 +41,10 @@ public interface RecomendacaoEventoRepository extends JpaRepository<Recomendacao
     int excluirEventosAntigos(@Param("limite") OffsetDateTime limite);
 
     @Query("""
-            select e.produto.id as produtoId,
-                   sum(case e.tipo
-                       when com.vitral.enumerations.TipoEventoRecomendacao.COMPRA_CONCLUIDA then 10.0
-                       when com.vitral.enumerations.TipoEventoRecomendacao.CESTA_ADICIONADO then 6.0
-                       when com.vitral.enumerations.TipoEventoRecomendacao.FAVORITO_ADICIONADO then 4.0
-                       when com.vitral.enumerations.TipoEventoRecomendacao.VISUALIZACAO then 2.0
-                       when com.vitral.enumerations.TipoEventoRecomendacao.CESTA_REMOVIDO then -3.0
-                       when com.vitral.enumerations.TipoEventoRecomendacao.FAVORITO_REMOVIDO then -4.0
-                       else 0.0 end) as pontuacao
+            select e.produto.id as produtoId, e.tipo as tipo, count(e) as quantidade
             from RecomendacaoEvento e
             where e.produto is not null and e.createdAt >= :inicio
-            group by e.produto.id
+            group by e.produto.id, e.tipo
             """)
-    List<ProdutoPopularidadeProjection> pontuacaoPopularidade(@Param("inicio") OffsetDateTime inicio);
+    List<ProdutoEventoContagemProjection> contagemPorProdutoETipo(@Param("inicio") OffsetDateTime inicio);
 }

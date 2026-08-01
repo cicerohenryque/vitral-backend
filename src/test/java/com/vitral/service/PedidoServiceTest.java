@@ -44,7 +44,6 @@ import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.repository.CestaItemRepository;
 import com.vitral.repository.PedidoRepository;
 import com.vitral.repository.SeboRepository;
-import com.vitral.repository.MovimentacaoEstoqueRepository;
 
 @ExtendWith(MockitoExtension.class)
 class PedidoServiceTest {
@@ -66,9 +65,6 @@ class PedidoServiceTest {
 
     @Mock
     private MovimentacaoEstoqueService movimentacaoEstoqueService;
-
-    @Mock
-    private MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
 
     @Mock
     private PerfilCompraValidator perfilCompraValidator;
@@ -534,17 +530,13 @@ class PedidoServiceTest {
     }
 
     @Test
-    @DisplayName("Faturamento mensal deve consolidar vendas online, fisicas e estornos")
+    @DisplayName("Faturamento mensal deve consolidar vendas online e reembolsos")
     void faturamentoMensal_consolidaOrigens() {
         Account seboAccount = buildSeboAccount(1L);
         Sebo sebo = buildSebo(seboAccount, 5L);
         when(seboRepository.findByAccountId(1L)).thenReturn(Optional.of(sebo));
         when(pedidoRepository.vendasOnlineMensais(5L, 2026))
                 .thenReturn(List.<Object[]>of(new Object[] { 3, new BigDecimal("100.00") }));
-        when(movimentacaoEstoqueRepository.vendasFisicasMensais(5L, 2026))
-                .thenReturn(List.<Object[]>of(new Object[] { 3, new BigDecimal("40.00") }));
-        when(movimentacaoEstoqueRepository.estornosFisicosMensais(5L, 2026))
-                .thenReturn(List.<Object[]>of(new Object[] { 4, new BigDecimal("10.00") }));
         when(pedidoRepository.reembolsosMensais(5L, 2026))
                 .thenReturn(List.<Object[]>of(new Object[] { 3, new BigDecimal("25.00") }));
 
@@ -552,12 +544,9 @@ class PedidoServiceTest {
 
         assertThat(resultado).hasSize(12);
         assertThat(resultado.get(2).vendasOnline()).isEqualByComparingTo("100.00");
-        assertThat(resultado.get(2).vendasFisicas()).isEqualByComparingTo("40.00");
         assertThat(resultado.get(2).reembolsos()).isEqualByComparingTo("25.00");
-        assertThat(resultado.get(2).estornosReembolsos()).isEqualByComparingTo("25.00");
-        assertThat(resultado.get(2).total()).isEqualByComparingTo("115.00");
-        assertThat(resultado.get(2).totalLiquido()).isEqualByComparingTo("115.00");
-        assertThat(resultado.get(3).estornos()).isEqualByComparingTo("10.00");
-        assertThat(resultado.get(3).totalLiquido()).isEqualByComparingTo("-10.00");
+        assertThat(resultado.get(2).total()).isEqualByComparingTo("75.00");
+        assertThat(resultado.get(2).totalLiquido()).isEqualByComparingTo("75.00");
+        assertThat(resultado.get(3).total()).isEqualByComparingTo("0.00");
     }
 }

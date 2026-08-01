@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.vitral.entity.Sebo;
-import com.vitral.enumerations.TipoOperacaoSebo;
 
 import lombok.RequiredArgsConstructor;
 
@@ -18,8 +17,7 @@ public class SeboGeocodingService {
     private final GeocodingClient client;
 
     public void geocodificar(Sebo sebo) {
-        if (sebo.getTipoOperacao() == TipoOperacaoSebo.VIRTUAL
-                || sebo.getCidade() == null || sebo.getUf() == null) {
+        if (sebo.getCidade() == null || sebo.getUf() == null) {
             sebo.setLatitude(null);
             sebo.setLongitude(null);
             return;

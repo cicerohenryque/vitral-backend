@@ -99,7 +99,8 @@ public class HomeService {
     private List<HomeCategoriaResponse> montarCategorias(Specification<Produto> base, Long seboId,
             Set<Long> destacados) {
         List<HomeCategoriaResponse> resultado = new ArrayList<>();
-        for (Categoria categoria : categoriaRepository.findComProdutosDisponiveis(seboId)) {
+        for (Categoria categoria : categoriaRepository.findComProdutosDisponiveis(seboId,
+                CategoriaService.SLUGS_PERMITIDOS)) {
             Specification<Produto> categoriaBase = base.and(ProdutoSpecification.daCategoria(categoria.getId()));
             long total = produtoRepository.count(categoriaBase);
             Page<Produto> page = produtoRepository.findAll(

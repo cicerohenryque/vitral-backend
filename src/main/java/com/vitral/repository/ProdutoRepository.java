@@ -18,7 +18,7 @@ import com.vitral.entity.Produto;
 public interface ProdutoRepository extends JpaRepository<Produto, Long>, JpaSpecificationExecutor<Produto> {
 
     @Override
-    @EntityGraph(attributePaths = {"categoria", "catalogoLivro", "sebo", "sebo.account"})
+    @EntityGraph(attributePaths = {"categoria", "sebo", "sebo.account"})
     Page<Produto> findAll(Specification<Produto> spec, Pageable pageable);
 
     Optional<Produto> findByIdAndAtivoTrue(Long id);
@@ -37,13 +37,4 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long>, JpaSpec
     @Query("update Produto p set p.ativo = false where p.sebo.id = :seboId")
     int desativarCatalogoDoSebo(@Param("seboId") Long seboId);
 
-    @Query("""
-            select p from Produto p
-            where p.catalogoLivro.id = :catalogoLivroId
-              and p.ativo = true
-              and p.estoque > 0
-              and p.sebo.account.ativo = true
-              and p.sebo.statusVerificacao = com.vitral.enumerations.StatusVerificacaoSebo.VERIFICADO
-            """)
-    List<Produto> vendedoresAtivosPorCatalogo(@Param("catalogoLivroId") Long catalogoLivroId);
 }

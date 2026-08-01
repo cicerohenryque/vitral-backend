@@ -29,7 +29,6 @@ import com.vitral.enumerations.StatusConsultaCnpj;
 import com.vitral.enumerations.StatusDocumentoSebo;
 import com.vitral.enumerations.StatusVerificacaoSebo;
 import com.vitral.enumerations.TipoDocumentoSebo;
-import com.vitral.enumerations.TipoOperacaoSebo;
 import com.vitral.security.AccountUserDetails;
 import com.vitral.service.CnpjConsultaService;
 import com.vitral.service.SeboService;
@@ -51,11 +50,11 @@ class SeboControllerTest {
     private SeboController controller;
 
     @Test
-    void criarRetornaCreatedEPerfilVirtualPorPadrao() {
+    void criarRetornaCreatedComEnderecoObrigatorio() {
         Account account = account(AccountType.SEBO);
         AccountUserDetails principal = new AccountUserDetails(account);
-        SeboRequest request = new SeboRequest("Sebo online", "85999999999", "12345678000195", null, null);
-        SeboResponse response = seboResponse(TipoOperacaoSebo.VIRTUAL, false);
+        SeboRequest request = new SeboRequest("Sebo online", "85999999999", "12345678000195", null, "58000000", "Rua das Letras", "Joao Pessoa", "PB");
+        SeboResponse response = seboResponse(false);
         when(seboService.criar(account, request)).thenReturn(response);
 
         var result = controller.criar(principal, request);
@@ -69,7 +68,7 @@ class SeboControllerTest {
     void revisarVerificacaoUsaMotivoDoCorpoQuandoInformado() {
         Account admin = account(AccountType.ADMIN);
         AccountUserDetails principal = new AccountUserDetails(admin);
-        SeboResponse response = seboResponse(TipoOperacaoSebo.HIBRIDO, true);
+        SeboResponse response = seboResponse(true);
         when(verificacaoSeboService.revisar(admin, 10L, StatusVerificacaoSebo.REJEITADO, "Documento ilegivel"))
                 .thenReturn(response);
 
@@ -129,7 +128,7 @@ class SeboControllerTest {
     @Test
     void listarPendentesConvertePageParaContratoEstavel() {
         var pageable = PageRequest.of(0, 5);
-        SeboResponse sebo = seboResponse(TipoOperacaoSebo.FISICO, false);
+        SeboResponse sebo = seboResponse(false);
         when(seboService.listarPendentes(pageable)).thenReturn(new PageImpl<>(List.of(sebo), pageable, 1));
 
         var result = controller.listarPendentes(pageable);
@@ -142,10 +141,10 @@ class SeboControllerTest {
         return Account.builder().type(type).email("user@vitral.com").passwordHash("hash").ativo(true).build();
     }
 
-    private SeboResponse seboResponse(TipoOperacaoSebo tipoOperacao, boolean confirmado) {
+    private SeboResponse seboResponse(boolean confirmado) {
         return new SeboResponse(10L, 1L, "Sebo Vitral", "sebo@vitral.com", "Descricao", "85999999999",
                 "12345678000195", StatusVerificacaoSebo.PENDENTE, null, "Vitral LTDA",
-                StatusConsultaCnpj.ATIVA, OffsetDateTime.now(), "CNPJ ativo", null, tipoOperacao, confirmado);
+                StatusConsultaCnpj.ATIVA, OffsetDateTime.now(), "CNPJ ativo", null, confirmado);
     }
 
     private DocumentoVerificacaoSeboResponse documentoResponse() {

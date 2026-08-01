@@ -62,8 +62,9 @@ public class VerificacaoSeboService {
         sebo.setVerificadoEm(null);
         sebo.setMotivoRejeicao(null);
         sebo.setConfirmado(false);
+        DocumentoVerificacaoSebo salvo = documentoRepository.save(documento);
         aprovarAutomaticamenteEnquantoNaoHaAdmin(sebo);
-        return toResponse(documentoRepository.save(documento), metadataPorNome(nomeInterno));
+        return toResponse(salvo, metadataPorNome(nomeInterno));
     }
 
     @Transactional
@@ -81,8 +82,9 @@ public class VerificacaoSeboService {
         sebo.setVerificadoEm(null);
         sebo.setMotivoRejeicao(null);
         sebo.setConfirmado(false);
+        DocumentoVerificacaoSebo salvo = documentoRepository.save(documento);
         aprovarAutomaticamenteEnquantoNaoHaAdmin(sebo);
-        return toResponse(documentoRepository.save(documento), metadata);
+        return toResponse(salvo, metadata);
     }
 
     @Transactional(readOnly = true)
@@ -144,9 +146,9 @@ public class VerificacaoSeboService {
 
     /**
      * MOCK TEMPORARIO (ainda nao existe conta ADMIN para revisar cadastros):
-     * aprova o sebo automaticamente, pulando a analise manual normalmente feita
-     * em revisar(). Defina app.sebo-verificacao.mock-auto-aprovar=false (ou
-     * remova este metodo e as chamadas a ele) quando houver um ADMIN operando.
+     * aprova o sebo e os documentos pendentes automaticamente, pulando a analise
+     * manual normalmente feita em revisar(). Defina app.sebo-verificacao.mock-auto-aprovar=false
+     * (ou remova este metodo e as chamadas a ele) quando houver um ADMIN operando.
      */
     private void aprovarAutomaticamenteEnquantoNaoHaAdmin(Sebo sebo) {
         if (!mockAutoAprovarVerificacao) {
@@ -156,6 +158,14 @@ public class VerificacaoSeboService {
         sebo.setVerificadoEm(OffsetDateTime.now());
         sebo.setMotivoRejeicao(null);
         sebo.setConfirmado(Boolean.TRUE);
+        OffsetDateTime agora = OffsetDateTime.now();
+        documentoRepository.findBySeboIdOrderByEnviadoEmDesc(sebo.getId()).stream()
+                .filter(d -> d.getStatus() == StatusDocumentoSebo.PENDENTE)
+                .forEach(d -> {
+                    d.setStatus(StatusDocumentoSebo.APROVADO);
+                    d.setAnalisadoEm(agora);
+                    d.setMotivoRejeicao(null);
+                });
     }
 
     private Sebo buscarPorAccount(Account account) {

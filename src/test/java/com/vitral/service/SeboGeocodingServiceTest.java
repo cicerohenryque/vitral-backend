@@ -14,7 +14,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.vitral.entity.Sebo;
-import com.vitral.enumerations.TipoOperacaoSebo;
 
 @ExtendWith(MockitoExtension.class)
 class SeboGeocodingServiceTest {
@@ -29,7 +28,6 @@ class SeboGeocodingServiceTest {
     @DisplayName("Deve limpar as coordenadas quando o sebo for virtual")
     void geocodificar_seboVirtual_limpaCoordenadas() {
         Sebo sebo = Sebo.builder()
-                .tipoOperacao(TipoOperacaoSebo.VIRTUAL)
                 .latitude(-7.12)
                 .longitude(-34.88)
                 .build();
@@ -44,7 +42,6 @@ class SeboGeocodingServiceTest {
     @DisplayName("Deve limpar as coordenadas quando o sebo fisico nao tiver cidade/UF")
     void geocodificar_seboFisicoSemCidadeUf_limpaCoordenadas() {
         Sebo sebo = Sebo.builder()
-                .tipoOperacao(TipoOperacaoSebo.FISICO)
                 .cidade(null)
                 .uf(null)
                 .latitude(-7.12)
@@ -61,7 +58,6 @@ class SeboGeocodingServiceTest {
     @DisplayName("Deve definir latitude e longitude quando o endereco completo for encontrado")
     void geocodificar_enderecoCompletoEncontrado_definirLatLng() {
         Sebo sebo = Sebo.builder()
-                .tipoOperacao(TipoOperacaoSebo.FISICO)
                 .logradouro("Rua das Letras")
                 .cidade("Joao Pessoa")
                 .uf("PB")
@@ -80,7 +76,6 @@ class SeboGeocodingServiceTest {
     @DisplayName("Deve tentar apenas cidade/UF quando o endereco completo nao for encontrado")
     void geocodificar_enderecoCompletoNaoEncontrado_tentaCidadeUf() {
         Sebo sebo = Sebo.builder()
-                .tipoOperacao(TipoOperacaoSebo.HIBRIDO)
                 .logradouro("Rua Desconhecida, 999")
                 .cidade("Brejo Santo")
                 .uf("CE")
@@ -100,7 +95,6 @@ class SeboGeocodingServiceTest {
     @DisplayName("Deve limpar coordenadas quando nem o endereco completo nem a cidade forem encontrados")
     void geocodificar_nenhumaConsultaEncontrada_limpaCoordenadas() {
         Sebo sebo = Sebo.builder()
-                .tipoOperacao(TipoOperacaoSebo.FISICO)
                 .logradouro("Rua X")
                 .cidade("Cidade Inexistente")
                 .uf("XX")
@@ -120,7 +114,6 @@ class SeboGeocodingServiceTest {
     @DisplayName("Deve limpar coordenadas quando o cliente lancar excecao (best-effort)")
     void geocodificar_clienteLancaExcecao_limpaCoordenadasSemPropagar() {
         Sebo sebo = Sebo.builder()
-                .tipoOperacao(TipoOperacaoSebo.HIBRIDO)
                 .logradouro("Rua Y")
                 .cidade("Campina Grande")
                 .uf("PB")

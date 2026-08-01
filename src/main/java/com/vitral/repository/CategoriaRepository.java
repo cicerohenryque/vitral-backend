@@ -27,10 +27,12 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     @Query("""
             select distinct c from Produto p join p.categoria c
             where p.ativo = true and p.estoque > 0
+              and c.slug in :slugs
               and p.sebo.account.ativo = true
               and p.sebo.statusVerificacao = com.vitral.enumerations.StatusVerificacaoSebo.VERIFICADO
               and (:seboId is null or p.sebo.id = :seboId)
             order by c.nome
             """)
-    List<Categoria> findComProdutosDisponiveis(@Param("seboId") Long seboId);
+    List<Categoria> findComProdutosDisponiveis(@Param("seboId") Long seboId,
+            @Param("slugs") Collection<String> slugs);
 }

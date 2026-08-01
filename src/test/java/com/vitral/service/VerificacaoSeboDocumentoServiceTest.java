@@ -101,12 +101,42 @@ class VerificacaoSeboDocumentoServiceTest {
         when(uploadRepository.existsByNomeInternoAndSeboAccountId("arquivo.pdf", 1L)).thenReturn(true);
         when(documentoRepository.save(org.mockito.ArgumentMatchers.any(DocumentoVerificacaoSebo.class)))
                 .thenReturn(documento);
+        when(documentoRepository.findBySeboIdOrderByEnviadoEmDesc(10L)).thenReturn(List.of(documento));
 
         service.enviarDocumento(account, new DocumentoVerificacaoSeboRequest(TipoDocumentoSebo.CONTRATO_SOCIAL, url));
 
         assertThat(sebo.getStatusVerificacao()).isEqualTo(StatusVerificacaoSebo.VERIFICADO);
         assertThat(sebo.getVerificadoEm()).isNotNull();
         assertThat(sebo.getConfirmado()).isTrue();
+        assertThat(documento.getStatus()).isEqualTo(StatusDocumentoSebo.APROVADO);
+        assertThat(documento.getAnalisadoEm()).isNotNull();
+    }
+
+    @Test
+    void enviarDocumentoComMockAtivo_aprovaTambemDocumentosAntigosAindaPendentes() {
+        ReflectionTestUtils.setField(service, "mockAutoAprovarVerificacao", true);
+        String urlNovo = "/api/v1/uploads/documents/novo.pdf";
+        DocumentoVerificacaoSebo documentoAntigo1 = DocumentoVerificacaoSebo.builder()
+                .sebo(sebo).tipoDocumento(TipoDocumentoSebo.CARTAO_CNPJ)
+                .arquivoUrl("/api/v1/uploads/documents/antigo1.pdf").status(StatusDocumentoSebo.PENDENTE).build();
+        DocumentoVerificacaoSebo documentoAntigo2 = DocumentoVerificacaoSebo.builder()
+                .sebo(sebo).tipoDocumento(TipoDocumentoSebo.CARTAO_CNPJ)
+                .arquivoUrl("/api/v1/uploads/documents/antigo2.pdf").status(StatusDocumentoSebo.PENDENTE).build();
+        DocumentoVerificacaoSebo documentoNovo = DocumentoVerificacaoSebo.builder()
+                .sebo(sebo).tipoDocumento(TipoDocumentoSebo.CARTAO_CNPJ).arquivoUrl(urlNovo)
+                .status(StatusDocumentoSebo.PENDENTE).build();
+
+        when(uploadRepository.existsByNomeInternoAndSeboAccountId("novo.pdf", 1L)).thenReturn(true);
+        when(documentoRepository.save(org.mockito.ArgumentMatchers.any(DocumentoVerificacaoSebo.class)))
+                .thenReturn(documentoNovo);
+        when(documentoRepository.findBySeboIdOrderByEnviadoEmDesc(10L))
+                .thenReturn(List.of(documentoNovo, documentoAntigo1, documentoAntigo2));
+
+        service.enviarDocumento(account, new DocumentoVerificacaoSeboRequest(TipoDocumentoSebo.CARTAO_CNPJ, urlNovo));
+
+        assertThat(documentoNovo.getStatus()).isEqualTo(StatusDocumentoSebo.APROVADO);
+        assertThat(documentoAntigo1.getStatus()).isEqualTo(StatusDocumentoSebo.APROVADO);
+        assertThat(documentoAntigo2.getStatus()).isEqualTo(StatusDocumentoSebo.APROVADO);
     }
 
     @Test
@@ -145,7 +175,7 @@ class VerificacaoSeboDocumentoServiceTest {
         when(seboRepository.findById(10L)).thenReturn(Optional.of(sebo));
         when(documentoRepository.findBySeboIdOrderByEnviadoEmDesc(10L)).thenReturn(List.of(documento));
         when(seboMapper.toResponse(sebo)).thenReturn(new SeboResponse(10L, 1L, "Sebo", "sebo@vitral.com", null, null, null,
-                StatusVerificacaoSebo.VERIFICADO, null, null, StatusConsultaCnpj.ATIVA, null, null, null, null, true));
+                StatusVerificacaoSebo.VERIFICADO, null, null, StatusConsultaCnpj.ATIVA, null, null, null, true));
 
         service.revisar(admin, 10L, StatusVerificacaoSebo.VERIFICADO, null);
 
@@ -194,7 +224,7 @@ class VerificacaoSeboDocumentoServiceTest {
                 .sebo(sebo).status(StatusDocumentoSebo.PENDENTE).build();
         setId(documento, 5L);
         SeboResponse response = new SeboResponse(10L, 1L, "Sebo", "sebo@vitral.com", null, null, null,
-                StatusVerificacaoSebo.REJEITADO, "Documento vencido", null, StatusConsultaCnpj.ATIVA, null, null, null, null, false);
+                StatusVerificacaoSebo.REJEITADO, "Documento vencido", null, StatusConsultaCnpj.ATIVA, null, null, null, false);
 
         when(seboRepository.findById(10L)).thenReturn(Optional.of(sebo));
         when(documentoRepository.findBySeboIdOrderByEnviadoEmDesc(10L)).thenReturn(List.of(documento));

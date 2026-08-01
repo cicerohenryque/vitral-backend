@@ -122,7 +122,7 @@ class PedidoControllerTest {
     }
 
     private FaturamentoMensalResponse faturamento(int ano, int mes) {
-        return new FaturamentoMensalResponse(ano, mes, BigDecimal.valueOf(100), BigDecimal.valueOf(50),
-                BigDecimal.TEN, BigDecimal.ZERO, BigDecimal.TEN, BigDecimal.valueOf(150), BigDecimal.valueOf(140));
+        return new FaturamentoMensalResponse(ano, mes, BigDecimal.valueOf(100), BigDecimal.TEN,
+                BigDecimal.valueOf(90), BigDecimal.valueOf(90));
     }
 }

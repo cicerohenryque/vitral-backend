@@ -15,7 +15,6 @@ import com.vitral.entity.Account;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.StatusVerificacaoSebo;
-import com.vitral.enumerations.TipoOperacaoSebo;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import com.vitral.exception.BusinessException;
@@ -66,7 +65,7 @@ public class SeboService {
                 .cnpj(cnpj)
                 .fotoUrl(request.fotoUrl())
                 .build();
-        aplicarModalidade(sebo, request);
+        aplicarEndereco(sebo, request);
         seboGeocodingService.geocodificar(sebo);
         aprovarAutomaticamenteEnquantoNaoHaAdmin(sebo);
         OffsetDateTime agora = OffsetDateTime.now();
@@ -98,12 +97,11 @@ public class SeboService {
         }
         sebo.setFotoUrl(request.fotoUrl());
         String cepAntigo = sebo.getCep();
-        aplicarModalidade(sebo, request);
+        aplicarEndereco(sebo, request);
         boolean enderecoMudou = !java.util.Objects.equals(cepAntigo, sebo.getCep());
-        // Tambem tenta de novo se o sebo continua fisico/hibrido mas ainda esta sem
-        // coordenadas (ex.: tentativa anterior falhou ou o CEP nao mudou desta vez).
-        boolean aindaSemCoordenadas = sebo.getTipoOperacao() != TipoOperacaoSebo.VIRTUAL
-                && (sebo.getLatitude() == null || sebo.getLongitude() == null);
+        // Tenta de novo quando o sebo ainda esta sem coordenadas (ex.: tentativa anterior
+        // falhou ou o CEP nao mudou desta vez).
+        boolean aindaSemCoordenadas = sebo.getLatitude() == null || sebo.getLongitude() == null;
         if (enderecoMudou || aindaSemCoordenadas) {
             seboGeocodingService.geocodificar(sebo);
         }
@@ -152,19 +150,13 @@ public class SeboService {
         sebo.setUltimaAtividade(OffsetDateTime.now());
     }
 
-    private void aplicarModalidade(Sebo sebo, SeboRequest request) {
-        TipoOperacaoSebo tipo = request.tipoOperacao() == null ? TipoOperacaoSebo.VIRTUAL : request.tipoOperacao();
-        sebo.setTipoOperacao(tipo);
-        if (tipo == TipoOperacaoSebo.VIRTUAL) {
-            limparCamposFisicos(sebo);
-            return;
-        }
+    private void aplicarEndereco(Sebo sebo, SeboRequest request) {
         String cep = apenasDigitos(request.cep());
         String logradouro = trimToNull(request.logradouro());
         String cidade = trimToNull(request.cidade());
         String uf = trimToNull(request.uf());
         if (cep == null || logradouro == null || cidade == null || uf == null) {
-            throw new BusinessException("CEP, logradouro, cidade e UF sao obrigatorios para sebo fisico ou hibrido",
+            throw new BusinessException("CEP, logradouro, cidade e UF sao obrigatorios",
                     HttpStatus.BAD_REQUEST);
         }
         if (!cep.matches("\\d{8}")) {
@@ -178,16 +170,6 @@ public class SeboService {
         sebo.setCidade(cidade);
         sebo.setUf(uf.toUpperCase());
         sebo.setHorarioFuncionamento(trimToNull(request.horarioFuncionamento()));
-    }
-
-    private void limparCamposFisicos(Sebo sebo) {
-        sebo.setCep(null);
-        sebo.setLogradouro(null);
-        sebo.setCidade(null);
-        sebo.setUf(null);
-        sebo.setHorarioFuncionamento(null);
-        sebo.setLatitude(null);
-        sebo.setLongitude(null);
     }
 
     private String apenasDigitos(String valor) {
