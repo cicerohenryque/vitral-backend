@@ -65,14 +65,17 @@ public class AuthService {
                 .email(request.email())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .type(request.type())
-                .emailVerificado(false)
+                .emailVerificado(!emailService.isMailEnabled())
                 .build();
 
         Account saved = accountRepository.save(account);
 
-        enviarTokenConfirmacao(saved);
+        if (emailService.isMailEnabled()) {
+            enviarTokenConfirmacao(saved);
+            return new MensagemResponse("Cadastro realizado. Verifique seu e-mail para confirmar a conta.");
+        }
 
-        return new MensagemResponse("Cadastro realizado. Verifique seu e-mail para confirmar a conta.");
+        return new MensagemResponse("Cadastro realizado. Voce ja pode fazer login.");
     }
 
     @Transactional

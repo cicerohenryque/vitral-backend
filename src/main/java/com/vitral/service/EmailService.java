@@ -27,6 +27,10 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
+    public boolean isMailEnabled() {
+        return mailEnabled && mailSender != null;
+    }
+
     public void enviarMensagemSuporte(String remetenteNome, String remetenteEmail, String assunto, String mensagem) {
         if (!mailEnabled || mailSender == null) {
             return;
