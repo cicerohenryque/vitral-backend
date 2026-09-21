@@ -27,10 +27,10 @@ public class MensagemService {
     @Transactional
     public MensagemConversaResponse enviar(Account remetente, MensagemRequest request) {
         if (remetente.getId().equals(request.destinatarioId())) {
-            throw new BusinessException("Nao e possivel enviar mensagem para si mesmo", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Você não pode enviar uma mensagem para a própria conta.", HttpStatus.BAD_REQUEST);
         }
         Account destinatario = accountRepository.findById(request.destinatarioId())
-                .orElseThrow(() -> new ResourceNotFoundException("Destinatario nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O destinatário informado não foi encontrado."));
         Mensagem mensagem = Mensagem.builder()
                 .remetente(remetente)
                 .destinatario(destinatario)

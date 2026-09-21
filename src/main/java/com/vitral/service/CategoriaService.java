@@ -34,10 +34,10 @@ public class CategoriaService {
     public CategoriaResponse criar(CategoriaRequest request) {
         String slug = gerarSlug(request.nome());
         if (!SLUGS_PERMITIDOS_SET.contains(slug)) {
-            throw new BusinessException("Categoria invalida. Use Livros, CDs, Vinis ou HQs / Mangas", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("A categoria informada é inválida. Use Livros, CDs, Vinis ou HQs/Mangás.", HttpStatus.BAD_REQUEST);
         }
         if (categoriaRepository.existsBySlug(slug)) {
-            throw new ConflictException("Categoria ja cadastrada");
+            throw new ConflictException("Esta categoria já está cadastrada.");
         }
         Categoria categoria = Categoria.builder()
                 .nome(request.nome().trim())
@@ -55,15 +55,15 @@ public class CategoriaService {
     @Transactional(readOnly = true)
     public Categoria buscarEntidade(Long id) {
         return categoriaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Categoria nao encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("A categoria informada não foi encontrada."));
     }
 
     @Transactional(readOnly = true)
     public Categoria buscarPermitida(Long id) {
         Categoria categoria = categoriaRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Categoria invalida", HttpStatus.BAD_REQUEST));
+                .orElseThrow(() -> new BusinessException("A categoria informada é inválida.", HttpStatus.BAD_REQUEST));
         if (!SLUGS_PERMITIDOS_SET.contains(categoria.getSlug())) {
-            throw new BusinessException("Categoria invalida. Use Livros, CDs, Vinis ou HQs / Mangas", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("A categoria informada é inválida. Use Livros, CDs, Vinis ou HQs/Mangás.", HttpStatus.BAD_REQUEST);
         }
         return categoria;
     }

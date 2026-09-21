@@ -52,7 +52,7 @@ public class VerificacaoSeboService {
         Sebo sebo = buscarPorAccount(account);
         String nomeInterno = extrairNomeInterno(request.arquivoUrl());
         if (!uploadRepository.existsByNomeInternoAndSeboAccountId(nomeInterno, account.getId())) {
-            throw new BusinessException("O arquivo informado nao pertence ao sebo autenticado", HttpStatus.FORBIDDEN);
+            throw new BusinessException("O arquivo informado não pertence ao sebo autenticado.", HttpStatus.FORBIDDEN);
         }
         DocumentoVerificacaoSebo documento = DocumentoVerificacaoSebo.builder()
                 .sebo(sebo).tipoDocumento(request.tipoDocumento()).arquivoUrl(request.arquivoUrl())
@@ -70,7 +70,7 @@ public class VerificacaoSeboService {
     @Transactional
     public DocumentoVerificacaoSeboResponse enviarDocumento(Account account, TipoDocumentoSebo tipo, MultipartFile arquivo) {
         if (tipo == null) {
-            throw new BusinessException("Informe o tipo do documento", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Informe o tipo do documento que está sendo enviado.", HttpStatus.BAD_REQUEST);
         }
         Sebo sebo = buscarPorAccount(account);
         DocumentoUpload metadata = documentoUploadService.armazenarComMetadata(account, arquivo);
@@ -110,21 +110,21 @@ public class VerificacaoSeboService {
     @Transactional
     public SeboResponse revisar(Account admin, Long seboId, StatusVerificacaoSebo status, String motivo) {
         if (admin.getType() != AccountType.ADMIN) {
-            throw new BusinessException("Apenas administradores podem revisar sebos", HttpStatus.FORBIDDEN);
+            throw new BusinessException("Apenas administradores podem revisar cadastros de sebos.", HttpStatus.FORBIDDEN);
         }
         if (status == StatusVerificacaoSebo.PENDENTE) {
-            throw new BusinessException("Use VERIFICADO ou REJEITADO", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O status da revisão deve ser VERIFICADO ou REJEITADO.", HttpStatus.BAD_REQUEST);
         }
         if (status == StatusVerificacaoSebo.REJEITADO && (motivo == null || motivo.isBlank())) {
-            throw new BusinessException("Informe o motivo da rejeicao", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Informe o motivo da rejeição para orientar o responsável pelo sebo.", HttpStatus.BAD_REQUEST);
         }
         Sebo sebo = validarSebo(seboId);
         List<DocumentoVerificacaoSebo> documentos = documentoRepository.findBySeboIdOrderByEnviadoEmDesc(seboId);
         if (status == StatusVerificacaoSebo.VERIFICADO && documentos.isEmpty()) {
-            throw new BusinessException("Envie ao menos um documento antes da aprovacao", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Envie pelo menos um documento antes de aprovar o sebo.", HttpStatus.BAD_REQUEST);
         }
         if (status == StatusVerificacaoSebo.VERIFICADO && sebo.getStatusConsultaCnpj() != StatusConsultaCnpj.ATIVA) {
-            throw new BusinessException("O CNPJ precisa estar ativo na consulta oficial antes da aprovacao", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O CNPJ precisa estar ativo na consulta oficial antes da aprovação.", HttpStatus.BAD_REQUEST);
         }
         StatusVerificacaoSebo anterior = sebo.getStatusVerificacao();
         OffsetDateTime agora = OffsetDateTime.now();
@@ -170,11 +170,11 @@ public class VerificacaoSeboService {
 
     private Sebo buscarPorAccount(Account account) {
         return seboRepository.findByAccountId(account.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
+                .orElseThrow(() -> new ResourceNotFoundException("Nenhum sebo foi encontrado para esta conta."));
     }
 
     private Sebo validarSebo(Long id) {
-        return seboRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado"));
+        return seboRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("O sebo informado não foi encontrado."));
     }
 
     private DocumentoVerificacaoSeboResponse toResponse(DocumentoVerificacaoSebo d) {
@@ -204,11 +204,11 @@ public class VerificacaoSeboService {
 
     private String extrairNomeInterno(String url) {
         if (url == null || !url.startsWith(PREFIXO_DOCUMENTO)) {
-            throw new BusinessException("Use uma URL de documento gerada pelo backend", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Use uma URL de documento gerada pelo Vitral.", HttpStatus.BAD_REQUEST);
         }
         String nome = url.substring(PREFIXO_DOCUMENTO.length());
         if (nome.isBlank() || nome.contains("/") || nome.contains("\\") || nome.contains("..")) {
-            throw new BusinessException("URL de documento invalida", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("A URL do documento é inválida.", HttpStatus.BAD_REQUEST);
         }
         return nome;
     }

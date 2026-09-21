@@ -106,7 +106,7 @@ class DocumentoUploadServiceTest {
         DocumentoUploadService service = service(1024);
         var file = new MockMultipartFile("file", "falso.pdf", "application/pdf", "nao e pdf".getBytes());
         assertThatThrownBy(() -> service.armazenar(account, file)).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Conteudo de arquivo invalido");
+                .hasMessageContaining("conteúdo do arquivo é inválido");
     }
 
     @Test
@@ -114,14 +114,14 @@ class DocumentoUploadServiceTest {
         DocumentoUploadService service = service(4);
         var file = new MockMultipartFile("file", "contrato.pdf", "application/pdf", "%PDF-".getBytes());
         assertThatThrownBy(() -> service.armazenar(account, file)).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("tamanho maximo");
+                .hasMessageContaining("tamanho máximo permitido");
     }
 
     @Test
     void rejeitaExtensaoIncompativel() {
         var file = new MockMultipartFile("file", "contrato.txt", "application/pdf", "%PDF-1.7".getBytes());
         assertThatThrownBy(() -> service(1024).armazenar(account, file)).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("extensao");
+                .hasMessageContaining("extensão");
     }
 
     @Test
@@ -129,13 +129,13 @@ class DocumentoUploadServiceTest {
         var txt = new MockMultipartFile("file", "documento.txt", "text/plain", "texto".getBytes());
         assertThatThrownBy(() -> service(1024).armazenar(account, txt))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Formato invalido");
+                .hasMessageContaining("formato do documento é inválido");
 
         byte[] webp = {'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'};
         var falsoPng = new MockMultipartFile("file", "documento.png", "image/png", webp);
         assertThatThrownBy(() -> service(1024).armazenar(account, falsoPng))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("conteudo do arquivo");
+                .hasMessageContaining("conteúdo do arquivo");
     }
 
     @Test
@@ -172,7 +172,7 @@ class DocumentoUploadServiceTest {
                 .nomeOriginal("arquivo.pdf").mimeType("application/pdf").tamanhoBytes(10L).build();
         when(metadataRepository.findByNomeInterno("arquivo.pdf")).thenReturn(Optional.of(metadata));
         assertThatThrownBy(() -> service(1024).carregar(outro, "arquivo.pdf"))
-                .isInstanceOf(BusinessException.class).hasMessageContaining("Acesso negado");
+                .isInstanceOf(BusinessException.class).hasMessageContaining("não tem permissão");
     }
 
     @Test

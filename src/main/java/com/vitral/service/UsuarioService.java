@@ -49,10 +49,10 @@ public class UsuarioService {
         }
         String cpf = DocumentoFiscalUtils.somenteDigitos(valor);
         if (!DocumentoFiscalUtils.cpfValido(cpf)) {
-            throw new BusinessException("CPF invalido", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O CPF informado é inválido. Confira os 11 números.", HttpStatus.BAD_REQUEST);
         }
         if (accountRepository.existsByCpfAndIdNot(cpf, account.getId())) {
-            throw new ConflictException("CPF ja cadastrado");
+            throw new ConflictException("Já existe uma conta cadastrada com este CPF.");
         }
         account.setCpf(cpf);
     }
@@ -64,7 +64,7 @@ public class UsuarioService {
         }
         String cep = DocumentoFiscalUtils.somenteDigitos(valor);
         if (cep == null || cep.length() != 8) {
-            throw new BusinessException("CEP deve conter 8 numeros", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O CEP deve conter 8 números.", HttpStatus.BAD_REQUEST);
         }
         account.setCep(cep);
     }
@@ -76,6 +76,6 @@ public class UsuarioService {
     @Transactional
     public MensagemResponse excluirConta(Account account) {
         anonimizacaoContaService.anonimizarUsuario(account);
-        return new MensagemResponse("Conta excluida com sucesso");
+        return new MensagemResponse("Conta excluída com sucesso.");
     }
 }

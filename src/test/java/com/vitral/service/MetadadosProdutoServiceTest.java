@@ -208,7 +208,7 @@ class MetadadosProdutoServiceTest {
 
         assertThatThrownBy(() -> service.sugerir("ab"))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("ao menos 3 caracteres")
+                .hasMessageContaining("pelo menos 3 caracteres")
                 .satisfies(excecao -> assertThat(((BusinessException) excecao).getStatus())
                         .isEqualTo(HttpStatus.BAD_REQUEST));
     }

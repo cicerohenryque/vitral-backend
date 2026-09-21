@@ -46,14 +46,14 @@ public class SeboService {
     @Transactional
     public SeboResponse criar(Account account, SeboRequest request) {
         if (account.getType() != AccountType.SEBO) {
-            throw new BusinessException("Apenas contas do tipo SEBO podem criar perfil de sebo", HttpStatus.FORBIDDEN);
+            throw new BusinessException("Apenas contas do tipo sebo podem criar um perfil de sebo.", HttpStatus.FORBIDDEN);
         }
         if (seboRepository.existsByAccountId(account.getId())) {
-            throw new ConflictException("Sebo ja cadastrado para esta conta");
+            throw new ConflictException("Esta conta já possui um sebo cadastrado.");
         }
         String cnpj = validarCnpj(request.cnpj());
         if (seboRepository.existsByCnpj(cnpj)) {
-            throw new ConflictException("CNPJ ja cadastrado");
+            throw new ConflictException("Já existe um sebo cadastrado com este CNPJ.");
         }
         // Fluxo real: novo cadastro comeca PENDENTE ate um ADMIN revisar
         // (ver VerificacaoSeboService.revisar). Isso ja e o default da entidade Sebo.
@@ -79,13 +79,13 @@ public class SeboService {
     @Transactional
     public SeboResponse atualizarMeuSebo(Account account, SeboRequest request) {
         Sebo sebo = seboRepository.findByAccountId(account.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
+                .orElseThrow(() -> new ResourceNotFoundException("Nenhum sebo foi encontrado para esta conta."));
         sebo.setDescricao(request.descricao());
         sebo.setTelefone(request.telefone());
         String cnpj = validarCnpj(request.cnpj());
         if (!java.util.Objects.equals(sebo.getCnpj(), cnpj)) {
             if (seboRepository.existsByCnpjAndIdNot(cnpj, sebo.getId())) {
-                throw new ConflictException("CNPJ ja cadastrado");
+                throw new ConflictException("Já existe um sebo cadastrado com este CNPJ.");
             }
             sebo.setCnpj(cnpj);
             // Fluxo real: alterar o CNPJ reabre a verificacao (volta pra PENDENTE ate um ADMIN revisar).
@@ -119,7 +119,7 @@ public class SeboService {
     public SeboResponse buscarPorId(Long id) {
         Sebo sebo = seboRepository.findByIdAndAccountAtivoTrueAndStatusVerificacao(
                 id, StatusVerificacaoSebo.VERIFICADO)
-                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O sebo informado não foi encontrado."));
         return seboMapper.toPublicResponse(sebo);
     }
 
@@ -131,7 +131,7 @@ public class SeboService {
     @Transactional(readOnly = true)
     public Sebo buscarEntidadePorAccount(Long accountId) {
         return seboRepository.findByAccountId(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
+                .orElseThrow(() -> new ResourceNotFoundException("Nenhum sebo foi encontrado para esta conta."));
     }
 
     @Transactional(readOnly = true)
@@ -143,7 +143,7 @@ public class SeboService {
     @Transactional
     public MensagemResponse excluirConta(Account account) {
         anonimizacaoContaService.anonimizarSebo(account);
-        return new MensagemResponse("Conta do sebo excluida com sucesso");
+        return new MensagemResponse("Conta do sebo excluída com sucesso.");
     }
 
     public void registrarAtividade(Sebo sebo) {
@@ -156,14 +156,14 @@ public class SeboService {
         String cidade = trimToNull(request.cidade());
         String uf = trimToNull(request.uf());
         if (cep == null || logradouro == null || cidade == null || uf == null) {
-            throw new BusinessException("CEP, logradouro, cidade e UF sao obrigatorios",
+            throw new BusinessException("CEP, logradouro, cidade e UF são obrigatórios.",
                     HttpStatus.BAD_REQUEST);
         }
         if (!cep.matches("\\d{8}")) {
-            throw new BusinessException("CEP deve conter 8 numeros", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O CEP deve conter 8 números.", HttpStatus.BAD_REQUEST);
         }
         if (!UFS.contains(uf.toUpperCase())) {
-            throw new BusinessException("UF invalida", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("A UF informada é inválida. Use a sigla de um estado brasileiro.", HttpStatus.BAD_REQUEST);
         }
         sebo.setCep(cep);
         sebo.setLogradouro(logradouro);
@@ -184,7 +184,7 @@ public class SeboService {
     private String validarCnpj(String valor) {
         String cnpj = DocumentoFiscalUtils.somenteDigitos(valor);
         if (!DocumentoFiscalUtils.cnpjValido(cnpj)) {
-            throw new BusinessException("CNPJ invalido", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O CNPJ informado é inválido. Confira os 14 números.", HttpStatus.BAD_REQUEST);
         }
         return cnpj;
     }

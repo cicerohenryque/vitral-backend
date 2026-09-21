@@ -101,7 +101,7 @@ class UsuarioServiceTest {
 
         verify(anonimizacaoContaService).anonimizarUsuario(account);
         verify(accountRepository, never()).delete(account);
-        assertThat(response.mensagem()).isEqualTo("Conta excluida com sucesso");
+        assertThat(response.mensagem()).isEqualTo("Conta excluída com sucesso.");
     }
 
     @Test
@@ -122,11 +122,11 @@ class UsuarioServiceTest {
         AtualizarPerfilRequest invalido = new AtualizarPerfilRequest("Maria", null, "11111111111", "60000000",
                 "Rua", "1", null, "Centro", "Fortaleza", "CE");
         assertThatThrownBy(() -> usuarioService.atualizarPerfil(account, invalido))
-                .isInstanceOf(BusinessException.class).hasMessage("CPF invalido");
+                .isInstanceOf(BusinessException.class).hasMessage("O CPF informado é inválido. Confira os 11 números.");
 
         when(accountRepository.existsByCpfAndIdNot("52998224725", null)).thenReturn(true);
         assertThatThrownBy(() -> usuarioService.atualizarPerfil(account, perfil("Maria", null)))
-                .isInstanceOf(ConflictException.class).hasMessage("CPF ja cadastrado");
+                .isInstanceOf(ConflictException.class).hasMessage("Já existe uma conta cadastrada com este CPF.");
     }
 
     private AtualizarPerfilRequest perfil(String nome, String fotoUrl) {

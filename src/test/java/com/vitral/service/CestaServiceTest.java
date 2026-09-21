@@ -89,7 +89,7 @@ class CestaServiceTest {
 
         MensagemResponse response = cestaService.adicionarItem(account, 1L);
 
-        assertThat(response.mensagem()).isEqualTo("Produto adicionado a cesta");
+        assertThat(response.mensagem()).isEqualTo("Produto adicionado à cesta com sucesso.");
         assertThat(cestaItem.getQuantidade()).isEqualTo(2);
         verify(cestaItemRepository).save(cestaItem);
     }
@@ -115,7 +115,7 @@ class CestaServiceTest {
 
         MensagemResponse response = cestaService.adicionarItem(account, 1L);
 
-        assertThat(response.mensagem()).isEqualTo("Produto adicionado a cesta");
+        assertThat(response.mensagem()).isEqualTo("Produto adicionado à cesta com sucesso.");
         verify(cestaItemRepository).save(any(CestaItem.class));
         verify(recomendacaoEventoService).registrarProduto(account,
                 com.vitral.enumerations.TipoEventoRecomendacao.CESTA_ADICIONADO, produto);
@@ -194,7 +194,7 @@ class CestaServiceTest {
 
         MensagemResponse response = cestaService.removerItem(account, 1L);
 
-        assertThat(response.mensagem()).isEqualTo("Produto removido da cesta");
+        assertThat(response.mensagem()).isEqualTo("Produto removido da cesta com sucesso.");
         verify(cestaItemRepository).delete(cestaItem);
         verify(recomendacaoEventoService).registrarProduto(account,
                 com.vitral.enumerations.TipoEventoRecomendacao.CESTA_REMOVIDO, produto);

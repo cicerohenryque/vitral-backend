@@ -115,7 +115,7 @@ class FavoritoServiceTest {
 
         MensagemResponse response = favoritoService.favoritar(account, 1L);
 
-        assertThat(response.mensagem()).isEqualTo("Produto favoritado com sucesso");
+        assertThat(response.mensagem()).isEqualTo("Produto adicionado aos favoritos com sucesso.");
         verify(favoritoRepository).save(any(Favorito.class));
         verify(recomendacaoEventoService).registrarProduto(account,
                 com.vitral.enumerations.TipoEventoRecomendacao.FAVORITO_ADICIONADO, produto);
@@ -179,7 +179,7 @@ class FavoritoServiceTest {
 
         MensagemResponse response = favoritoService.removerFavorito(account, 1L);
 
-        assertThat(response.mensagem()).isEqualTo("Favorito removido com sucesso");
+        assertThat(response.mensagem()).isEqualTo("Produto removido dos favoritos com sucesso.");
         verify(favoritoRepository).delete(favorito);
         verify(recomendacaoEventoService).registrarProduto(account,
                 com.vitral.enumerations.TipoEventoRecomendacao.FAVORITO_REMOVIDO, produto);

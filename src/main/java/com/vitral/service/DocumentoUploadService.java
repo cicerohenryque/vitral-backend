@@ -57,12 +57,12 @@ public class DocumentoUploadService {
     public DocumentoUpload armazenarComMetadata(Account account, MultipartFile arquivo) {
         String tipo = validar(arquivo);
         Sebo sebo = seboRepository.findByAccountId(account.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
+                .orElseThrow(() -> new ResourceNotFoundException("Nenhum sebo foi encontrado para esta conta."));
         try {
             Files.createDirectories(diretorio);
             String nome = UUID.randomUUID() + EXTENSOES.get(tipo);
             Path destino = diretorio.resolve(nome).normalize();
-            if (!destino.startsWith(diretorio)) throw erro("Nome de arquivo invalido.");
+            if (!destino.startsWith(diretorio)) throw erro("O nome do arquivo é inválido.");
             try (InputStream input = arquivo.getInputStream()) {
                 Files.copy(input, destino, StandardCopyOption.REPLACE_EXISTING);
             }
@@ -71,7 +71,7 @@ public class DocumentoUploadService {
             DocumentoUpload salvo = metadataRepository.save(metadata);
             return salvo == null ? metadata : salvo;
         } catch (IOException e) {
-            throw erro("Nao foi possivel salvar o documento.");
+            throw erro("Não foi possível salvar o documento. Tente enviar o arquivo novamente.");
         }
     }
 
@@ -82,20 +82,20 @@ public class DocumentoUploadService {
     @Transactional(readOnly = true)
     public Resource carregar(Account account, String nome) {
         DocumentoUpload metadata = metadataRepository.findByNomeInterno(nome)
-                .orElseThrow(() -> new ResourceNotFoundException("Documento nao encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("O documento solicitado não foi encontrado."));
         boolean admin = account.getType() == AccountType.ADMIN;
         boolean proprietario = metadata.getSebo().getAccount().getId().equals(account.getId());
         if (!admin && !proprietario) {
-            throw new BusinessException("Acesso negado ao documento", HttpStatus.FORBIDDEN);
+            throw new BusinessException("Você não tem permissão para acessar este documento.", HttpStatus.FORBIDDEN);
         }
         try {
             Path arquivo = diretorio.resolve(nome).normalize();
             if (!arquivo.startsWith(diretorio) || !Files.isRegularFile(arquivo)) {
-                throw new ResourceNotFoundException("Documento nao encontrado.");
+                throw new ResourceNotFoundException("O documento solicitado não foi encontrado.");
             }
             return new UrlResource(arquivo.toUri());
         } catch (IOException e) {
-            throw new ResourceNotFoundException("Documento nao encontrado.");
+            throw new ResourceNotFoundException("O documento solicitado não foi encontrado.");
         }
     }
 
@@ -108,21 +108,21 @@ public class DocumentoUploadService {
     }
 
     private String validar(MultipartFile arquivo) {
-        if (arquivo == null || arquivo.isEmpty()) throw erro("Selecione um documento para upload.");
-        if (arquivo.getSize() > tamanhoMaximo) throw erro("O documento excede o tamanho maximo permitido.");
+        if (arquivo == null || arquivo.isEmpty()) throw erro("Selecione um documento para enviar.");
+        if (arquivo.getSize() > tamanhoMaximo) throw erro("O documento excede o tamanho máximo permitido. Escolha um arquivo menor.");
         if (!TIPOS_PERMITIDOS.contains(arquivo.getContentType())) {
-            throw erro("Formato invalido. Use PDF, JPG, JPEG ou PNG.");
+            throw erro("O formato do documento é inválido. Use PDF, JPG, JPEG ou PNG.");
         }
         validarExtensao(arquivo.getOriginalFilename(), arquivo.getContentType());
         try {
             byte[] inicio = arquivo.getInputStream().readNBytes(12);
             String detectado = detectarTipo(inicio);
             if (!arquivo.getContentType().equals(detectado)) {
-                throw erro("O conteudo do arquivo nao corresponde ao formato informado.");
+                throw erro("O conteúdo do arquivo não corresponde ao formato informado.");
             }
             return detectado;
         } catch (IOException e) {
-            throw erro("Nao foi possivel validar o documento.");
+            throw erro("Não foi possível validar o documento. Confira o arquivo e tente novamente.");
         }
     }
 
@@ -133,7 +133,7 @@ public class DocumentoUploadService {
                 && b[4] == 0x0d && b[5] == 0x0a && b[6] == 0x1a && b[7] == 0x0a) return "image/png";
         if (b.length >= 12 && b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F'
                 && b[8] == 'W' && b[9] == 'E' && b[10] == 'B' && b[11] == 'P') return "image/webp";
-        throw erro("Conteudo de arquivo invalido. Use PDF, JPG, JPEG ou PNG.");
+        throw erro("O conteúdo do arquivo é inválido. Use PDF, JPG, JPEG ou PNG.");
     }
 
     private void validarExtensao(String nome, String tipo) {
@@ -144,7 +144,7 @@ public class DocumentoUploadService {
             case "image/png" -> n.endsWith(".png");
             default -> false;
         };
-        if (!valida) throw erro("A extensao do arquivo nao corresponde ao formato informado.");
+        if (!valida) throw erro("A extensão do arquivo não corresponde ao formato informado.");
     }
 
     private String nomeOriginal(MultipartFile arquivo) {

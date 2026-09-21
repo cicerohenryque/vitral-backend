@@ -58,14 +58,14 @@ public class PedidoService {
         perfilCompraValidator.validar(account);
         List<CestaItem> itens = cestaItemRepository.findByAccountIdComProdutoESebo(account.getId());
         if (itens.isEmpty()) {
-            throw new BusinessException("A cesta esta vazia", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Sua cesta está vazia. Adicione pelo menos um produto antes de confirmar o pedido.", HttpStatus.BAD_REQUEST);
         }
 
         boolean possuiProdutoInativo = itens.stream()
                 .anyMatch(i -> !Boolean.TRUE.equals(i.getProduto().getAtivo()) || i.getProduto().getEstoque() <= 0);
         if (possuiProdutoInativo) {
             throw new BusinessException(
-                    "A cesta contem produtos que nao estao mais disponiveis",
+                    "Sua cesta contém produtos que não estão mais disponíveis. Remova-os antes de continuar.",
                     HttpStatus.BAD_REQUEST);
         }
 
@@ -74,7 +74,7 @@ public class PedidoService {
                 .anyMatch(i -> !i.getProduto().getSebo().getId().equals(seboId));
         if (sebosDistintos) {
             throw new BusinessException(
-                    "Todos os produtos da cesta devem pertencer ao mesmo sebo para realizar um pedido",
+                    "Todos os produtos da cesta devem pertencer ao mesmo sebo para concluir o pedido.",
                     HttpStatus.BAD_REQUEST);
         }
 
@@ -87,7 +87,7 @@ public class PedidoService {
         }
 
         Sebo sebo = seboRepository.findById(seboId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O sebo responsável pelo pedido não foi encontrado."));
 
         Map<Long, BigDecimal> precoEfetivoPorProduto = itens.stream()
                 .map(CestaItem::getProduto)
@@ -150,17 +150,17 @@ public class PedidoService {
     @Transactional
     public PedidoResponse confirmarCompra(Account account, Long pedidoId, StatusPedido novoStatus) {
         Pedido pedido = pedidoRepository.findById(pedidoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Pedido nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O pedido informado não foi encontrado."));
 
         if (!pedido.getSebo().getAccount().getId().equals(account.getId())) {
-            throw new BusinessException("Pedido nao pertence ao sebo da conta autenticada", HttpStatus.FORBIDDEN);
+            throw new BusinessException("Este pedido não pertence ao sebo da conta autenticada.", HttpStatus.FORBIDDEN);
         }
         if (pedido.getStatus() != StatusPedido.AGUARDANDO_CONFIRMACAO) {
-            throw new BusinessException("Apenas pedidos com status AGUARDANDO_CONFIRMACAO podem ser atualizados",
+            throw new BusinessException("Apenas pedidos aguardando confirmação podem ser confirmados ou cancelados.",
                     HttpStatus.BAD_REQUEST);
         }
         if (novoStatus != StatusPedido.CONFIRMADO && novoStatus != StatusPedido.CANCELADO) {
-            throw new BusinessException("Status invalido. Use CONFIRMADO ou CANCELADO", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O novo status deve ser CONFIRMADO ou CANCELADO.", HttpStatus.BAD_REQUEST);
         }
 
         pedido.setStatus(novoStatus);
@@ -169,7 +169,7 @@ public class PedidoService {
             pedido.getItens().forEach(item -> {
                 int estoqueAtual = item.getProduto().getEstoque();
                 if (estoqueAtual < item.getQuantidade()) {
-                    throw new BusinessException("Estoque insuficiente para confirmar o pedido", HttpStatus.BAD_REQUEST);
+                    throw new BusinessException("Não há estoque suficiente para confirmar este pedido.", HttpStatus.BAD_REQUEST);
                 }
                 int novoEstoque = estoqueAtual - item.getQuantidade();
                 item.getProduto().setEstoque(novoEstoque);
@@ -200,14 +200,14 @@ public class PedidoService {
     @Transactional
     public PedidoResponse cancelarPedidoUsuario(Account account, Long pedidoId) {
         Pedido pedido = pedidoRepository.findById(pedidoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Pedido nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O pedido informado não foi encontrado."));
 
         if (!pedido.getAccount().getId().equals(account.getId())) {
-            throw new BusinessException("Pedido nao pertence ao usuario autenticado", HttpStatus.FORBIDDEN);
+            throw new BusinessException("Este pedido não pertence ao usuário autenticado.", HttpStatus.FORBIDDEN);
         }
 
         if (pedido.getStatus() != StatusPedido.AGUARDANDO_CONFIRMACAO) {
-            throw new BusinessException("Apenas pedidos aguardando confirmacao podem ser cancelados pelo usuario",
+            throw new BusinessException("Apenas pedidos aguardando confirmação podem ser cancelados pelo usuário.",
                     HttpStatus.BAD_REQUEST);
         }
 
@@ -219,14 +219,14 @@ public class PedidoService {
     @Transactional
     public PedidoResponse cancelarPedido(Account account, Long pedidoId) {
         Pedido pedido = pedidoRepository.findById(pedidoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Pedido nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O pedido informado não foi encontrado."));
 
         if (!pedido.getAccount().getId().equals(account.getId())) {
-            throw new BusinessException("Pedido nao pertence ao usuario autenticado", HttpStatus.FORBIDDEN);
+            throw new BusinessException("Este pedido não pertence ao usuário autenticado.", HttpStatus.FORBIDDEN);
         }
         if (pedido.getStatus() != StatusPedido.AGUARDANDO_CONFIRMACAO) {
             throw new BusinessException(
-                    "Apenas pedidos com status AGUARDANDO_CONFIRMACAO podem ser cancelados",
+                    "Apenas pedidos aguardando confirmação podem ser cancelados.",
                     HttpStatus.BAD_REQUEST);
         }
 
@@ -247,7 +247,7 @@ public class PedidoService {
     @Transactional(readOnly = true)
     public Page<PedidoResponse> historicoVendasSebo(Account account, StatusPedido status, Pageable pageable) {
         Sebo sebo = seboRepository.findByAccountId(account.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
+                .orElseThrow(() -> new ResourceNotFoundException("Nenhum sebo foi encontrado para esta conta."));
         Page<Pedido> pedidos = status == null
                 ? pedidoRepository.findBySeboIdOrderByCreatedAtDesc(sebo.getId(), pageable)
                 : pedidoRepository.findBySeboIdAndStatusOrderByCreatedAtDesc(sebo.getId(), status, pageable);
@@ -258,10 +258,10 @@ public class PedidoService {
     @Transactional(readOnly = true)
     public List<FaturamentoMensalResponse> faturamentoMensal(Account account, int ano) {
         if (ano < 2000 || ano > 2100) {
-            throw new BusinessException("Ano invalido", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O ano informado é inválido.", HttpStatus.BAD_REQUEST);
         }
         Sebo sebo = seboRepository.findByAccountId(account.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
+                .orElseThrow(() -> new ResourceNotFoundException("Nenhum sebo foi encontrado para esta conta."));
         Map<Integer, BigDecimal> online = porMes(pedidoRepository.vendasOnlineMensais(sebo.getId(), ano));
         Map<Integer, BigDecimal> reembolsos = porMes(pedidoRepository.reembolsosMensais(sebo.getId(), ano));
         return java.util.stream.IntStream.rangeClosed(1, 12)
@@ -307,12 +307,12 @@ public class PedidoService {
     @Transactional
     public PedidoResponse reembolsarPedido(Account account, Long pedidoId) {
         Pedido pedido = pedidoRepository.findById(pedidoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Pedido nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O pedido informado não foi encontrado."));
         if (!pedido.getSebo().getAccount().getId().equals(account.getId())) {
-            throw new BusinessException("Pedido nao pertence ao sebo da conta autenticada", HttpStatus.FORBIDDEN);
+            throw new BusinessException("Este pedido não pertence ao sebo da conta autenticada.", HttpStatus.FORBIDDEN);
         }
         if (pedido.getStatus() != StatusPedido.CONFIRMADO || pedido.getReembolsadoEm() != null) {
-            throw new BusinessException("Apenas pedidos confirmados podem ser reembolsados", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Apenas pedidos confirmados podem ser reembolsados.", HttpStatus.BAD_REQUEST);
         }
         pedido.getItens().forEach(item -> {
             Produto produto = item.getProduto();
@@ -335,7 +335,7 @@ public class PedidoService {
         int disponivel = item.getProduto().getEstoque() - quantidadeReservada.intValue();
         if (item.getQuantidade() > disponivel) {
             throw new BusinessException(
-                    "A cesta contem produtos sem estoque suficiente",
+                    "Sua cesta contém produtos sem estoque suficiente. Atualize as quantidades antes de continuar.",
                     HttpStatus.BAD_REQUEST);
         }
     }

@@ -5,6 +5,6 @@ import com.vitral.enumerations.FormaPagamento;
 import jakarta.validation.constraints.NotNull;
 
 public record ConfirmarPedidoRequest(
-        @NotNull FormaPagamento formaPagamento,
+        @NotNull(message = "Selecione a forma de pagamento.") FormaPagamento formaPagamento,
         String numeroCartao) {
 }

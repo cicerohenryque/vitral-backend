@@ -240,7 +240,7 @@ class ProdutoServiceTest {
 
         assertThatThrownBy(() -> produtoService.atualizar(contaDona, 999L, request))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessage("Produto nao encontrado");
+                .hasMessage("O produto informado não foi encontrado.");
     }
 
     @Test
@@ -301,7 +301,7 @@ class ProdutoServiceTest {
 
         assertThatThrownBy(() -> produtoService.buscarPorId(5L))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessage("Produto nao encontrado");
+                .hasMessage("O produto informado não foi encontrado.");
     }
 
     @Test
@@ -311,7 +311,7 @@ class ProdutoServiceTest {
 
         assertThatThrownBy(() -> produtoService.buscarPorId(123L))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessage("Produto nao encontrado");
+                .hasMessage("O produto informado não foi encontrado.");
     }
 
     @Test
@@ -491,7 +491,7 @@ class ProdutoServiceTest {
 
         assertThatThrownBy(() -> produtoService.criar(contaDona, cd))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("somente pode ser informado");
+                .hasMessageContaining("só pode ser informado");
         verify(produtoRepository, never()).save(any());
     }
 

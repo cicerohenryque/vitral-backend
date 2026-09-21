@@ -67,7 +67,7 @@ public class RecomendacaoService {
     private Page<ProdutoResponse> recomendarInterno(Account account, Pageable pageable, Set<Long> excluidos,
             boolean validarLimitePublico) {
         if (validarLimitePublico && pageable.getPageSize() > properties.tamanhoPaginaMaximo()) {
-            throw new BusinessException("size deve ser no maximo " + properties.tamanhoPaginaMaximo(),
+            throw new BusinessException("A quantidade de itens por página deve ser, no máximo, " + properties.tamanhoPaginaMaximo() + ".",
                     org.springframework.http.HttpStatus.BAD_REQUEST);
         }
         OffsetDateTime agora = OffsetDateTime.now();
