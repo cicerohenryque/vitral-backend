@@ -140,6 +140,18 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("Cadastro público não permite criar conta ADMIN")
+    void cadastroPublicoRejeitaAdmin() {
+        RegisterRequest request = new RegisterRequest("Admin", "admin.publico", "admin@vitral.com", "senha1234",
+                AccountType.ADMIN);
+
+        assertThatThrownBy(() -> authService.register(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("não pode ser cadastrado");
+        verify(accountRepository, never()).save(any(Account.class));
+    }
+
+    @Test
     @DisplayName("Deve lancar ConflictException quando o nome de usuario ja esta cadastrado")
     void shouldThrowConflictWhenUsernameAlreadyExists() {
         RegisterRequest request = new RegisterRequest("Maria", "maria.silva", "maria@vitral.com", "senha1234", AccountType.USUARIO);

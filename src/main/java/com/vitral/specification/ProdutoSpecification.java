@@ -31,6 +31,10 @@ public class ProdutoSpecification {
         return ativo().and((root, query, cb) -> cb.greaterThan(root.get("estoque"), 0));
     }
 
+    public static Specification<Produto> ativoIgual(Boolean ativo) {
+        return (root, query, cb) -> ativo == null ? cb.conjunction() : cb.equal(root.get("ativo"), ativo);
+    }
+
     public static Specification<Produto> classico() {
         return (root, query, cb) -> cb.isTrue(root.get("classico"));
     }
@@ -86,7 +90,7 @@ public class ProdutoSpecification {
     }
 
     public static Specification<Produto> doSebo(Long seboId) {
-        return (root, query, cb) -> cb.equal(root.get("sebo").get("id"), seboId);
+        return (root, query, cb) -> seboId == null ? cb.conjunction() : cb.equal(root.get("sebo").get("id"), seboId);
     }
 
     public static Specification<Produto> daCategoria(Long categoriaId) {

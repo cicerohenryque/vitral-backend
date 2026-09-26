@@ -18,6 +18,14 @@ public class SeboSpecification {
                         com.vitral.enumerations.StatusVerificacaoSebo.VERIFICADO));
     }
 
+    public static Specification<Sebo> todos() {
+        return (root, query, cb) -> cb.conjunction();
+    }
+
+    public static Specification<Sebo> statusIgual(com.vitral.enumerations.StatusVerificacaoSebo status) {
+        return (root, query, cb) -> status == null ? cb.conjunction() : cb.equal(root.get("statusVerificacao"), status);
+    }
+
     public static Specification<Sebo> nomeContem(String termo) {
         return (root, query, cb) -> cb.like(
                 cb.lower(root.join("account", JoinType.INNER).get("name")),

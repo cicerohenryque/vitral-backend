@@ -12,6 +12,7 @@ import com.vitral.dto.DocumentoVerificacaoSeboRequest;
 import com.vitral.dto.DocumentoVerificacaoSeboResponse;
 import com.vitral.dto.SeboResponse;
 import com.vitral.entity.Account;
+import com.vitral.entity.AdminAudit;
 import com.vitral.entity.AuditoriaVerificacaoSebo;
 import com.vitral.entity.DocumentoUpload;
 import com.vitral.entity.DocumentoVerificacaoSebo;
@@ -25,6 +26,7 @@ import com.vitral.exception.BusinessException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.SeboMapper;
 import com.vitral.repository.AuditoriaVerificacaoSeboRepository;
+import com.vitral.repository.AdminAuditRepository;
 import com.vitral.repository.DocumentoVerificacaoSeboRepository;
 import com.vitral.repository.ProdutoRepository;
 import com.vitral.repository.SeboRepository;
@@ -41,10 +43,11 @@ public class VerificacaoSeboService {
     private final SeboMapper seboMapper;
     private final DocumentoUploadRepository uploadRepository;
     private final DocumentoUploadService documentoUploadService;
+    private final AdminAuditRepository adminAuditRepository;
 
     private static final String PREFIXO_DOCUMENTO = "/api/v1/uploads/documents/";
 
-    @Value("${app.sebo-verificacao.mock-auto-aprovar:true}")
+    @Value("${app.sebo-verificacao.mock-auto-aprovar:false}")
     private boolean mockAutoAprovarVerificacao;
 
     @Transactional
@@ -140,16 +143,13 @@ public class VerificacaoSeboService {
         });
         auditoriaRepository.save(AuditoriaVerificacaoSebo.builder().sebo(sebo).analisadoPor(admin)
                 .statusAnterior(anterior).novoStatus(status).motivo(status == StatusVerificacaoSebo.REJEITADO ? motivo.trim() : null).build());
+        adminAuditRepository.save(AdminAudit.builder().admin(admin).acao("ALTEROU_STATUS").entidade("SEBO")
+                .entidadeId(seboId).descricao("Status do sebo alterado de " + anterior + " para " + status).build());
         if (status == StatusVerificacaoSebo.REJEITADO) produtoRepository.desativarCatalogoDoSebo(seboId);
         return seboMapper.toResponse(sebo);
     }
 
-    /**
-     * MOCK TEMPORARIO (ainda nao existe conta ADMIN para revisar cadastros):
-     * aprova o sebo e os documentos pendentes automaticamente, pulando a analise
-     * manual normalmente feita em revisar(). Defina app.sebo-verificacao.mock-auto-aprovar=false
-     * (ou remova este metodo e as chamadas a ele) quando houver um ADMIN operando.
-     */
+    /** Compatibilidade exclusiva para ambientes locais que habilitem explicitamente a autoaprovacao. */
     private void aprovarAutomaticamenteEnquantoNaoHaAdmin(Sebo sebo) {
         if (!mockAutoAprovarVerificacao) {
             return;

@@ -30,6 +30,7 @@ import com.vitral.enumerations.TipoDocumentoSebo;
 import com.vitral.exception.BusinessException;
 import com.vitral.mapper.SeboMapper;
 import com.vitral.repository.AuditoriaVerificacaoSeboRepository;
+import com.vitral.repository.AdminAuditRepository;
 import com.vitral.repository.DocumentoUploadRepository;
 import com.vitral.repository.DocumentoVerificacaoSeboRepository;
 import com.vitral.repository.ProdutoRepository;
@@ -40,6 +41,7 @@ class VerificacaoSeboDocumentoServiceTest {
     @Mock SeboRepository seboRepository;
     @Mock DocumentoVerificacaoSeboRepository documentoRepository;
     @Mock AuditoriaVerificacaoSeboRepository auditoriaRepository;
+    @Mock AdminAuditRepository adminAuditRepository;
     @Mock ProdutoRepository produtoRepository;
     @Mock SeboMapper seboMapper;
     @Mock DocumentoUploadRepository uploadRepository;

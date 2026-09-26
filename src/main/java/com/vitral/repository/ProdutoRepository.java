@@ -37,4 +37,9 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long>, JpaSpec
     @Query("update Produto p set p.ativo = false where p.sebo.id = :seboId")
     int desativarCatalogoDoSebo(@Param("seboId") Long seboId);
 
+    long countByAtivoTrue();
+
+    @Query("select p.sebo.id, p.ativo, count(p) from Produto p where p.sebo.id in :seboIds group by p.sebo.id, p.ativo")
+    List<Object[]> contarPorSeboEStatus(@Param("seboIds") List<Long> seboIds);
+
 }

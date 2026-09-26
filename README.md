@@ -208,6 +208,19 @@ JWT_EXPIRATION=86400000
 SERVER_PORT=8080
 ```
 
+## Criação inicial do administrador
+
+Para criar o primeiro administrador, defina as variáveis abaixo antes de iniciar a aplicação:
+
+```text
+APP_BOOTSTRAP_ADMIN_EMAIL=admin@exemplo.com
+APP_BOOTSTRAP_ADMIN_PASSWORD=uma-senha-forte
+APP_BOOTSTRAP_ADMIN_NAME=Administrador
+```
+
+A criação ocorre somente quando ainda não existe uma conta `ADMIN`. Depois do primeiro acesso, remova as variáveis
+do ambiente. A senha nunca é armazenada em texto puro e esse perfil não pode ser criado pelo cadastro público.
+
 ## Variáveis de ambiente adicionais
 
 Todas as configurações sensíveis ou de ambiente são lidas por variáveis:
