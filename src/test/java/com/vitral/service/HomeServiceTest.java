@@ -53,7 +53,7 @@ class HomeServiceTest {
     @BeforeEach
     void setUp() {
         homeService = new HomeService(produtoRepository, categoriaRepository, produtoMapper, precoService, seboService,
-                recomendacaoService, new com.vitral.config.RecomendacaoProperties(1000, 200, 20, 30, 365, 30, 3, 90, 50, 90));
+                recomendacaoService, new com.vitral.config.RecomendacaoProperties(1000, 200, 20, 30, 365, 30, 3, 90, 50, 90, null));
         livros = Categoria.builder().nome("Livros").slug("livros").build();
         setId(livros, 10L);
         classico = produto(1L, "Classico", true, false);

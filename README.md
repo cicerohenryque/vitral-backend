@@ -221,6 +221,27 @@ APP_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 APP_UPLOAD_IMAGE_DIR=uploads/images
 ```
 
+### Pesos opcionais das recomendações
+
+O sistema possui valores padrão seguros. As variáveis abaixo só precisam ser definidas quando for necessário ajustar
+o ranking sem recompilar a aplicação:
+
+```text
+APP_RECOMENDACAO_PESO_CATEGORIA=1.5
+APP_RECOMENDACAO_PESO_AUTOR=1.2
+APP_RECOMENDACAO_PESO_FAIXA_PRECO=0.5
+APP_RECOMENDACAO_PESO_SEBO=0.2
+APP_RECOMENDACAO_PESO_TERMO_PESQUISA=0.8
+APP_RECOMENDACAO_PESO_POPULARIDADE=0.15
+APP_RECOMENDACAO_PESO_LANCAMENTO=1.0
+APP_RECOMENDACAO_PESO_PRODUTO_ATE30_DIAS=2.0
+APP_RECOMENDACAO_PESO_PRODUTO_ATE90_DIAS=1.0
+APP_RECOMENDACAO_PESO_PRODUTO_ATE180_DIAS=0.5
+```
+
+Valores numéricos iguais ou menores que zero ou não finitos são substituídos pelos defaults acima. Valores que não
+sejam números impedem a inicialização, permitindo detectar uma configuração incorreta imediatamente.
+
 Nunca envie senhas reais ou segredos JWT para o Git.
 
 ## Solução de problemas

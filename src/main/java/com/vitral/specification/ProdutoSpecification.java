@@ -1,8 +1,10 @@
 package com.vitral.specification;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.time.OffsetDateTime;
 import java.util.Collection;
+import java.util.List;
 
 import org.springframework.data.jpa.domain.Specification;
 
@@ -11,6 +13,8 @@ import com.vitral.enumerations.CondicaoProduto;
 import com.vitral.enumerations.BookGenre;
 
 public class ProdutoSpecification {
+    private static final String CARACTERES_ACENTUADOS = "áàâãäéèêëíìîïóòôõöúùûüç";
+    private static final String CARACTERES_NORMALIZADOS = "aaaaaeeeeiiiiooooouuuuc";
 
     private ProdutoSpecification() {
     }
@@ -48,6 +52,37 @@ public class ProdutoSpecification {
         return (root, query, cb) -> cb.like(
                 cb.lower(root.get("titulo")),
                 "%" + termo.toLowerCase() + "%");
+    }
+
+    public static Specification<Produto> tituloOuAutorContemAlgum(Collection<String> termos) {
+        return (root, query, cb) -> {
+            List<String> validos = termos == null ? List.of() : termos.stream()
+                    .filter(termo -> termo != null && !termo.isBlank())
+                    .map(ProdutoSpecification::normalizarTermo)
+                    .filter(termo -> !termo.isBlank())
+                    .toList();
+            if (validos.isEmpty()) return cb.disjunction();
+            return cb.or(validos.stream()
+                    .flatMap(termo -> java.util.stream.Stream.of(
+                            cb.like(semAcentos(cb, root.get("titulo")), "%" + termo + "%"),
+                            cb.like(semAcentos(cb, root.get("autor")), "%" + termo + "%")))
+                    .toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+    }
+
+    private static jakarta.persistence.criteria.Expression<String> semAcentos(
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            jakarta.persistence.criteria.Expression<String> campo) {
+        return cb.function("translate", String.class, cb.lower(campo),
+                cb.literal(CARACTERES_ACENTUADOS), cb.literal(CARACTERES_NORMALIZADOS));
+    }
+
+    private static String normalizarTermo(String termo) {
+        return Normalizer.normalize(termo.trim().toLowerCase(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^a-z0-9\\s]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     public static Specification<Produto> doSebo(Long seboId) {

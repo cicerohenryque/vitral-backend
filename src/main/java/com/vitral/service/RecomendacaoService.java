@@ -36,6 +36,8 @@ import com.vitral.mapper.ProdutoMapper;
 import com.vitral.repository.ProdutoEventoContagemProjection;
 import com.vitral.repository.ProdutoRepository;
 import com.vitral.repository.RecomendacaoEventoRepository;
+import com.vitral.repository.FavoritoRepository;
+import com.vitral.repository.CestaItemRepository;
 import com.vitral.specification.ProdutoSpecification;
 
 import lombok.RequiredArgsConstructor;
@@ -45,9 +47,12 @@ import lombok.RequiredArgsConstructor;
 public class RecomendacaoService {
     private final RecomendacaoEventoRepository eventoRepository;
     private final ProdutoRepository produtoRepository;
+    private final FavoritoRepository favoritoRepository;
+    private final CestaItemRepository cestaItemRepository;
     private final ProdutoMapper produtoMapper;
     private final PrecoService precoService;
     private final RecenciaRecomendacaoService recenciaService;
+    private final NormalizadorPesquisaService normalizadorPesquisaService;
     private static final int CATEGORIAS_DE_INTERESSE = 3;
 
     private final RecomendacaoProperties properties;
@@ -76,14 +81,20 @@ public class RecomendacaoService {
                 PageRequest.of(0, properties.historicoMaximo()));
         Perfil perfil = agregar(eventos, agora);
         Set<Long> bloqueados = new HashSet<>(excluidos == null ? Set.of() : excluidos);
+        bloqueados.addAll(favoritoRepository.findProdutoIdsByAccountId(account.getId()));
+        bloqueados.addAll(cestaItemRepository.findProdutoIdsByAccountId(account.getId()));
         eventos.stream().filter(e -> e.getTipo() == TipoEventoRecomendacao.COMPRA_CONCLUIDA)
                 .filter(e -> e.getCreatedAt().isAfter(agora.minusDays(properties.compraRecenteDias())))
                 .filter(e -> e.getProduto() != null).map(e -> e.getProduto().getId()).forEach(bloqueados::add);
 
-        Map<Long, Double> popularidade = popularidade(agora);
-        List<ProdutoPontuado> ordenados = candidatos(perfil, bloqueados).stream()
-                .map(p -> new ProdutoPontuado(p, pontuarInteresse(p, perfil), pontuarDescoberta(p, popularidade)))
+        Collection<Produto> candidatos = candidatos(perfil, bloqueados);
+        Map<Long, Double> popularidade = popularidade(candidatos, agora);
+        List<ProdutoPontuado> ordenados = candidatos.stream()
+                .map(p -> new ProdutoPontuado(p, pontuarInteresse(p, perfil), pontuarDescoberta(p, popularidade, agora),
+                        Math.max(0, popularidade.getOrDefault(p.getId(), 0.0))))
                 .sorted(Comparator.comparingDouble(ProdutoPontuado::total).reversed()
+                        .thenComparing(Comparator.comparingDouble(ProdutoPontuado::popularidade).reversed())
+                        .thenComparing(pp -> pp.produto().getCreatedAt(), Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(pp -> pp.produto().getId()))
                 .toList();
         List<Produto> diversos = diversificar(ordenados, Math.min(properties.candidatosMaximo(), ordenados.size()));
@@ -100,22 +111,44 @@ public class RecomendacaoService {
     private Collection<Produto> candidatos(Perfil perfil, Set<Long> bloqueados) {
         Specification<Produto> base = ProdutoSpecification.disponivel()
                 .and(ProdutoSpecification.idsFora(bloqueados));
-        PageRequest maisRecentes = PageRequest.of(0, properties.candidatosMaximo(),
-                Sort.by(Sort.Direction.DESC, "createdAt"));
         Map<Long, Produto> porId = new LinkedHashMap<>();
-        produtoRepository.findAll(base, maisRecentes).forEach(produto -> porId.put(produto.getId(), produto));
-
+        int orcamentoUsado = 0;
         List<Long> categoriasDeInteresse = perfil.categorias.entrySet().stream()
                 .filter(entrada -> entrada.getValue() > 0)
                 .sorted(Map.Entry.<Long, Double>comparingByValue().reversed())
                 .limit(CATEGORIAS_DE_INTERESSE)
                 .map(Map.Entry::getKey)
                 .toList();
+        int limite = properties.candidatosMaximo();
         if (!categoriasDeInteresse.isEmpty()) {
+            int quantidade = Math.min(limite - orcamentoUsado, Math.max(1, limite * 30 / 100));
             produtoRepository.findAll(base.and(ProdutoSpecification.dasCategorias(categoriasDeInteresse)),
-                    maisRecentes).forEach(produto -> porId.putIfAbsent(produto.getId(), produto));
+                    recentes(quantidade)).forEach(produto -> porId.putIfAbsent(produto.getId(), produto));
+            orcamentoUsado += quantidade;
+        }
+        List<String> termosDeInteresse = perfil.termos.entrySet().stream()
+                .filter(entrada -> entrada.getValue() > 0)
+                .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                .limit(3)
+                .map(Map.Entry::getKey)
+                .toList();
+        if (!termosDeInteresse.isEmpty() && orcamentoUsado < limite) {
+            int quantidade = Math.min(limite - orcamentoUsado, Math.max(1, limite * 20 / 100));
+            produtoRepository.findAll(base.and(ProdutoSpecification.tituloOuAutorContemAlgum(termosDeInteresse)),
+                    recentes(quantidade)).forEach(produto -> porId.putIfAbsent(produto.getId(), produto));
+            orcamentoUsado += quantidade;
+        }
+        int restantes = limite - orcamentoUsado;
+        if (restantes > 0) {
+            produtoRepository.findAll(base, recentes(restantes))
+                    .forEach(produto -> porId.putIfAbsent(produto.getId(), produto));
         }
         return porId.values();
+    }
+
+    private PageRequest recentes(int quantidade) {
+        return PageRequest.of(0, quantidade,
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id")));
     }
 
     private Perfil agregar(List<RecomendacaoEvento> eventos, OffsetDateTime agora) {
@@ -127,18 +160,22 @@ public class RecomendacaoService {
             perfil.somar(perfil.generos, evento.getGenero(), pontos);
             perfil.somar(perfil.autores, evento.getAutorArtista(), pontos);
             perfil.somar(perfil.faixas, evento.getFaixaPreco(), pontos);
-            perfil.somar(perfil.sebos, evento.getSebo() == null ? null : evento.getSebo().getId(), pontos * 0.2);
+            perfil.somar(perfil.sebos, evento.getSebo() == null ? null : evento.getSebo().getId(),
+                    pontos * properties.pesos().sebo());
+            perfil.somar(perfil.termos, evento.getTermoPesquisa(), pontos);
         }
         return perfil;
     }
 
     private double pontuarInteresse(Produto produto, Perfil perfil) {
         double pontos = 0;
-        pontos += pontuarCategoria(produto, perfil) * 1.5;
+        pontos += pontuarCategoria(produto, perfil) * properties.pesos().categoria();
         pontos += perfil.valor(perfil.generos, produto.getBookGenre() == null ? null : produto.getBookGenre().name());
-        pontos += perfil.valor(perfil.autores, normalizar(produto.getAutor())) * 1.2;
-        pontos += perfil.valor(perfil.faixas, FaixaPrecoRecomendacao.de(produto.getPreco()).name()) * 0.5;
+        pontos += perfil.valor(perfil.autores, normalizar(produto.getAutor())) * properties.pesos().autor();
+        pontos += perfil.valor(perfil.faixas, FaixaPrecoRecomendacao.de(produto.getPreco()).name())
+                * properties.pesos().faixaPreco();
         pontos += perfil.valor(perfil.sebos, produto.getSebo().getId());
+        pontos += pontuarTermos(produto, perfil) * properties.pesos().termoPesquisa();
         return pontos;
     }
 
@@ -150,9 +187,28 @@ public class RecomendacaoService {
         return porId > 0 ? porId : perfil.valor(perfil.tipos, produto.getCategoria().getSlug());
     }
 
-    private double pontuarDescoberta(Produto produto, Map<Long, Double> popularidade) {
-        return Math.max(0, popularidade.getOrDefault(produto.getId(), 0.0)) * 0.15
-                + (Boolean.TRUE.equals(produto.getLancamento()) ? 1.0 : 0.0);
+    private double pontuarDescoberta(Produto produto, Map<Long, Double> popularidade, OffsetDateTime agora) {
+        return Math.max(0, popularidade.getOrDefault(produto.getId(), 0.0)) * properties.pesos().popularidade()
+                + (Boolean.TRUE.equals(produto.getLancamento()) ? properties.pesos().lancamento() : 0.0)
+                + pontuarRecencia(produto, agora);
+    }
+
+    private double pontuarTermos(Produto produto, Perfil perfil) {
+        String texto = normalizadorPesquisaService.normalizar((produto.getTitulo() == null ? "" : produto.getTitulo()) + " "
+                + (produto.getAutor() == null ? "" : produto.getAutor()));
+        return perfil.termos.entrySet().stream()
+                .filter(entrada -> entrada.getValue() > 0 && texto.contains(entrada.getKey()))
+                .mapToDouble(Map.Entry::getValue)
+                .sum();
+    }
+
+    private double pontuarRecencia(Produto produto, OffsetDateTime agora) {
+        if (produto.getCreatedAt() == null) return 0;
+        long dias = Math.max(0, java.time.Duration.between(produto.getCreatedAt(), agora).toDays());
+        if (dias <= 30) return properties.pesos().produtoAte30Dias();
+        if (dias <= 90) return properties.pesos().produtoAte90Dias();
+        if (dias <= 180) return properties.pesos().produtoAte180Dias();
+        return 0;
     }
 
     private List<Produto> diversificar(List<ProdutoPontuado> ordenados, int limite) {
@@ -170,6 +226,7 @@ public class RecomendacaoService {
         List<Produto> resultado = new ArrayList<>();
         Map<Long, Integer> porSebo = new HashMap<>();
         Map<Long, Integer> porCategoria = new HashMap<>();
+        Map<String, Integer> porAutor = new HashMap<>();
         Set<Long> usados = new LinkedHashSet<>();
         for (int passe = 0; passe < 2 && resultado.size() < limite; passe++) {
             for (ProdutoPontuado pp : composicao) {
@@ -177,11 +234,15 @@ public class RecomendacaoService {
                 if (usados.contains(p.getId())) continue;
                 Long sebo = p.getSebo().getId();
                 Long categoria = p.getCategoria() == null ? -1L : p.getCategoria().getId();
-                if (passe == 0 && (porSebo.getOrDefault(sebo, 0) >= 2 || porCategoria.getOrDefault(categoria, 0) >= 3)) continue;
+                String autor = normalizar(p.getAutor());
+                if (passe == 0 && (porSebo.getOrDefault(sebo, 0) >= 2
+                        || porCategoria.getOrDefault(categoria, 0) >= 3
+                        || autor != null && porAutor.getOrDefault(autor, 0) >= 2)) continue;
                 resultado.add(p);
                 usados.add(p.getId());
                 porSebo.merge(sebo, 1, Integer::sum);
                 porCategoria.merge(categoria, 1, Integer::sum);
+                if (autor != null) porAutor.merge(autor, 1, Integer::sum);
                 if (resultado.size() == limite) break;
             }
         }
@@ -200,10 +261,12 @@ public class RecomendacaoService {
         }
     }
 
-    private Map<Long, Double> popularidade(OffsetDateTime agora) {
+    private Map<Long, Double> popularidade(Collection<Produto> candidatos, OffsetDateTime agora) {
         Map<Long, Double> resultado = new HashMap<>();
+        List<Long> ids = candidatos.stream().map(Produto::getId).toList();
+        if (ids.isEmpty()) return resultado;
         for (ProdutoEventoContagemProjection item : eventoRepository
-                .contagemPorProdutoETipo(agora.minusDays(properties.popularidadeDias()))) {
+                .contagemPorProdutoETipo(ids, agora.minusDays(properties.popularidadeDias()))) {
             resultado.merge(item.getProdutoId(), item.getTipo().pesoBase() * (double) item.getQuantidade(),
                     Double::sum);
         }
@@ -214,8 +277,10 @@ public class RecomendacaoService {
         return evento.getCategoria() == null ? null : evento.getCategoria().getId();
     }
 
-    private String normalizar(String valor) { return valor == null ? null : valor.trim().toLowerCase(); }
-    private record ProdutoPontuado(Produto produto, double interesse, double descoberta) {
+    private String normalizar(String valor) {
+        return valor == null || valor.isBlank() ? null : valor.trim().toLowerCase();
+    }
+    private record ProdutoPontuado(Produto produto, double interesse, double descoberta, double popularidade) {
         double total() { return interesse + descoberta; }
     }
 
@@ -226,6 +291,7 @@ public class RecomendacaoService {
         final Map<String, Double> autores = new HashMap<>();
         final Map<String, Double> faixas = new HashMap<>();
         final Map<Long, Double> sebos = new HashMap<>();
+        final Map<String, Double> termos = new HashMap<>();
         <T> void somar(Map<T, Double> mapa, T chave, double valor) {
             if (chave != null) mapa.merge(chave, valor, Double::sum);
         }

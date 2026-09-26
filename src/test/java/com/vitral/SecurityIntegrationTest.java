@@ -75,6 +75,13 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    @DisplayName("Recomendacoes devem bloquear visitante sem token")
+    void recomendacoes_visitanteSemToken_eBloqueado() throws Exception {
+        mockMvc.perform(get("/api/v1/recomendacoes"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("Rotas protegidas devem rejeitar token invalido")
     void cesta_tokenInvalido_eBloqueado() throws Exception {
         mockMvc.perform(get("/api/v1/cesta")
@@ -96,6 +103,9 @@ class SecurityIntegrationTest {
                         .header("Authorization", bearer(tokenUsuario)))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/cesta")
+                        .header("Authorization", bearer(tokenUsuario)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/recomendacoes")
                         .header("Authorization", bearer(tokenUsuario)))
                 .andExpect(status().isOk());
     }

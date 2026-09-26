@@ -3,6 +3,7 @@ package com.vitral.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +16,7 @@ class RecomendacaoEventoRepositoryTest {
     @Autowired RecomendacaoEventoRepository repository;
 
     @Test void consultaAgregadaDePopularidadeFuncionaSemHistorico() {
-        assertThat(repository.contagemPorProdutoETipo(OffsetDateTime.now().minusDays(90))).isEmpty();
+        assertThat(repository.contagemPorProdutoETipo(List.of(-1L), OffsetDateTime.now().minusDays(90))).isEmpty();
     }
 
     @Test void limpezaDeRetencaoECompativelComUsuariosExistentes() {

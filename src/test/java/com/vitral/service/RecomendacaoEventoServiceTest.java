@@ -41,7 +41,7 @@ class RecomendacaoEventoServiceTest {
 
     @BeforeEach void setUp() {
         service = new RecomendacaoEventoService(persistence, new NormalizadorPesquisaService(),
-                new RecomendacaoProperties(1000, 200, 20, 30, 365, 30, 3, 90, 50, 90));
+                new RecomendacaoProperties(1000, 200, 20, 30, 365, 30, 3, 90, 50, 90, null));
         usuario = Account.builder().type(AccountType.USUARIO).build(); setId(usuario, 1L);
         Categoria categoria = Categoria.builder().nome("Livros").slug("livros").build(); setId(categoria, 2L);
         Sebo sebo = Sebo.builder().build(); setId(sebo, 3L);

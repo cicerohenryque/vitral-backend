@@ -20,5 +20,8 @@ public interface CestaItemRepository extends JpaRepository<CestaItem, Long> {
 
     boolean existsByAccountIdAndProdutoId(Long accountId, Long produtoId);
 
+    @Query("select c.produto.id from CestaItem c where c.account.id = :accountId")
+    List<Long> findProdutoIdsByAccountId(@Param("accountId") Long accountId);
+
     void deleteByAccountId(Long accountId);
 }

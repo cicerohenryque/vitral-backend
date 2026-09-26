@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,6 +14,7 @@ import com.vitral.entity.RecomendacaoEvento;
 import com.vitral.enumerations.TipoEventoRecomendacao;
 
 public interface RecomendacaoEventoRepository extends JpaRepository<RecomendacaoEvento, Long> {
+    @EntityGraph(attributePaths = { "produto", "categoria", "sebo" })
     List<RecomendacaoEvento> findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(
             Long accountId, OffsetDateTime inicio, Pageable pageable);
 
@@ -43,8 +45,9 @@ public interface RecomendacaoEventoRepository extends JpaRepository<Recomendacao
     @Query("""
             select e.produto.id as produtoId, e.tipo as tipo, count(e) as quantidade
             from RecomendacaoEvento e
-            where e.produto is not null and e.createdAt >= :inicio
+            where e.produto.id in :produtoIds and e.createdAt >= :inicio
             group by e.produto.id, e.tipo
             """)
-    List<ProdutoEventoContagemProjection> contagemPorProdutoETipo(@Param("inicio") OffsetDateTime inicio);
+    List<ProdutoEventoContagemProjection> contagemPorProdutoETipo(
+            @Param("produtoIds") List<Long> produtoIds, @Param("inicio") OffsetDateTime inicio);
 }
