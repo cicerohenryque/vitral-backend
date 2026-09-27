@@ -16,12 +16,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.ArgumentMatchers;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -248,6 +250,28 @@ class BuscaServiceTest {
 
         assertThat(resultado.getContent()).hasSize(1);
         verify(produtoRepository).findAll(anyProdutoSpecification(), eq(pageable));
+    }
+
+    @Test
+    @DisplayName("Deve ordenar pelo preço efetivo quando a busca solicitar ordenação por preço")
+    void shouldSortByEffectivePriceWhenPriceSortIsRequested() {
+        Pageable pricePageable = PageRequest.of(1, 10, Sort.by(Sort.Order.desc("preco")));
+        when(produtoRepository.findAll(anyProdutoSpecification(), ArgumentMatchers.any(Pageable.class)))
+                .thenReturn(Page.empty());
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
+
+        buscaService.buscarProdutos(null, null, null, null, null, pricePageable);
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(produtoRepository).findAll(anyProdutoSpecification(), pageableCaptor.capture());
+        Pageable efetivo = pageableCaptor.getValue();
+        assertThat(efetivo.getPageNumber()).isEqualTo(1);
+        assertThat(efetivo.getPageSize()).isEqualTo(10);
+        assertThat(efetivo.getSort().getOrderFor("precoEfetivo")).isNotNull()
+                .extracting(Sort.Order::getDirection).isEqualTo(Sort.Direction.DESC);
+        assertThat(efetivo.getSort().getOrderFor("preco")).isNull();
+        assertThat(efetivo.getSort().getOrderFor("id")).isNotNull()
+                .extracting(Sort.Order::getDirection).isEqualTo(Sort.Direction.ASC);
     }
 
     @Test

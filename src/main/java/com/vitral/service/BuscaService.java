@@ -2,12 +2,15 @@ package com.vitral.service;
 
 import java.math.BigDecimal;
 import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -135,7 +138,7 @@ public class BuscaService {
         }
         if (bookGenre != null) spec = spec.and(ProdutoSpecification.comBookGenre(bookGenre));
 
-        Page<Produto> produtos = produtoRepository.findAll(spec, pageable);
+        Page<Produto> produtos = produtoRepository.findAll(spec, ordenarPorPrecoEfetivo(pageable));
         Produto primeiroResultado = produtos.isEmpty() ? null : produtos.getContent().getFirst();
         Categoria categoriaSinal = categoriaPesquisa != null ? categoriaPesquisa
                 : (primeiroResultado == null ? null : primeiroResultado.getCategoria());
@@ -147,6 +150,20 @@ public class BuscaService {
         List<Long> ids = produtos.getContent().stream().map(Produto::getId).toList();
         Map<Long, BigDecimal> promocionais = precoService.precosPromocionaisVigentes(ids);
         return produtos.map(p -> produtoMapper.toResponse(p, promocionais.get(p.getId())));
+    }
+
+    private Pageable ordenarPorPrecoEfetivo(Pageable pageable) {
+        if (pageable.isUnpaged() || pageable.getSort().getOrderFor("preco") == null) {
+            return pageable;
+        }
+
+        List<Sort.Order> orders = new ArrayList<>();
+        pageable.getSort().forEach(order -> orders.add(
+                "preco".equals(order.getProperty()) ? order.withProperty("precoEfetivo") : order));
+        if (orders.stream().noneMatch(order -> "id".equals(order.getProperty()))) {
+            orders.add(Sort.Order.asc("id"));
+        }
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(orders));
     }
 
     public Page<ProdutoResponse> buscarProdutos(String termo, Long seboId, CondicaoProduto condicao,
