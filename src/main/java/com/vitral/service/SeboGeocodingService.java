@@ -18,6 +18,7 @@ public class SeboGeocodingService {
 
     public void geocodificar(Sebo sebo) {
         if (sebo.getCidade() == null || sebo.getUf() == null) {
+            log.info("geocodificacao_sebo status=ignorada motivo=endereco_incompleto seboId={}", sebo.getId());
             sebo.setLatitude(null);
             sebo.setLongitude(null);
             return;
@@ -25,10 +26,18 @@ public class SeboGeocodingService {
         try {
             boolean encontrado = buscarEAplicar(sebo, enderecoCompleto(sebo));
             if (!encontrado) {
-                buscarEAplicar(sebo, enderecoCidade(sebo));
+                encontrado = buscarEAplicar(sebo, enderecoCidade(sebo));
+            }
+            if (encontrado) {
+                log.info("geocodificacao_sebo status=sucesso seboId={} cidade={} uf={}",
+                        sebo.getId(), sebo.getCidade(), sebo.getUf());
+            } else {
+                log.warn("geocodificacao_sebo status=sem_resultado seboId={} cidade={} uf={}",
+                        sebo.getId(), sebo.getCidade(), sebo.getUf());
             }
         } catch (RuntimeException exception) {
-            log.warn("Falha ao geocodificar o endereco do sebo {}", sebo.getId(), exception);
+            log.warn("geocodificacao_sebo status=erro seboId={} tipoErro={}",
+                    sebo.getId(), exception.getClass().getSimpleName(), exception);
             sebo.setLatitude(null);
             sebo.setLongitude(null);
         }

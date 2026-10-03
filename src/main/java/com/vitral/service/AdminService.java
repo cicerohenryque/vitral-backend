@@ -169,7 +169,8 @@ public class AdminService {
     private AdminSeboResponse seboResponse(Sebo sebo, long[] totais) {
         return new AdminSeboResponse(sebo.getId(), sebo.getAccount().getName(), sebo.getAccount().getName(),
                 Boolean.TRUE.equals(sebo.getAccount().getAtivo()), sebo.getStatusVerificacao(), sebo.getCreatedAt(),
-                sebo.getUltimaAtividade(), totais[0], totais[1]);
+                sebo.getUltimaAtividade(), totais[0], totais[1],
+                sebo.getLatitude() != null && sebo.getLongitude() != null);
     }
 
     private Map<Long, long[]> contagensProdutos(List<Sebo> sebos) {
