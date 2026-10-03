@@ -40,7 +40,7 @@ public class SeboService {
     private final CnpjConsultaService cnpjConsultaService;
     private final SeboGeocodingService seboGeocodingService;
 
-    @Value("${app.sebo-verificacao.mock-auto-aprovar:true}")
+    @Value("${app.sebo-verificacao.mock-auto-aprovar:false}")
     private boolean mockAutoAprovarVerificacao;
 
     @Transactional
@@ -67,7 +67,7 @@ public class SeboService {
                 .build();
         aplicarEndereco(sebo, request);
         seboGeocodingService.geocodificar(sebo);
-        aprovarAutomaticamenteEnquantoNaoHaAdmin(sebo);
+        aplicarAprovacaoAutomaticaConfigurada(sebo);
         OffsetDateTime agora = OffsetDateTime.now();
         sebo.setDataCriacao(agora);
         sebo.setUltimaAtividade(agora);
@@ -92,7 +92,7 @@ public class SeboService {
             sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
             sebo.setVerificadoEm(null);
             sebo.setConfirmado(false);
-            aprovarAutomaticamenteEnquantoNaoHaAdmin(sebo);
+            aplicarAprovacaoAutomaticaConfigurada(sebo);
             cnpjConsultaService.consultar(sebo);
         }
         sebo.setFotoUrl(request.fotoUrl());
@@ -105,11 +105,10 @@ public class SeboService {
         if (enderecoMudou || aindaSemCoordenadas) {
             seboGeocodingService.geocodificar(sebo);
         }
-        // Cobre o caso de um sebo que ficou PENDENTE antes do mock existir (ou por qualquer
-        // outro motivo) e so esta salvando o perfil sem trocar CNPJ/documento: com o mock
-        // ativo, qualquer atualizacao de perfil tambem aprova automaticamente.
+        // Em ambientes locais com a opção explicitamente habilitada, uma atualização
+        // também pode concluir a verificação sem revisão administrativa.
         if (sebo.getStatusVerificacao() != StatusVerificacaoSebo.VERIFICADO) {
-            aprovarAutomaticamenteEnquantoNaoHaAdmin(sebo);
+            aplicarAprovacaoAutomaticaConfigurada(sebo);
         }
         registrarAtividade(sebo);
         return seboMapper.toResponse(sebo);
@@ -189,15 +188,7 @@ public class SeboService {
         return cnpj;
     }
 
-    /**
-     * MOCK TEMPORARIO (ainda nao existe conta ADMIN para revisar cadastros):
-     * aprova o sebo automaticamente, pulando a analise manual normalmente feita
-     * em VerificacaoSeboService.revisar(). Defina
-     * app.sebo-verificacao.mock-auto-aprovar=false (ou remova este metodo e as
-     * chamadas a ele) quando houver um ADMIN operando, para que o sebo volte a
-     * ficar PENDENTE ate a revisao manual.
-     */
-    private void aprovarAutomaticamenteEnquantoNaoHaAdmin(Sebo sebo) {
+    private void aplicarAprovacaoAutomaticaConfigurada(Sebo sebo) {
         if (!mockAutoAprovarVerificacao) {
             return;
         }

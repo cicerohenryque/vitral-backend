@@ -82,7 +82,8 @@ public class BuscaService {
         List<Sebo> encontrados = seboRepository.findAll(spec);
         List<SeboResponse> ordenados = encontrados.stream()
                 .map(sebo -> seboMapper.toPublicResponse(sebo, distanciaKm(sebo, lat, lng)))
-                .sorted(Comparator.comparing(SeboResponse::distanciaKm, Comparator.nullsLast(Double::compareTo)))
+                .sorted(Comparator.comparing(SeboResponse::distanciaKm, Comparator.nullsLast(Double::compareTo))
+                        .thenComparing(SeboResponse::id, Comparator.nullsLast(Long::compareTo)))
                 .toList();
 
         int inicio = (int) Math.min(pageable.getOffset(), ordenados.size());

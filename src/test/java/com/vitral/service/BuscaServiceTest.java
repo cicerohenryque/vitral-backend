@@ -314,6 +314,25 @@ class BuscaServiceTest {
     }
 
     @Test
+    @DisplayName("Deve desempatar sebos na mesma distancia pelo identificador")
+    void shouldUseIdAsTieBreakerForEqualDistances() {
+        Account conta = sebo.getAccount();
+        Sebo segundo = Sebo.builder().account(conta).latitude(-7.1219).longitude(-34.8850).build();
+        Sebo primeiro = Sebo.builder().account(conta).latitude(-7.1219).longitude(-34.8850).build();
+
+        when(seboRepository.findAll(anySeboSpecification())).thenReturn(List.of(segundo, primeiro));
+        when(seboMapper.toPublicResponse(eq(segundo), any()))
+                .thenAnswer(inv -> responseComDistancia(2L, "Segundo", inv.getArgument(1)));
+        when(seboMapper.toPublicResponse(eq(primeiro), any()))
+                .thenAnswer(inv -> responseComDistancia(1L, "Primeiro", inv.getArgument(1)));
+
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, -7.1150, -34.8631, pageable);
+
+        assertThat(resultado.getContent()).extracting(SeboResponse::nome)
+                .containsExactly("Primeiro", "Segundo");
+    }
+
+    @Test
     @DisplayName("Deve manter comportamento padrao quando apenas lat ou apenas lng forem informados")
     void shouldIgnoreProximitySortingWhenOnlyOneCoordinateProvided() {
         Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
