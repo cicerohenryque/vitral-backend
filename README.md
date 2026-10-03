@@ -2,6 +2,9 @@
 
 API do projeto Vitral, desenvolvida com Java 21, Spring Boot, PostgreSQL e Flyway.
 
+O histórico técnico e funcional das Sprints 1, 2 e 3 está em
+[docs/SPRINTS.md](docs/SPRINTS.md).
+
 ## Pré-requisitos
 
 - Git
@@ -143,6 +146,51 @@ Para interromper o backend, pressione `Ctrl+C`.
 ./mvnw test
 ```
 
+## Busca e descoberta de sebos
+
+A busca pública de sebos está disponível em:
+
+```http
+GET /api/v1/busca/sebos
+```
+
+Parâmetros opcionais:
+
+| Parâmetro | Descrição |
+| --- | --- |
+| `q` | Parte do nome do sebo. |
+| `cidade` | Parte do nome da cidade. |
+| `uf` | UF do endereço. |
+| `lat` | Latitude do usuário, entre -90 e 90. |
+| `lng` | Longitude do usuário, entre -180 e 180. |
+| `raioKm` | Distância máxima em quilômetros, maior que zero e de até 500. |
+| `page` | Página iniciada em zero. |
+| `size` | Quantidade de itens por página. |
+
+Exemplo para descobrir sebos em um raio de 25 km:
+
+```http
+GET /api/v1/busca/sebos?lat=-7.115&lng=-34.8631&raioKm=25&page=0&size=20
+```
+
+`lat` e `lng` devem ser informados juntos. `raioKm` só pode ser usado quando as
+duas coordenadas estiverem presentes. Entradas incompletas, não finitas ou fora
+dos limites retornam `400 Bad Request` com uma mensagem de validação.
+
+Com coordenadas, a resposta é ordenada pela distância calculada até o sebo e,
+em caso de empate, pelo identificador. O campo `distanciaKm` é incluído em cada
+item que possua coordenadas. Sem coordenadas, o endpoint preserva a busca
+paginada existente por nome, cidade e UF.
+
+Quando um raio é informado, o banco aplica primeiro um retângulo geográfico para
+reduzir os candidatos. Em seguida, o serviço calcula a distância Haversine e
+remove os resultados que ultrapassam o raio exato. Essa estratégia evita
+calcular a distância de todos os sebos cadastrados.
+
+O endpoint não armazena a localização recebida. Sebos sem coordenadas não entram
+em resultados limitados por raio e aparecem ao final quando a ordenação por
+proximidade é usada sem limite.
+
 ## Gerar e executar o arquivo JAR
 
 ### Windows
@@ -232,12 +280,53 @@ APP_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 # Diretório onde as imagens enviadas são gravadas.
 # No Docker (Opção A) já aponta para o volume persistente /data/uploads/images.
 APP_UPLOAD_IMAGE_DIR=uploads/images
+
+# Paginação das listagens. Requisições acima do máximo são limitadas pelo Spring.
+APP_PAGE_DEFAULT_SIZE=20
+APP_PAGE_MAX_SIZE=100
+
+# Somente para desenvolvimento local: aprova sebos sem revisão administrativa.
+APP_SEBO_VERIFICACAO_MOCK_AUTO_APROVAR=false
 ```
+
+O fluxo padrão mantém novos sebos com status `PENDENTE` até a revisão por um
+administrador. `APP_SEBO_VERIFICACAO_MOCK_AUTO_APROVAR` deve permanecer `false`
+em produção; habilite-a apenas quando um ambiente local precisar ignorar
+temporariamente a revisão. Alterações de CNPJ ou documento fazem o cadastro
+voltar ao fluxo de verificação.
+
+Os limites de paginação protegem as listagens contra requisições acidentais com
+milhares de registros. O padrão é 20 itens e o máximo aceito é 100 itens por
+página. Esses valores podem ser ajustados por ambiente sem recompilar a
+aplicação.
 
 ### Pesos opcionais das recomendações
 
 O sistema possui valores padrão seguros. As variáveis abaixo só precisam ser definidas quando for necessário ajustar
 o ranking sem recompilar a aplicação:
+
+```text
+APP_RECOMENDACAO_HISTORICO_MAXIMO=1000
+APP_RECOMENDACAO_CANDIDATOS_MAXIMO=200
+APP_RECOMENDACAO_TAMANHO_HOME=20
+APP_RECOMENDACAO_RETENCAO_TERMO_DIAS=30
+APP_RECOMENDACAO_RETENCAO_EVENTO_DIAS=365
+APP_RECOMENDACAO_JANELA_VISUALIZACAO_MINUTOS=30
+APP_RECOMENDACAO_EVENTOS_REPETIDOS_DIA_MAXIMO=3
+APP_RECOMENDACAO_COMPRA_RECENTE_DIAS=90
+APP_RECOMENDACAO_TAMANHO_PAGINA_MAXIMO=50
+APP_RECOMENDACAO_POPULARIDADE_DIAS=90
+```
+
+- `HISTORICO_MAXIMO` e `CANDIDATOS_MAXIMO` limitam o trabalho feito por requisição.
+- `TAMANHO_HOME` limita a seção de recomendações da Home.
+- As retenções definem por quanto tempo termos e eventos influenciam o perfil.
+- A janela e o limite de repetição reduzem eventos duplicados de visualização.
+- `COMPRA_RECENTE_DIAS` evita recomendar novamente compras recentes.
+- `TAMANHO_PAGINA_MAXIMO` protege o endpoint público de recomendações.
+- `POPULARIDADE_DIAS` define a janela usada no componente de popularidade.
+
+Os pesos do ranking também podem ser ajustados:
 
 ```text
 APP_RECOMENDACAO_PESO_CATEGORIA=1.5
