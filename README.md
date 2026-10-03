@@ -146,6 +146,16 @@ Para interromper o backend, pressione `Ctrl+C`.
 ./mvnw test
 ```
 
+O teste do filtro geográfico em PostgreSQL real usa Testcontainers e fica em um
+perfil separado para que a suíte unitária não dependa de Docker:
+
+```bash
+./mvnw -Ppostgres-it verify
+```
+
+O workflow **Backend CI** executa a suíte padrão e esse perfil de integração em
+jobs separados.
+
 ## Busca e descoberta de sebos
 
 A busca pública de sebos está disponível em:
@@ -190,6 +200,15 @@ calcular a distância de todos os sebos cadastrados.
 O endpoint não armazena a localização recebida. Sebos sem coordenadas não entram
 em resultados limitados por raio e aparecem ao final quando a ordenação por
 proximidade é usada sem limite.
+
+Cada busca por proximidade registra `candidatos`, `resultados`, `raioKm` e
+`duracaoMs`. Consultas com mais de 500 candidatos ou duração superior a 500 ms
+também geram um aviso `busca_proximidade_lenta`, permitindo acompanhar quando a
+estratégia do MVP precisar ser revista.
+
+A geocodificação registra resultados de sucesso, endereço incompleto, ausência
+de resultado e erro sem incluir o endereço completo no log. O painel
+administrativo informa se cada sebo possui localização disponível.
 
 ## Gerar e executar o arquivo JAR
 

@@ -117,6 +117,11 @@ Principais endpoints:
   ao final. Com raio, registros sem coordenadas são excluídos.
 - A resposta inclui `distanciaKm` quando ela puder ser calculada. A posição do
   usuário não é persistida.
+- Logs estruturados registram duração, candidatos e resultados da busca; um
+  aviso destaca consultas acima de 500 candidatos ou 500 ms.
+- A geocodificação informa sucesso, endereço incompleto, ausência de resultado e
+  erro sem registrar o endereço completo. O painel administrativo sinaliza
+  sebos que ainda não possuem coordenadas.
 - A assinatura anterior do serviço foi preservada por sobrecarga e o novo
   parâmetro HTTP é opcional, mantendo compatibilidade com clientes existentes.
 
@@ -132,6 +137,8 @@ Principais endpoints:
   desempate e ausência de itens bloqueados/indisponíveis.
 - Busca: normalização textual, filtros, preço efetivo, proximidade, raio, limites
   geográficos, paginação e desempate.
+- O filtro retangular possui teste separado com PostgreSQL 16 em Testcontainers,
+  executado pelo perfil Maven `postgres-it`.
 - Administração: autorização, bootstrap, listagens, status e auditoria.
 - Serviços afetados pelas novas mensagens e regras continuam cobertos por testes
   unitários, de repositório e integração de segurança.
@@ -154,8 +161,10 @@ Execute antes de publicar alterações:
 ./mvnw clean test
 ```
 
-Na validação desta branch, 369 testes do backend foram aprovados. O número é um
-retrato desta entrega e pode aumentar com novos testes.
+A integração contínua executa a suíte padrão e um teste de integração com
+PostgreSQL real em cada push e pull request. O resultado e a quantidade atual de
+testes devem ser consultados no job **Backend CI**, evitando totais fixos que
+ficam desatualizados.
 
 ## Limites conhecidos
 
