@@ -14,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
 
 import com.vitral.dto.ProdutoResponse;
 import com.vitral.dto.SeboResponse;
@@ -31,6 +32,7 @@ import com.vitral.repository.SeboRepository;
 import com.vitral.specification.ProdutoSpecification;
 import com.vitral.specification.SeboSpecification;
 import com.vitral.util.GeoUtils;
+import com.vitral.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -59,6 +61,13 @@ public class BuscaService {
     @Transactional(readOnly = true)
     public Page<SeboResponse> buscarSebos(String termo, String cidade, String uf, Double lat, Double lng,
             Pageable pageable) {
+        return buscarSebos(termo, cidade, uf, lat, lng, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SeboResponse> buscarSebos(String termo, String cidade, String uf, Double lat, Double lng,
+            Double raioKm, Pageable pageable) {
+        validarLocalizacao(lat, lng, raioKm);
         Specification<Sebo> spec = SeboSpecification.ativo();
 
         if (termo != null && !termo.isBlank()) {
@@ -72,16 +81,20 @@ public class BuscaService {
         }
 
         if (lat != null && lng != null) {
-            return buscarSebosPorProximidade(spec, lat, lng, pageable);
+            if (raioKm != null) {
+                spec = spec.and(retanguloDeBusca(lat, lng, raioKm));
+            }
+            return buscarSebosPorProximidade(spec, lat, lng, raioKm, pageable);
         }
         return seboRepository.findAll(spec, pageable).map(seboMapper::toPublicResponse);
     }
 
     private Page<SeboResponse> buscarSebosPorProximidade(Specification<Sebo> spec, double lat, double lng,
-            Pageable pageable) {
+            Double raioKm, Pageable pageable) {
         List<Sebo> encontrados = seboRepository.findAll(spec);
         List<SeboResponse> ordenados = encontrados.stream()
                 .map(sebo -> seboMapper.toPublicResponse(sebo, distanciaKm(sebo, lat, lng)))
+                .filter(sebo -> raioKm == null || sebo.distanciaKm() != null && sebo.distanciaKm() <= raioKm)
                 .sorted(Comparator.comparing(SeboResponse::distanciaKm, Comparator.nullsLast(Double::compareTo))
                         .thenComparing(SeboResponse::id, Comparator.nullsLast(Long::compareTo)))
                 .toList();
@@ -89,6 +102,27 @@ public class BuscaService {
         int inicio = (int) Math.min(pageable.getOffset(), ordenados.size());
         int fim = (int) Math.min(inicio + pageable.getPageSize(), ordenados.size());
         return new PageImpl<>(ordenados.subList(inicio, fim), pageable, ordenados.size());
+    }
+
+    private void validarLocalizacao(Double lat, Double lng, Double raioKm) {
+        if ((lat == null) != (lng == null)) {
+            throw new BusinessException("Informe latitude e longitude juntas para buscar por proximidade.", HttpStatus.BAD_REQUEST);
+        }
+        if (lat != null && (lat < -90 || lat > 90 || lng < -180 || lng > 180)) {
+            throw new BusinessException("As coordenadas informadas são inválidas.", HttpStatus.BAD_REQUEST);
+        }
+        if (raioKm != null && (lat == null || raioKm <= 0 || raioKm > 500)) {
+            throw new BusinessException("O raio deve ser maior que zero, ter no máximo 500 km e requer uma localização.",
+                    HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private Specification<Sebo> retanguloDeBusca(double lat, double lng, double raioKm) {
+        double latitudeDelta = raioKm / 111.0;
+        double cosseno = Math.max(Math.cos(Math.toRadians(lat)), 0.01);
+        double longitudeDelta = raioKm / (111.0 * cosseno);
+        return SeboSpecification.dentroDoRetangulo(lat - latitudeDelta, lat + latitudeDelta,
+                lng - longitudeDelta, lng + longitudeDelta);
     }
 
     private Double distanciaKm(Sebo sebo, double lat, double lng) {

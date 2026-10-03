@@ -55,6 +55,15 @@ public class SeboSpecification {
         return (root, query, cb) -> cb.equal(root.get("uf"), uf.trim().toUpperCase());
     }
 
+    public static Specification<Sebo> dentroDoRetangulo(double latitudeMinima, double latitudeMaxima,
+            double longitudeMinima, double longitudeMaxima) {
+        return (root, query, cb) -> cb.and(
+                cb.isNotNull(root.get("latitude")),
+                cb.isNotNull(root.get("longitude")),
+                cb.between(root.get("latitude"), latitudeMinima, latitudeMaxima),
+                cb.between(root.get("longitude"), longitudeMinima, longitudeMaxima));
+    }
+
     private static jakarta.persistence.criteria.Expression<String> semAcentos(
             jakarta.persistence.criteria.CriteriaBuilder cb,
             jakarta.persistence.criteria.Expression<String> campo) {

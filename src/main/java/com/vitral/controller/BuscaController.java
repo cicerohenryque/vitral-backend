@@ -39,9 +39,10 @@ public class BuscaController {
             @RequestParam(required = false) String uf,
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng,
+            @RequestParam(required = false) Double raioKm,
             Pageable pageable) {
         return ResponseEntity.ok(
-                PageResponse.from(buscaService.buscarSebos(q, cidade, uf, lat, lng, pageable)));
+                PageResponse.from(buscaService.buscarSebos(q, cidade, uf, lat, lng, raioKm, pageable)));
     }
 
     @GetMapping("/produtos")
