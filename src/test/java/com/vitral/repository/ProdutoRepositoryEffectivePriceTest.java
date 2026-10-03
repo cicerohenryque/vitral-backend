@@ -18,6 +18,7 @@ import com.vitral.entity.Produto;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.CondicaoProduto;
+import com.vitral.specification.ProdutoSpecification;
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -64,6 +65,14 @@ class ProdutoRepositoryEffectivePriceTest {
         assertThat(resultado.getContent())
                 .extracting(Produto::getId)
                 .containsExactly(comOferta.getId(), ofertaExpirada.getId(), semOferta.getId());
+
+        var dentroDaFaixa = produtoRepository.findAll(
+                ProdutoSpecification.precoMinimo(new BigDecimal("9.00"))
+                        .and(ProdutoSpecification.precoMaximo(new BigDecimal("12.00"))));
+
+        assertThat(dentroDaFaixa)
+                .extracting(Produto::getId)
+                .containsExactly(comOferta.getId());
     }
 
     private Produto produto(Sebo sebo, String titulo, String preco) {

@@ -50,6 +50,7 @@ class ProdutoSpecificationTest {
     void encontraAutorAcentuadoComTermoAcentuadoOuSemAcento() {
         assertThat(buscar("joao")).hasSize(1);
         assertThat(buscar("João")).hasSize(1);
+        assertThat(buscar("ficcao joao")).hasSize(1);
     }
 
     @Test
@@ -59,7 +60,7 @@ class ProdutoSpecificationTest {
 
     private List<Produto> buscar(String termo) {
         return produtoRepository.findAll(
-                ProdutoSpecification.disponivel().and(ProdutoSpecification.tituloOuAutorContemAlgum(List.of(termo))),
+                ProdutoSpecification.disponivel().and(ProdutoSpecification.tituloOuAutorContem(termo)),
                 PageRequest.of(0, 10)).getContent();
     }
 }

@@ -74,6 +74,20 @@ public class ProdutoSpecification {
         };
     }
 
+    public static Specification<Produto> tituloOuAutorContem(String termo) {
+        List<String> palavras = palavrasNormalizadas(termo);
+        return (root, query, cb) -> {
+            if (palavras.isEmpty()) return cb.disjunction();
+            var titulo = semAcentos(cb, root.get("titulo"));
+            var autor = semAcentos(cb, root.get("autor"));
+            return cb.and(palavras.stream()
+                    .map(palavra -> cb.or(
+                            cb.like(titulo, "%" + palavra + "%"),
+                            cb.like(autor, "%" + palavra + "%")))
+                    .toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+    }
+
     private static jakarta.persistence.criteria.Expression<String> semAcentos(
             jakarta.persistence.criteria.CriteriaBuilder cb,
             jakarta.persistence.criteria.Expression<String> campo) {
@@ -87,6 +101,11 @@ public class ProdutoSpecification {
                 .replaceAll("[^a-z0-9\\s]", " ")
                 .replaceAll("\\s+", " ")
                 .trim();
+    }
+
+    private static List<String> palavrasNormalizadas(String termo) {
+        String normalizado = termo == null ? "" : normalizarTermo(termo);
+        return normalizado.isBlank() ? List.of() : List.of(normalizado.split(" "));
     }
 
     public static Specification<Produto> doSebo(Long seboId) {
@@ -112,10 +131,10 @@ public class ProdutoSpecification {
     }
 
     public static Specification<Produto> precoMinimo(BigDecimal precoMin) {
-        return (root, query, cb) -> cb.greaterThanOrEqualTo(root.get("preco"), precoMin);
+        return (root, query, cb) -> cb.greaterThanOrEqualTo(root.get("precoEfetivo"), precoMin);
     }
 
     public static Specification<Produto> precoMaximo(BigDecimal precoMax) {
-        return (root, query, cb) -> cb.lessThanOrEqualTo(root.get("preco"), precoMax);
+        return (root, query, cb) -> cb.lessThanOrEqualTo(root.get("precoEfetivo"), precoMax);
     }
 }

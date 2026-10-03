@@ -45,7 +45,7 @@ public class BuscaController {
     }
 
     @GetMapping("/produtos")
-    @Operation(summary = "Busca produtos ativos com filtros opcionais: titulo (q), seboId, condicao, precoMin e precoMax")
+    @Operation(summary = "Busca produtos ativos por título ou autor, com filtros opcionais de sebo, condição, preço, categoria e gênero")
     public ResponseEntity<PageResponse<ProdutoResponse>> buscarProdutos(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Long seboId,

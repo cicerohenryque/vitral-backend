@@ -110,7 +110,7 @@ public class BuscaService {
         Categoria categoriaPesquisa = null;
 
         if (termo != null && !termo.isBlank()) {
-            spec = spec.and(ProdutoSpecification.tituloContem(termo));
+            spec = spec.and(ProdutoSpecification.tituloOuAutorContem(termo));
         }
         if (seboId != null) {
             spec = spec.and(ProdutoSpecification.doSebo(seboId));

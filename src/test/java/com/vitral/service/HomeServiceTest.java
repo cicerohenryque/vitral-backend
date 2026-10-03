@@ -62,7 +62,7 @@ class HomeServiceTest {
     }
 
     @Test
-    void visitanteRecebeSecoesSemDuplicacaoComTodosOsProdutosETotal() {
+    void visitanteRecebeSecoesLimitadasSemDuplicacaoEComTotal() {
         prepararPaginas();
         when(categoriaRepository.findComProdutosDisponiveis(null, com.vitral.service.CategoriaService.SLUGS_PERMITIDOS)).thenReturn(List.of(livros));
         when(produtoRepository.count(org.mockito.ArgumentMatchers.<Specification<Produto>>any())).thenReturn(9L);
@@ -86,7 +86,11 @@ class HomeServiceTest {
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
         verify(produtoRepository, org.mockito.Mockito.times(3)).findAll(
                 org.mockito.ArgumentMatchers.<Specification<Produto>>any(), pageable.capture());
-        assertThat(pageable.getAllValues()).allMatch(Pageable::isUnpaged);
+        assertThat(pageable.getAllValues()).allSatisfy(pagina -> {
+            assertThat(pagina.isPaged()).isTrue();
+            assertThat(pagina.getPageNumber()).isZero();
+            assertThat(pagina.getPageSize()).isEqualTo(20);
+        });
     }
 
     @Test

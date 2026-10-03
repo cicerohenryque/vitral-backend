@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -55,14 +56,13 @@ public class HomeService {
         if (seboId != null) base = base.and(ProdutoSpecification.doSebo(seboId));
 
         Page<Produto> classicos = produtoRepository.findAll(base.and(ProdutoSpecification.classico()),
-                Pageable.unpaged(Sort.by(Sort.Direction.DESC, "updatedAt")));
+                primeiraPagina(Sort.by(Sort.Direction.DESC, "updatedAt")));
         Set<Long> destacados = ids(classicos);
 
         Specification<Produto> specLancamentos = base.and(ProdutoSpecification.naoClassico())
                 .and(ProdutoSpecification.lancamentoOuRecente(OffsetDateTime.now().minusDays(DIAS_PRODUTO_RECENTE)));
         Page<Produto> lancamentos = produtoRepository.findAll(specLancamentos,
-                Pageable.unpaged(
-                        Sort.by(Sort.Order.desc("lancamento"), Sort.Order.desc("createdAt"))));
+                primeiraPagina(Sort.by(Sort.Order.desc("lancamento"), Sort.Order.desc("createdAt"))));
         destacados.addAll(ids(lancamentos));
 
         HomeSectionResponse recomendados = montarRecomendados(account, base, destacados);
@@ -90,7 +90,7 @@ public class HomeService {
         } catch (RuntimeException exception) {
             log.warn("Falha ao personalizar home; usando recomendacoes genericas");
             Page<Produto> genericos = produtoRepository.findAll(base.and(ProdutoSpecification.idsFora(destacados)),
-                    org.springframework.data.domain.PageRequest.of(0, recomendacaoProperties.candidatosMaximo(),
+                    PageRequest.of(0, recomendacaoProperties.tamanhoHome(),
                             Sort.by(Sort.Direction.DESC, "createdAt")));
             return secao("Recomendados para voce", genericos);
         }
@@ -105,10 +105,10 @@ public class HomeService {
             long total = produtoRepository.count(categoriaBase);
             Page<Produto> page = produtoRepository.findAll(
                     categoriaBase.and(ProdutoSpecification.idsFora(destacados)),
-                    Pageable.unpaged(Sort.by(Sort.Direction.DESC, "createdAt")));
+                    primeiraPagina(Sort.by(Sort.Direction.DESC, "createdAt")));
             if (page.isEmpty() && total > 0) {
                 page = produtoRepository.findAll(categoriaBase,
-                        Pageable.unpaged(Sort.by(Sort.Direction.DESC, "createdAt")));
+                        primeiraPagina(Sort.by(Sort.Direction.DESC, "createdAt")));
             }
             resultado.add(new HomeCategoriaResponse(categoria.getId(), categoria.getNome(), categoria.getSlug(),
                     mapear(page.getContent()), total));
@@ -128,5 +128,9 @@ public class HomeService {
 
     private Set<Long> ids(Page<Produto> produtos) {
         return produtos.stream().map(Produto::getId).collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private Pageable primeiraPagina(Sort sort) {
+        return PageRequest.of(0, recomendacaoProperties.tamanhoHome(), sort);
     }
 }
