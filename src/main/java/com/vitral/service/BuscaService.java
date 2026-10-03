@@ -35,10 +35,14 @@ import com.vitral.util.GeoUtils;
 import com.vitral.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
 public class BuscaService {
+
+    private static final Logger log = LoggerFactory.getLogger(BuscaService.class);
 
     private final SeboRepository seboRepository;
     private final ProdutoRepository produtoRepository;
@@ -91,6 +95,7 @@ public class BuscaService {
 
     private Page<SeboResponse> buscarSebosPorProximidade(Specification<Sebo> spec, double lat, double lng,
             Double raioKm, Pageable pageable) {
+        long inicioConsulta = System.nanoTime();
         List<Sebo> encontrados = seboRepository.findAll(spec);
         List<SeboResponse> ordenados = encontrados.stream()
                 .map(sebo -> seboMapper.toPublicResponse(sebo, distanciaKm(sebo, lat, lng)))
@@ -98,6 +103,14 @@ public class BuscaService {
                 .sorted(Comparator.comparing(SeboResponse::distanciaKm, Comparator.nullsLast(Double::compareTo))
                         .thenComparing(SeboResponse::id, Comparator.nullsLast(Long::compareTo)))
                 .toList();
+
+        long duracaoMs = (System.nanoTime() - inicioConsulta) / 1_000_000;
+        log.info("busca_proximidade candidatos={} resultados={} raioKm={} duracaoMs={}",
+                encontrados.size(), ordenados.size(), raioKm, duracaoMs);
+        if (encontrados.size() > 500 || duracaoMs > 500) {
+            log.warn("busca_proximidade_lenta candidatos={} resultados={} raioKm={} duracaoMs={}",
+                    encontrados.size(), ordenados.size(), raioKm, duracaoMs);
+        }
 
         int inicio = (int) Math.min(pageable.getOffset(), ordenados.size());
         int fim = (int) Math.min(inicio + pageable.getPageSize(), ordenados.size());
