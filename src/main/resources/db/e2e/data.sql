@@ -15,11 +15,11 @@ INSERT INTO token_recuperacao_senha (account_id, token, expira_em, usado, create
 VALUES (2, '22222222-2222-2222-2222-222222222222', DATEADD('HOUR', 1, CURRENT_TIMESTAMP), FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 INSERT INTO sebo (
-    account_id, descricao, telefone, cidade, uf, status_verificacao, status_consulta_cnpj,
+    account_id, descricao, telefone, cidade, uf, latitude, longitude, status_verificacao, status_consulta_cnpj,
     confirmado, created_at, updated_at
 )
 VALUES (
-    1, 'Sebo criado exclusivamente para os testes E2E.', '85999990000', 'Fortaleza', 'CE',
+    1, 'Sebo criado exclusivamente para os testes E2E.', '85999990000', 'Fortaleza', 'CE', -3.7319, -38.5267,
     'VERIFICADO', 'ATIVA', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 );
 
