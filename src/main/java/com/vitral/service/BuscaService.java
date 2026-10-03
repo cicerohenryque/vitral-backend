@@ -108,10 +108,11 @@ public class BuscaService {
         if ((lat == null) != (lng == null)) {
             throw new BusinessException("Informe latitude e longitude juntas para buscar por proximidade.", HttpStatus.BAD_REQUEST);
         }
-        if (lat != null && (lat < -90 || lat > 90 || lng < -180 || lng > 180)) {
+        if (lat != null && (!Double.isFinite(lat) || !Double.isFinite(lng)
+                || lat < -90 || lat > 90 || lng < -180 || lng > 180)) {
             throw new BusinessException("As coordenadas informadas são inválidas.", HttpStatus.BAD_REQUEST);
         }
-        if (raioKm != null && (lat == null || raioKm <= 0 || raioKm > 500)) {
+        if (raioKm != null && (lat == null || !Double.isFinite(raioKm) || raioKm <= 0 || raioKm > 500)) {
             throw new BusinessException("O raio deve ser maior que zero, ter no máximo 500 km e requer uma localização.",
                     HttpStatus.BAD_REQUEST);
         }
