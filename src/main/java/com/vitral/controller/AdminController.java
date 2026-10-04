@@ -84,6 +84,12 @@ public class AdminController {
         return ResponseEntity.ok(PageResponse.from(adminService.listarSebos(termo, status, pageable)));
     }
 
+    @PutMapping("/sebos/{id}/geocodificar")
+    public ResponseEntity<AdminSeboResponse> geocodificarSebo(
+            @AuthenticationPrincipal AccountUserDetails principal, @PathVariable Long id) {
+        return ResponseEntity.ok(adminService.geocodificarSebo(principal.getAccount(), id));
+    }
+
     @GetMapping("/pedidos")
     public ResponseEntity<PageResponse<AdminPedidoResponse>> listarPedidos(
             @RequestParam(required = false) Long id, @RequestParam(required = false) StatusPedido status,

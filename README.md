@@ -208,7 +208,8 @@ estratégia do MVP precisar ser revista.
 
 A geocodificação registra resultados de sucesso, endereço incompleto, ausência
 de resultado e erro sem incluir o endereço completo no log. O painel
-administrativo informa se cada sebo possui localização disponível.
+administrativo informa se cada sebo possui localização disponível e permite
+tentar novamente depois que o endereço for corrigido.
 
 ## Gerar e executar o arquivo JAR
 
@@ -303,6 +304,10 @@ APP_UPLOAD_IMAGE_DIR=uploads/images
 # Paginação das listagens. Requisições acima do máximo são limitadas pelo Spring.
 APP_PAGE_DEFAULT_SIZE=20
 APP_PAGE_MAX_SIZE=100
+
+# Limites para destacar buscas por proximidade que precisam de análise.
+APP_BUSCA_PROXIMIDADE_WARN_CANDIDATOS=500
+APP_BUSCA_PROXIMIDADE_WARN_DURACAO_MS=500
 
 # Somente para desenvolvimento local: aprova sebos sem revisão administrativa.
 APP_SEBO_VERIFICACAO_MOCK_AUTO_APROVAR=false

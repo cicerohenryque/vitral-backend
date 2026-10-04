@@ -50,6 +50,7 @@ public class AdminService {
     private final SeboRepository seboRepository;
     private final PedidoRepository pedidoRepository;
     private final AdminAuditRepository adminAuditRepository;
+    private final SeboGeocodingService seboGeocodingService;
 
     @Transactional(readOnly = true)
     public AdminDashboardResponse dashboard() {
@@ -128,6 +129,19 @@ public class AdminService {
         Page<Sebo> sebos = seboRepository.findAll(spec, pageable);
         Map<Long, long[]> totais = contagensProdutos(sebos.getContent());
         return sebos.map(sebo -> seboResponse(sebo, totais.getOrDefault(sebo.getId(), new long[2])));
+    }
+
+    @Transactional
+    public AdminSeboResponse geocodificarSebo(Account admin, Long id) {
+        Sebo sebo = seboRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Sebo não encontrado.", HttpStatus.NOT_FOUND));
+        seboGeocodingService.geocodificar(sebo);
+        seboRepository.save(sebo);
+        boolean disponivel = sebo.getLatitude() != null && sebo.getLongitude() != null;
+        auditar(admin, "REGEOCODIFICOU", "SEBO", id,
+                disponivel ? "Localização do sebo atualizada." : "Localização do sebo não encontrada.");
+        long[] totais = contagensProdutos(List.of(sebo)).getOrDefault(id, new long[2]);
+        return seboResponse(sebo, totais);
     }
 
     @Transactional(readOnly = true)
