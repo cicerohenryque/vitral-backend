@@ -27,7 +27,7 @@ import jakarta.persistence.EntityManager;
 class SeboSpecificationPostgresIT {
 
     @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16.14-alpine");
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
