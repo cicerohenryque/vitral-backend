@@ -37,12 +37,19 @@ import com.vitral.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 @RequiredArgsConstructor
 public class BuscaService {
 
     private static final Logger log = LoggerFactory.getLogger(BuscaService.class);
+
+    @Value("${app.busca.proximidade.warn-candidatos:500}")
+    private int proximidadeWarnCandidatos = 500;
+
+    @Value("${app.busca.proximidade.warn-duracao-ms:500}")
+    private long proximidadeWarnDuracaoMs = 500;
 
     private final SeboRepository seboRepository;
     private final ProdutoRepository produtoRepository;
@@ -107,7 +114,7 @@ public class BuscaService {
         long duracaoMs = (System.nanoTime() - inicioConsulta) / 1_000_000;
         log.info("busca_proximidade candidatos={} resultados={} raioKm={} duracaoMs={}",
                 encontrados.size(), ordenados.size(), raioKm, duracaoMs);
-        if (encontrados.size() > 500 || duracaoMs > 500) {
+        if (encontrados.size() > proximidadeWarnCandidatos || duracaoMs > proximidadeWarnDuracaoMs) {
             log.warn("busca_proximidade_lenta candidatos={} resultados={} raioKm={} duracaoMs={}",
                     encontrados.size(), ordenados.size(), raioKm, duracaoMs);
         }
