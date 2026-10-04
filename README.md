@@ -156,6 +156,12 @@ perfil separado para que a suíte unitária não dependa de Docker:
 O workflow **Backend CI** executa a suíte padrão e esse perfil de integração em
 jobs separados.
 
+### Testes de carga
+
+O cenário k6 em [load-tests/catalog.js](load-tests/catalog.js) mede Home, busca e
+recomendações com limites próprios de latência e erro. As instruções, variáveis
+e cuidados para execução estão em [load-tests/README.md](load-tests/README.md).
+
 ## Busca e descoberta de sebos
 
 A busca pública de sebos está disponível em:
