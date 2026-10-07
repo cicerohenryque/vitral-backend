@@ -36,7 +36,7 @@
         <jackson-jsr310.version>2.15.4</jackson-jsr310.version>
         <surefire.version>3.5.2</surefire.version>
         <jacoco.version>0.8.13</jacoco.version>
-        <testcontainers.version>1.21.3</testcontainers.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
     <dependencies>
         <dependency>
