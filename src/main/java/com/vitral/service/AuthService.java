@@ -50,13 +50,13 @@ public class AuthService {
     @Transactional
     public MensagemResponse register(RegisterRequest request) {
         if (request.type() == AccountType.ADMIN) {
-            throw new BusinessException("Tipo de conta invalido para cadastro publico", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O tipo de conta informado não pode ser cadastrado por este canal.", HttpStatus.BAD_REQUEST);
         }
         if (accountRepository.existsByEmail(request.email())) {
-            throw new ConflictException("Email ja cadastrado");
+            throw new ConflictException("Já existe uma conta cadastrada com este e-mail.");
         }
         if (accountRepository.existsByUsername(request.username())) {
-            throw new ConflictException("Usuario ja cadastrado");
+            throw new ConflictException("Este nome de usuário já está em uso. Escolha outro.");
         }
 
         Account account = Account.builder()
@@ -75,7 +75,7 @@ public class AuthService {
             return new MensagemResponse("Cadastro realizado. Verifique seu e-mail para confirmar a conta.");
         }
 
-        return new MensagemResponse("Cadastro realizado. Voce ja pode fazer login.");
+        return new MensagemResponse("Conta criada com sucesso. Você já pode fazer login.");
     }
 
     @Transactional
@@ -84,10 +84,10 @@ public class AuthService {
         Account account = (identificador.contains("@")
                 ? accountRepository.findByEmailAndAtivoTrue(identificador)
                 : accountRepository.findByUsernameAndAtivoTrue(identificador.toLowerCase(java.util.Locale.ROOT)))
-                .orElseThrow(() -> new BusinessException("Credenciais invalidas", HttpStatus.UNAUTHORIZED));
+                .orElseThrow(() -> new BusinessException("E-mail, usuário ou senha incorretos. Confira os dados e tente novamente.", HttpStatus.UNAUTHORIZED));
 
         if (!account.isEmailVerificado()) {
-            throw new BusinessException("E-mail nao confirmado. Verifique sua caixa de entrada.", HttpStatus.UNAUTHORIZED);
+            throw new BusinessException("Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada ou solicite um novo link.", HttpStatus.UNAUTHORIZED);
         }
 
         authenticationManager.authenticate(
@@ -101,19 +101,19 @@ public class AuthService {
     @Transactional
     public MensagemResponse confirmarEmail(String tokenValor) {
         TokenVerificacaoEmail token = tokenRepository.findByToken(tokenValor)
-                .orElseThrow(() -> new ResourceNotFoundException("Token de confirmacao invalido"));
+                .orElseThrow(() -> new ResourceNotFoundException("O link de confirmação é inválido. Solicite um novo link."));
 
         if (token.isUsado()) {
-            throw new BusinessException("Token ja utilizado", HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new BusinessException("Este link de confirmação já foi utilizado.", HttpStatus.UNPROCESSABLE_ENTITY);
         }
         if (OffsetDateTime.now().isAfter(token.getExpiraEm())) {
-            throw new BusinessException("Token expirado. Solicite um novo link de confirmacao.", HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new BusinessException("Este link de confirmação expirou. Solicite um novo link.", HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
         token.getAccount().setEmailVerificado(true);
         token.setUsado(true);
 
-        return new MensagemResponse("E-mail confirmado com sucesso. Voce ja pode fazer login.");
+        return new MensagemResponse("E-mail confirmado com sucesso. Você já pode fazer login.");
     }
 
     @Transactional
@@ -147,12 +147,12 @@ public class AuthService {
     @Transactional
     public MensagemResponse redefinirSenha(RedefinirSenhaRequest request) {
         TokenRecuperacaoSenha token = tokenRecuperacaoSenhaRepository.findByToken(request.token())
-                .orElseThrow(() -> new ResourceNotFoundException("Link de recuperacao invalido"));
+                .orElseThrow(() -> new ResourceNotFoundException("O link de recuperação é inválido. Solicite um novo link."));
         if (token.isUsado()) {
-            throw new BusinessException("Link de recuperacao ja utilizado", HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new BusinessException("Este link de recuperação já foi utilizado. Solicite um novo link.", HttpStatus.UNPROCESSABLE_ENTITY);
         }
         if (OffsetDateTime.now().isAfter(token.getExpiraEm())) {
-            throw new BusinessException("Link de recuperacao expirado. Solicite um novo.", HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new BusinessException("Este link de recuperação expirou. Solicite um novo link.", HttpStatus.UNPROCESSABLE_ENTITY);
         }
         token.getAccount().setPasswordHash(passwordEncoder.encode(request.password()));
         token.getAccount().setAuthVersion(token.getAccount().getAuthVersion() + 1);

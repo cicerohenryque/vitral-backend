@@ -2,15 +2,19 @@ package com.vitral.service;
 
 import java.math.BigDecimal;
 import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
 
 import com.vitral.dto.ProdutoResponse;
 import com.vitral.dto.SeboResponse;
@@ -28,12 +32,24 @@ import com.vitral.repository.SeboRepository;
 import com.vitral.specification.ProdutoSpecification;
 import com.vitral.specification.SeboSpecification;
 import com.vitral.util.GeoUtils;
+import com.vitral.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 @RequiredArgsConstructor
 public class BuscaService {
+
+    private static final Logger log = LoggerFactory.getLogger(BuscaService.class);
+
+    @Value("${app.busca.proximidade.warn-candidatos:500}")
+    private int proximidadeWarnCandidatos = 500;
+
+    @Value("${app.busca.proximidade.warn-duracao-ms:500}")
+    private long proximidadeWarnDuracaoMs = 500;
 
     private final SeboRepository seboRepository;
     private final ProdutoRepository produtoRepository;
@@ -56,6 +72,13 @@ public class BuscaService {
     @Transactional(readOnly = true)
     public Page<SeboResponse> buscarSebos(String termo, String cidade, String uf, Double lat, Double lng,
             Pageable pageable) {
+        return buscarSebos(termo, cidade, uf, lat, lng, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SeboResponse> buscarSebos(String termo, String cidade, String uf, Double lat, Double lng,
+            Double raioKm, Pageable pageable) {
+        validarLocalizacao(lat, lng, raioKm);
         Specification<Sebo> spec = SeboSpecification.ativo();
 
         if (termo != null && !termo.isBlank()) {
@@ -69,22 +92,58 @@ public class BuscaService {
         }
 
         if (lat != null && lng != null) {
-            return buscarSebosPorProximidade(spec, lat, lng, pageable);
+            if (raioKm != null) {
+                spec = spec.and(retanguloDeBusca(lat, lng, raioKm));
+            }
+            return buscarSebosPorProximidade(spec, lat, lng, raioKm, pageable);
         }
         return seboRepository.findAll(spec, pageable).map(seboMapper::toPublicResponse);
     }
 
     private Page<SeboResponse> buscarSebosPorProximidade(Specification<Sebo> spec, double lat, double lng,
-            Pageable pageable) {
+            Double raioKm, Pageable pageable) {
+        long inicioConsulta = System.nanoTime();
         List<Sebo> encontrados = seboRepository.findAll(spec);
         List<SeboResponse> ordenados = encontrados.stream()
                 .map(sebo -> seboMapper.toPublicResponse(sebo, distanciaKm(sebo, lat, lng)))
-                .sorted(Comparator.comparing(SeboResponse::distanciaKm, Comparator.nullsLast(Double::compareTo)))
+                .filter(sebo -> raioKm == null || sebo.distanciaKm() != null && sebo.distanciaKm() <= raioKm)
+                .sorted(Comparator.comparing(SeboResponse::distanciaKm, Comparator.nullsLast(Double::compareTo))
+                        .thenComparing(SeboResponse::id, Comparator.nullsLast(Long::compareTo)))
                 .toList();
+
+        long duracaoMs = (System.nanoTime() - inicioConsulta) / 1_000_000;
+        log.info("busca_proximidade candidatos={} resultados={} raioKm={} duracaoMs={}",
+                encontrados.size(), ordenados.size(), raioKm, duracaoMs);
+        if (encontrados.size() > proximidadeWarnCandidatos || duracaoMs > proximidadeWarnDuracaoMs) {
+            log.warn("busca_proximidade_lenta candidatos={} resultados={} raioKm={} duracaoMs={}",
+                    encontrados.size(), ordenados.size(), raioKm, duracaoMs);
+        }
 
         int inicio = (int) Math.min(pageable.getOffset(), ordenados.size());
         int fim = (int) Math.min(inicio + pageable.getPageSize(), ordenados.size());
         return new PageImpl<>(ordenados.subList(inicio, fim), pageable, ordenados.size());
+    }
+
+    private void validarLocalizacao(Double lat, Double lng, Double raioKm) {
+        if ((lat == null) != (lng == null)) {
+            throw new BusinessException("Informe latitude e longitude juntas para buscar por proximidade.", HttpStatus.BAD_REQUEST);
+        }
+        if (lat != null && (!Double.isFinite(lat) || !Double.isFinite(lng)
+                || lat < -90 || lat > 90 || lng < -180 || lng > 180)) {
+            throw new BusinessException("As coordenadas informadas são inválidas.", HttpStatus.BAD_REQUEST);
+        }
+        if (raioKm != null && (lat == null || !Double.isFinite(raioKm) || raioKm <= 0 || raioKm > 500)) {
+            throw new BusinessException("O raio deve ser maior que zero, ter no máximo 500 km e requer uma localização.",
+                    HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private Specification<Sebo> retanguloDeBusca(double lat, double lng, double raioKm) {
+        double latitudeDelta = raioKm / 111.0;
+        double cosseno = Math.max(Math.cos(Math.toRadians(lat)), 0.01);
+        double longitudeDelta = raioKm / (111.0 * cosseno);
+        return SeboSpecification.dentroDoRetangulo(lat - latitudeDelta, lat + latitudeDelta,
+                lng - longitudeDelta, lng + longitudeDelta);
     }
 
     private Double distanciaKm(Sebo sebo, double lat, double lng) {
@@ -107,7 +166,7 @@ public class BuscaService {
         Categoria categoriaPesquisa = null;
 
         if (termo != null && !termo.isBlank()) {
-            spec = spec.and(ProdutoSpecification.tituloContem(termo));
+            spec = spec.and(ProdutoSpecification.tituloOuAutorContem(termo));
         }
         if (seboId != null) {
             spec = spec.and(ProdutoSpecification.doSebo(seboId));
@@ -135,7 +194,7 @@ public class BuscaService {
         }
         if (bookGenre != null) spec = spec.and(ProdutoSpecification.comBookGenre(bookGenre));
 
-        Page<Produto> produtos = produtoRepository.findAll(spec, pageable);
+        Page<Produto> produtos = produtoRepository.findAll(spec, ordenarPorPrecoEfetivo(pageable));
         Produto primeiroResultado = produtos.isEmpty() ? null : produtos.getContent().getFirst();
         Categoria categoriaSinal = categoriaPesquisa != null ? categoriaPesquisa
                 : (primeiroResultado == null ? null : primeiroResultado.getCategoria());
@@ -147,6 +206,20 @@ public class BuscaService {
         List<Long> ids = produtos.getContent().stream().map(Produto::getId).toList();
         Map<Long, BigDecimal> promocionais = precoService.precosPromocionaisVigentes(ids);
         return produtos.map(p -> produtoMapper.toResponse(p, promocionais.get(p.getId())));
+    }
+
+    private Pageable ordenarPorPrecoEfetivo(Pageable pageable) {
+        if (pageable.isUnpaged() || pageable.getSort().getOrderFor("preco") == null) {
+            return pageable;
+        }
+
+        List<Sort.Order> orders = new ArrayList<>();
+        pageable.getSort().forEach(order -> orders.add(
+                "preco".equals(order.getProperty()) ? order.withProperty("precoEfetivo") : order));
+        if (orders.stream().noneMatch(order -> "id".equals(order.getProperty()))) {
+            orders.add(Sort.Order.asc("id"));
+        }
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(orders));
     }
 
     public Page<ProdutoResponse> buscarProdutos(String termo, Long seboId, CondicaoProduto condicao,

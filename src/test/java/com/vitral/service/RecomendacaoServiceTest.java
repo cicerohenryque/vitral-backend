@@ -39,11 +39,15 @@ import com.vitral.exception.BusinessException;
 import com.vitral.mapper.ProdutoMapper;
 import com.vitral.repository.ProdutoRepository;
 import com.vitral.repository.RecomendacaoEventoRepository;
+import com.vitral.repository.FavoritoRepository;
+import com.vitral.repository.CestaItemRepository;
 
 @ExtendWith(MockitoExtension.class)
 class RecomendacaoServiceTest {
     @Mock RecomendacaoEventoRepository eventoRepository;
     @Mock ProdutoRepository produtoRepository;
+    @Mock FavoritoRepository favoritoRepository;
+    @Mock CestaItemRepository cestaItemRepository;
     @Mock ProdutoMapper produtoMapper;
     @Mock PrecoService precoService;
     private RecomendacaoService service;
@@ -52,12 +56,13 @@ class RecomendacaoServiceTest {
     private Categoria vinis;
 
     @BeforeEach void setUp() {
-        service = new RecomendacaoService(eventoRepository, produtoRepository, produtoMapper, precoService,
-                new RecenciaRecomendacaoService(), new RecomendacaoProperties(1000, 200, 20, 30, 365, 30, 3, 90, 50, 90));
+        service = novoServico(new RecomendacaoProperties(1000, 200, 20, 30, 365, 30, 3, 90, 50, 90, null));
         usuario = Account.builder().type(AccountType.USUARIO).build(); set(usuario, "id", 1L);
         livros = Categoria.builder().nome("Livros").slug("livros").build(); set(livros, "id", 10L);
         vinis = Categoria.builder().nome("Vinis").slug("vinis").build(); set(vinis, "id", 20L);
-        lenient().when(eventoRepository.contagemPorProdutoETipo(any())).thenReturn(List.of());
+        lenient().when(eventoRepository.contagemPorProdutoETipo(any(), any())).thenReturn(List.of());
+        lenient().when(favoritoRepository.findProdutoIdsByAccountId(any())).thenReturn(List.of());
+        lenient().when(cestaItemRepository.findProdutoIdsByAccountId(any())).thenReturn(List.of());
         lenient().when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
         lenient().when(produtoMapper.toResponse(any(), any())).thenAnswer(i -> response(i.getArgument(0)));
     }
@@ -135,13 +140,149 @@ class RecomendacaoServiceTest {
         Produto comum = produto(2L, livros, 102L);
         when(eventoRepository.findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any()))
                 .thenReturn(List.of());
-        when(eventoRepository.contagemPorProdutoETipo(any()))
+        when(eventoRepository.contagemPorProdutoETipo(any(), any()))
                 .thenReturn(List.of(contagem(1L, TipoEventoRecomendacao.COMPRA_CONCLUIDA, 2L)));
         when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(comum, popular)));
 
         assertThat(service.recomendar(usuario, PageRequest.of(0, 10), Set.of()).getContent())
                 .extracting(ProdutoResponse::id).containsExactly(1L, 2L);
+    }
+
+    @Test void fallbackSemHistoricoPriorizaProdutoMaisRecente() {
+        Produto antigo = produto(1L, livros, 101L);
+        Produto recente = produto(2L, livros, 102L);
+        set(antigo, "createdAt", OffsetDateTime.now().minusDays(200));
+        set(recente, "createdAt", OffsetDateTime.now().minusDays(2));
+        when(eventoRepository.findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any()))
+                .thenReturn(List.of());
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(antigo, recente)));
+
+        assertThat(service.recomendar(usuario, PageRequest.of(0, 10), Set.of()).getContent())
+                .extracting(ProdutoResponse::id).containsExactly(2L, 1L);
+    }
+
+    @Test void termoPesquisadoAumentaRelevanciaDoTituloCorrespondente() {
+        Produto relacionado = produto(1L, livros, 101L);
+        Produto comum = produto(2L, livros, 102L);
+        relacionado.setTitulo("Ficção científica brasileira");
+        comum.setTitulo("História do Brasil");
+        RecomendacaoEvento pesquisa = RecomendacaoEvento.builder().account(usuario)
+                .tipo(TipoEventoRecomendacao.PESQUISA).termoPesquisa("ficcao cientifica").build();
+        set(pesquisa, "createdAt", OffsetDateTime.now().minusDays(1));
+        when(eventoRepository.findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any()))
+                .thenReturn(List.of(pesquisa));
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(comum, relacionado)));
+
+        assertThat(service.recomendar(usuario, PageRequest.of(0, 10), Set.of()).getContent())
+                .extracting(ProdutoResponse::id).containsExactly(1L, 2L);
+    }
+
+    @Test void consultaFavoritosECestaParaNaoRecomendarItensJaSeparados() {
+        when(eventoRepository.findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any()))
+                .thenReturn(List.of());
+        when(favoritoRepository.findProdutoIdsByAccountId(1L)).thenReturn(List.of(10L));
+        when(cestaItemRepository.findProdutoIdsByAccountId(1L)).thenReturn(List.of(20L));
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        service.recomendar(usuario, PageRequest.of(0, 10), Set.of());
+
+        verify(favoritoRepository).findProdutoIdsByAccountId(1L);
+        verify(cestaItemRepository).findProdutoIdsByAccountId(1L);
+    }
+
+    @Test void limitaTotalDeRegistrosSolicitadosParaFormarCandidatos() {
+        RecomendacaoEvento categoria = RecomendacaoEvento.builder().account(usuario)
+                .tipo(TipoEventoRecomendacao.VISUALIZACAO).categoria(livros).build();
+        RecomendacaoEvento termo = RecomendacaoEvento.builder().account(usuario)
+                .tipo(TipoEventoRecomendacao.PESQUISA).termoPesquisa("clarice").build();
+        set(categoria, "createdAt", OffsetDateTime.now().minusDays(1));
+        set(termo, "createdAt", OffsetDateTime.now().minusDays(1));
+        when(eventoRepository.findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any()))
+                .thenReturn(List.of(categoria, termo));
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        service.recomendar(usuario, PageRequest.of(0, 10), Set.of());
+
+        ArgumentCaptor<PageRequest> paginas = ArgumentCaptor.forClass(PageRequest.class);
+        verify(produtoRepository, org.mockito.Mockito.times(3))
+                .findAll(any(org.springframework.data.jpa.domain.Specification.class), paginas.capture());
+        assertThat(paginas.getAllValues().stream().mapToInt(PageRequest::getPageSize).sum()).isEqualTo(200);
+    }
+
+    @Test void respeitaLimiteDeUmCandidatoMesmoComCategoriaETermoDeInteresse() {
+        service = novoServico(new RecomendacaoProperties(1000, 1, 20, 30, 365, 30, 3, 90, 50, 90, null));
+        RecomendacaoEvento categoria = RecomendacaoEvento.builder().account(usuario)
+                .tipo(TipoEventoRecomendacao.VISUALIZACAO).categoria(livros).build();
+        RecomendacaoEvento termo = RecomendacaoEvento.builder().account(usuario)
+                .tipo(TipoEventoRecomendacao.PESQUISA).termoPesquisa("clarice").build();
+        set(categoria, "createdAt", OffsetDateTime.now().minusDays(1));
+        set(termo, "createdAt", OffsetDateTime.now().minusDays(1));
+        when(eventoRepository.findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any()))
+                .thenReturn(List.of(categoria, termo));
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        service.recomendar(usuario, PageRequest.of(0, 10), Set.of());
+
+        ArgumentCaptor<PageRequest> pagina = ArgumentCaptor.forClass(PageRequest.class);
+        verify(produtoRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), pagina.capture());
+        assertThat(pagina.getValue().getPageSize()).isEqualTo(1);
+    }
+
+    @Test void consultaPopularidadeSomenteDosProdutosCandidatos() {
+        Produto livro = produto(7L, livros, 101L);
+        when(eventoRepository.findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any()))
+                .thenReturn(List.of());
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(livro)));
+
+        service.recomendar(usuario, PageRequest.of(0, 10), Set.of());
+
+        verify(eventoRepository).contagemPorProdutoETipo(org.mockito.ArgumentMatchers.eq(List.of(7L)), any());
+    }
+
+    @Test void diversidadeEvitaTresProdutosSeguidosDoMesmoAutor() {
+        Produto primeiro = produto(1L, livros, 101L); primeiro.setAutor("Mesmo autor");
+        Produto segundo = produto(2L, livros, 102L); segundo.setAutor("Mesmo autor");
+        Produto terceiro = produto(3L, livros, 103L); terceiro.setAutor("Mesmo autor");
+        Produto diverso = produto(4L, livros, 104L); diverso.setAutor("Outro autor");
+        OffsetDateTime mesmaData = OffsetDateTime.now().minusDays(1);
+        set(primeiro, "createdAt", mesmaData);
+        set(segundo, "createdAt", mesmaData);
+        set(terceiro, "createdAt", mesmaData);
+        set(diverso, "createdAt", mesmaData);
+        when(eventoRepository.findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any()))
+                .thenReturn(List.of());
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(primeiro, segundo, terceiro, diverso)));
+
+        assertThat(service.recomendar(usuario, PageRequest.of(0, 10), Set.of()).getContent())
+                .extracting(ProdutoResponse::id).containsExactly(1L, 2L, 4L, 3L);
+    }
+
+    @Test void rankingEEstavelQuandoProdutosTemMesmaPontuacaoEData() {
+        Produto segundo = produto(2L, livros, 102L);
+        Produto primeiro = produto(1L, livros, 101L);
+        OffsetDateTime mesmaData = OffsetDateTime.now().minusDays(1);
+        set(primeiro, "createdAt", mesmaData);
+        set(segundo, "createdAt", mesmaData);
+        when(eventoRepository.findByAccountIdAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any()))
+                .thenReturn(List.of());
+        when(produtoRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(segundo, primeiro)));
+
+        List<Long> primeiraRequisicao = service.recomendar(usuario, PageRequest.of(0, 10), Set.of()).getContent()
+                .stream().map(ProdutoResponse::id).toList();
+        List<Long> segundaRequisicao = service.recomendar(usuario, PageRequest.of(0, 10), Set.of()).getContent()
+                .stream().map(ProdutoResponse::id).toList();
+
+        assertThat(primeiraRequisicao).containsExactly(1L, 2L);
+        assertThat(segundaRequisicao).isEqualTo(primeiraRequisicao);
     }
 
     private com.vitral.repository.ProdutoEventoContagemProjection contagem(Long produtoId,
@@ -170,6 +311,12 @@ class RecomendacaoServiceTest {
         return new ProdutoResponse(p.getId(), p.getSebo().getId(), "Sebo", p.getCategoria().getId(),
                 p.getCategoria().getNome(), null, p.getTitulo(), null, null, null, p.getPreco(), null,
                 1, CondicaoProduto.NOVO, null, true, true, false, false, null);
+    }
+
+    private RecomendacaoService novoServico(RecomendacaoProperties properties) {
+        return new RecomendacaoService(eventoRepository, produtoRepository, favoritoRepository, cestaItemRepository,
+                produtoMapper, precoService, new RecenciaRecomendacaoService(), new NormalizadorPesquisaService(),
+                properties);
     }
 
     private void set(Object alvo, String campo, Object valor) {

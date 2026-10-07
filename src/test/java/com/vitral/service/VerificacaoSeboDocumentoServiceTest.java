@@ -30,6 +30,7 @@ import com.vitral.enumerations.TipoDocumentoSebo;
 import com.vitral.exception.BusinessException;
 import com.vitral.mapper.SeboMapper;
 import com.vitral.repository.AuditoriaVerificacaoSeboRepository;
+import com.vitral.repository.AdminAuditRepository;
 import com.vitral.repository.DocumentoUploadRepository;
 import com.vitral.repository.DocumentoVerificacaoSeboRepository;
 import com.vitral.repository.ProdutoRepository;
@@ -40,6 +41,7 @@ class VerificacaoSeboDocumentoServiceTest {
     @Mock SeboRepository seboRepository;
     @Mock DocumentoVerificacaoSeboRepository documentoRepository;
     @Mock AuditoriaVerificacaoSeboRepository auditoriaRepository;
+    @Mock AdminAuditRepository adminAuditRepository;
     @Mock ProdutoRepository produtoRepository;
     @Mock SeboMapper seboMapper;
     @Mock DocumentoUploadRepository uploadRepository;
@@ -60,7 +62,7 @@ class VerificacaoSeboDocumentoServiceTest {
     void rejeitaUrlExterna() {
         var request = new DocumentoVerificacaoSeboRequest(TipoDocumentoSebo.CONTRATO_SOCIAL, "https://externo/arquivo.pdf");
         assertThatThrownBy(() -> service.enviarDocumento(account, request)).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("URL de documento gerada pelo backend");
+                .hasMessageContaining("URL de documento gerada pelo Vitral");
     }
 
     @Test
@@ -69,7 +71,7 @@ class VerificacaoSeboDocumentoServiceTest {
         when(uploadRepository.existsByNomeInternoAndSeboAccountId("arquivo.pdf", 1L)).thenReturn(false);
         var request = new DocumentoVerificacaoSeboRequest(TipoDocumentoSebo.CONTRATO_SOCIAL, url);
         assertThatThrownBy(() -> service.enviarDocumento(account, request)).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("nao pertence");
+                .hasMessageContaining("não pertence");
     }
 
     @Test
@@ -204,7 +206,7 @@ class VerificacaoSeboDocumentoServiceTest {
         when(documentoRepository.findBySeboIdOrderByEnviadoEmDesc(10L)).thenReturn(List.of());
         assertThatThrownBy(() -> service.revisar(admin, 10L, StatusVerificacaoSebo.VERIFICADO, null))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("ao menos um documento");
+                .hasMessageContaining("pelo menos um documento");
 
         when(documentoRepository.findBySeboIdOrderByEnviadoEmDesc(10L))
                 .thenReturn(List.of(DocumentoVerificacaoSebo.builder().sebo(sebo).status(StatusDocumentoSebo.PENDENTE).build()));

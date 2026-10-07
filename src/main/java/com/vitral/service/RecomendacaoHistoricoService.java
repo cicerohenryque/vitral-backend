@@ -17,6 +17,6 @@ public class RecomendacaoHistoricoService {
     @Transactional
     public MensagemResponse limpar(Account account) {
         repository.deleteByAccountId(account.getId());
-        return new MensagemResponse("Historico de recomendacoes removido com sucesso");
+        return new MensagemResponse("Histórico de recomendações removido com sucesso.");
     }
 }

@@ -39,7 +39,7 @@ public class UploadService {
             String filename = UUID.randomUUID() + extensionFor(file.getContentType());
             Path destination = imageDirectory.resolve(filename).normalize();
             if (!destination.startsWith(imageDirectory)) {
-                throw badRequest("Nome de arquivo invalido.");
+                throw badRequest("O nome do arquivo é inválido.");
             }
 
             try (InputStream input = file.getInputStream()) {
@@ -47,7 +47,7 @@ public class UploadService {
             }
             return "/api/v1/uploads/images/" + filename;
         } catch (IOException exception) {
-            throw badRequest("Nao foi possivel salvar a imagem.");
+            throw badRequest("Não foi possível salvar a imagem. Tente enviar o arquivo novamente.");
         }
     }
 
@@ -55,11 +55,11 @@ public class UploadService {
         try {
             Path file = imageDirectory.resolve(filename).normalize();
             if (!file.startsWith(imageDirectory) || !Files.exists(file) || !Files.isRegularFile(file)) {
-                throw new ResourceNotFoundException("Imagem nao encontrada.");
+                throw new ResourceNotFoundException("A imagem solicitada não foi encontrada.");
             }
             return new UrlResource(file.toUri());
         } catch (IOException exception) {
-            throw new ResourceNotFoundException("Imagem nao encontrada.");
+            throw new ResourceNotFoundException("A imagem solicitada não foi encontrada.");
         }
     }
 
@@ -73,13 +73,13 @@ public class UploadService {
 
     private void validateImage(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw badRequest("Selecione uma imagem para upload.");
+            throw badRequest("Selecione uma imagem para enviar.");
         }
         if (file.getSize() > MAX_IMAGE_SIZE_BYTES) {
-            throw badRequest("A imagem deve ter no maximo 5MB.");
+            throw badRequest("A imagem excede o limite de 5 MB. Escolha um arquivo menor.");
         }
         if (!ALLOWED_CONTENT_TYPES.contains(file.getContentType())) {
-            throw badRequest("Formato de imagem invalido. Use JPG, PNG ou WEBP.");
+            throw badRequest("O formato da imagem é inválido. Use um arquivo JPG, PNG ou WEBP.");
         }
     }
 
@@ -88,7 +88,7 @@ public class UploadService {
             case "image/jpeg" -> ".jpg";
             case "image/png" -> ".png";
             case "image/webp" -> ".webp";
-            default -> throw badRequest("Formato de imagem invalido. Use JPG, PNG ou WEBP.");
+            default -> throw badRequest("O formato da imagem é inválido. Use um arquivo JPG, PNG ou WEBP.");
         };
     }
 

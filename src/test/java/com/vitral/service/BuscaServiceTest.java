@@ -1,6 +1,7 @@
 package com.vitral.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -16,12 +17,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.ArgumentMatchers;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -251,6 +254,28 @@ class BuscaServiceTest {
     }
 
     @Test
+    @DisplayName("Deve ordenar pelo preço efetivo quando a busca solicitar ordenação por preço")
+    void shouldSortByEffectivePriceWhenPriceSortIsRequested() {
+        Pageable pricePageable = PageRequest.of(1, 10, Sort.by(Sort.Order.desc("preco")));
+        when(produtoRepository.findAll(anyProdutoSpecification(), ArgumentMatchers.any(Pageable.class)))
+                .thenReturn(Page.empty());
+        when(precoService.precosPromocionaisVigentes(any())).thenReturn(Map.of());
+
+        buscaService.buscarProdutos(null, null, null, null, null, pricePageable);
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(produtoRepository).findAll(anyProdutoSpecification(), pageableCaptor.capture());
+        Pageable efetivo = pageableCaptor.getValue();
+        assertThat(efetivo.getPageNumber()).isEqualTo(1);
+        assertThat(efetivo.getPageSize()).isEqualTo(10);
+        assertThat(efetivo.getSort().getOrderFor("precoEfetivo")).isNotNull()
+                .extracting(Sort.Order::getDirection).isEqualTo(Sort.Direction.DESC);
+        assertThat(efetivo.getSort().getOrderFor("preco")).isNull();
+        assertThat(efetivo.getSort().getOrderFor("id")).isNotNull()
+                .extracting(Sort.Order::getDirection).isEqualTo(Sort.Direction.ASC);
+    }
+
+    @Test
     @DisplayName("Deve retornar pagina vazia quando nenhum resultado for encontrado")
     void shouldReturnEmptyPageWhenNoResultsFound() {
         when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(new PageImpl<>(List.of()));
@@ -290,16 +315,92 @@ class BuscaServiceTest {
     }
 
     @Test
-    @DisplayName("Deve manter comportamento padrao quando apenas lat ou apenas lng forem informados")
-    void shouldIgnoreProximitySortingWhenOnlyOneCoordinateProvided() {
-        Page<Sebo> pageResult = new PageImpl<>(List.of(sebo));
-        when(seboRepository.findAll(anySeboSpecification(), eq(pageable))).thenReturn(pageResult);
-        when(seboMapper.toPublicResponse(sebo)).thenReturn(seboResponse);
+    @DisplayName("Deve desempatar sebos na mesma distancia pelo identificador")
+    void shouldUseIdAsTieBreakerForEqualDistances() {
+        Account conta = sebo.getAccount();
+        Sebo segundo = Sebo.builder().account(conta).latitude(-7.1219).longitude(-34.8850).build();
+        Sebo primeiro = Sebo.builder().account(conta).latitude(-7.1219).longitude(-34.8850).build();
 
-        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, -7.1150, null, pageable);
+        when(seboRepository.findAll(anySeboSpecification())).thenReturn(List.of(segundo, primeiro));
+        when(seboMapper.toPublicResponse(eq(segundo), any()))
+                .thenAnswer(inv -> responseComDistancia(2L, "Segundo", inv.getArgument(1)));
+        when(seboMapper.toPublicResponse(eq(primeiro), any()))
+                .thenAnswer(inv -> responseComDistancia(1L, "Primeiro", inv.getArgument(1)));
 
-        assertThat(resultado.getContent()).containsExactly(seboResponse);
-        verify(seboRepository).findAll(anySeboSpecification(), eq(pageable));
+        Page<SeboResponse> resultado = buscaService.buscarSebos(null, null, null, -7.1150, -34.8631, pageable);
+
+        assertThat(resultado.getContent()).extracting(SeboResponse::nome)
+                .containsExactly("Primeiro", "Segundo");
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar localização incompleta")
+    void shouldRejectIncompleteCoordinates() {
+        assertThatThrownBy(() -> buscaService.buscarSebos(null, null, null, -7.1150, null, pageable))
+                .isInstanceOf(com.vitral.exception.BusinessException.class)
+                .hasMessageContaining("latitude e longitude");
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar coordenadas e raio não finitos")
+    void shouldRejectNonFiniteLocationValues() {
+        assertThatThrownBy(() -> buscaService.buscarSebos(
+                null, null, null, Double.NaN, -34.8631, 25.0, pageable))
+                .isInstanceOf(com.vitral.exception.BusinessException.class)
+                .hasMessageContaining("coordenadas");
+        assertThatThrownBy(() -> buscaService.buscarSebos(
+                null, null, null, -7.1150, -34.8631, Double.POSITIVE_INFINITY, pageable))
+                .isInstanceOf(com.vitral.exception.BusinessException.class)
+                .hasMessageContaining("raio");
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar coordenadas fora dos limites geográficos")
+    void shouldRejectCoordinatesOutsideGeographicBounds() {
+        assertThatThrownBy(() -> buscaService.buscarSebos(
+                null, null, null, 90.1, -34.8631, 25.0, pageable))
+                .isInstanceOf(com.vitral.exception.BusinessException.class)
+                .hasMessageContaining("coordenadas");
+        assertThatThrownBy(() -> buscaService.buscarSebos(
+                null, null, null, -7.1150, -180.1, 25.0, pageable))
+                .isInstanceOf(com.vitral.exception.BusinessException.class)
+                .hasMessageContaining("coordenadas");
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar raio sem coordenadas e fora dos limites permitidos")
+    void shouldRejectInvalidRadius() {
+        assertThatThrownBy(() -> buscaService.buscarSebos(
+                null, null, null, null, null, 25.0, pageable))
+                .isInstanceOf(com.vitral.exception.BusinessException.class)
+                .hasMessageContaining("raio");
+        assertThatThrownBy(() -> buscaService.buscarSebos(
+                null, null, null, -7.1150, -34.8631, 0.0, pageable))
+                .isInstanceOf(com.vitral.exception.BusinessException.class)
+                .hasMessageContaining("raio");
+        assertThatThrownBy(() -> buscaService.buscarSebos(
+                null, null, null, -7.1150, -34.8631, 500.1, pageable))
+                .isInstanceOf(com.vitral.exception.BusinessException.class)
+                .hasMessageContaining("raio");
+    }
+
+    @Test
+    @DisplayName("Deve retornar somente sebos dentro do raio informado")
+    void shouldFilterStoresByRadius() {
+        Account conta = sebo.getAccount();
+        Sebo proximo = Sebo.builder().account(conta).latitude(-7.1219).longitude(-34.8850).build();
+        Sebo distante = Sebo.builder().account(conta).latitude(-23.5505).longitude(-46.6333).build();
+        when(seboRepository.findAll(anySeboSpecification())).thenReturn(List.of(distante, proximo));
+        when(seboMapper.toPublicResponse(eq(proximo), any()))
+                .thenAnswer(inv -> responseComDistancia(1L, "Próximo", inv.getArgument(1)));
+        when(seboMapper.toPublicResponse(eq(distante), any()))
+                .thenAnswer(inv -> responseComDistancia(2L, "Distante", inv.getArgument(1)));
+
+        Page<SeboResponse> resultado = buscaService.buscarSebos(
+                null, null, null, -7.1150, -34.8631, 25.0, pageable);
+
+        assertThat(resultado.getContent()).extracting(SeboResponse::nome).containsExactly("Próximo");
+        assertThat(resultado.getTotalElements()).isEqualTo(1);
     }
 
     private SeboResponse responseComDistancia(Long id, String nome, Double distanciaKm) {

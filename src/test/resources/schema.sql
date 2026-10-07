@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS admin_audit;
 DROP TABLE IF EXISTS recomendacao_evento;
 DROP TABLE IF EXISTS pedido_item;
 DROP TABLE IF EXISTS pedido;
@@ -297,3 +298,18 @@ CREATE INDEX idx_rec_categoria_data ON recomendacao_evento(categoria_id, created
 -- Equivalente ao indice parcial da V35: o H2 nao suporta indice com WHERE, e como pedido_id
 -- so e preenchido em eventos de compra, o indice completo cobre o mesmo caso.
 CREATE UNIQUE INDEX uk_rec_compra_pedido_produto ON recomendacao_evento(pedido_id, produto_id, tipo);
+
+CREATE TABLE admin_audit (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    admin_id BIGINT NOT NULL,
+    acao VARCHAR(60) NOT NULL,
+    entidade VARCHAR(60) NOT NULL,
+    entidade_id BIGINT NOT NULL,
+    descricao VARCHAR(500) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_admin_audit_account FOREIGN KEY (admin_id) REFERENCES account(id)
+);
+
+CREATE INDEX idx_admin_audit_created_at ON admin_audit(created_at);
+CREATE INDEX idx_admin_audit_admin_created_at ON admin_audit(admin_id, created_at);

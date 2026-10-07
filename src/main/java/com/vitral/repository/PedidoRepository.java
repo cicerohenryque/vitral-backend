@@ -5,7 +5,10 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -13,7 +16,24 @@ import com.vitral.entity.Pedido;
 import com.vitral.enumerations.StatusPedido;
 
 @Repository
-public interface PedidoRepository extends JpaRepository<Pedido, Long> {
+public interface PedidoRepository extends JpaRepository<Pedido, Long>, JpaSpecificationExecutor<Pedido> {
+
+    @Override
+    @EntityGraph(attributePaths = {"account", "sebo", "sebo.account"})
+    Page<Pedido> findAll(Specification<Pedido> spec, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"account", "sebo", "sebo.account"})
+    Page<Pedido> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    @EntityGraph(attributePaths = {"account", "sebo", "sebo.account"})
+    Page<Pedido> findByStatusOrderByCreatedAtDesc(StatusPedido status, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"itens", "itens.produto"})
+    @Query("select distinct p from Pedido p where p.id in :ids")
+    List<Pedido> findAllWithItemsByIdIn(@Param("ids") List<Long> ids);
+
+    @Query("select p.status, count(p) from Pedido p group by p.status")
+    List<Object[]> countByStatusGrouped();
 
     // Histórico de pedidos do usuário (paginado)
     Page<Pedido> findByAccountIdOrderByCreatedAtDesc(Long accountId, Pageable pageable);

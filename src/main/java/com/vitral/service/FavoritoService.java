@@ -32,17 +32,17 @@ public class FavoritoService {
     @Transactional
     public MensagemResponse favoritar(Account account, Long produtoId) {
         if (favoritoRepository.existsByAccountIdAndProdutoId(account.getId(), produtoId)) {
-            throw new ConflictException("Produto ja favoritado");
+            throw new ConflictException("Este produto já está nos seus favoritos.");
         }
         Produto produto = produtoRepository.findByIdAndAtivoTrue(produtoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O produto informado não foi encontrado."));
         Favorito favorito = Favorito.builder()
                 .account(account)
                 .produto(produto)
                 .build();
         favoritoRepository.save(favorito);
         recomendacaoEventoService.registrarProduto(account, TipoEventoRecomendacao.FAVORITO_ADICIONADO, produto);
-        return new MensagemResponse("Produto favoritado com sucesso");
+        return new MensagemResponse("Produto adicionado aos favoritos com sucesso.");
     }
 
     @Transactional(readOnly = true)
@@ -67,10 +67,10 @@ public class FavoritoService {
     public MensagemResponse removerFavorito(Account account, Long produtoId) {
         Favorito favorito = favoritoRepository
                 .findByAccountIdAndProdutoId(account.getId(), produtoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Favorito nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Este produto não foi encontrado nos seus favoritos."));
         favoritoRepository.delete(favorito);
         recomendacaoEventoService.registrarProduto(account, TipoEventoRecomendacao.FAVORITO_REMOVIDO,
                 favorito.getProduto());
-        return new MensagemResponse("Favorito removido com sucesso");
+        return new MensagemResponse("Produto removido dos favoritos com sucesso.");
     }
 }

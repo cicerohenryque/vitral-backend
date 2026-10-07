@@ -19,7 +19,7 @@ public class CnpjConsultaService {
     @Transactional
     public ConsultaCnpjResponse consultarMeuSebo(Account account) {
         Sebo sebo = seboRepository.findByAccountId(account.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Sebo nao encontrado para esta conta"));
+                .orElseThrow(() -> new ResourceNotFoundException("Nenhum sebo foi encontrado para esta conta."));
         return consultar(sebo);
     }
 

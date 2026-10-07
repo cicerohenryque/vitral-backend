@@ -43,7 +43,7 @@ public class MetadadosProdutoService {
     public List<SugestaoProdutoResponse> sugerir(String termo) {
         String normalizado = termo == null ? "" : termo.trim();
         if (normalizado.length() < TAMANHO_MINIMO_TERMO) {
-            throw new BusinessException("Informe ao menos 3 caracteres para buscar sugestoes",
+            throw new BusinessException("Informe pelo menos 3 caracteres para buscar sugestões de produtos.",
                     HttpStatus.BAD_REQUEST);
         }
         if (!properties.enabled()) {

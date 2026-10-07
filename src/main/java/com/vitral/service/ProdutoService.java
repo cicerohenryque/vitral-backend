@@ -116,7 +116,7 @@ public class ProdutoService {
     @Transactional(readOnly = true)
     public ProdutoResponse buscarPorId(Long id, Account visitante) {
         Produto produto = produtoRepository.findByIdAndAtivoTrue(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O produto informado não foi encontrado."));
         validarSeboVerificado(produto);
         recomendacaoEventoService.registrarProduto(visitante,
                 com.vitral.enumerations.TipoEventoRecomendacao.VISUALIZACAO, produto);
@@ -126,7 +126,7 @@ public class ProdutoService {
     @Transactional(readOnly = true)
     public List<VendedorProdutoResponse> listarVendedores(Long produtoId) {
         Produto referencia = produtoRepository.findByIdAndAtivoTrue(produtoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O produto informado não foi encontrado."));
         return List.of(referencia).stream()
                 .map(produto -> {
                     BigDecimal promocional = precoService.precoPromocionalVigente(produto).orElse(null);
@@ -184,23 +184,23 @@ public class ProdutoService {
 
     private Produto obterProdutoDoDono(Account account, Long produtoId) {
         Produto produto = produtoRepository.findById(produtoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O produto informado não foi encontrado."));
         if (!produto.getSebo().getAccount().getId().equals(account.getId())) {
-            throw new BusinessException("Produto nao pertence ao sebo da conta autenticada", HttpStatus.FORBIDDEN);
+            throw new BusinessException("Este produto não pertence ao sebo da conta autenticada.", HttpStatus.FORBIDDEN);
         }
         return produto;
     }
 
     private Categoria obterCategoria(Long categoriaId) {
         if (categoriaId == null) {
-            throw new BusinessException("Categoria e obrigatoria", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Selecione uma categoria para o produto.", HttpStatus.BAD_REQUEST);
         }
         return categoriaService.buscarPermitida(categoriaId);
     }
 
     private void validarGenero(Categoria categoria, BookGenre bookGenre) {
         if (bookGenre != null && !"livros".equals(categoria.getSlug())) {
-            throw new BusinessException("bookGenre somente pode ser informado para a categoria Livros", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O gênero literário só pode ser informado para produtos da categoria Livros.", HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -215,7 +215,7 @@ public class ProdutoService {
     private void validarSeboVerificado(Produto produto) {
         if (produto.getSebo().getStatusVerificacao() != StatusVerificacaoSebo.VERIFICADO
                 || !Boolean.TRUE.equals(produto.getSebo().getAccount().getAtivo())) {
-            throw new ResourceNotFoundException("Produto nao encontrado");
+            throw new ResourceNotFoundException("O produto informado não foi encontrado.");
         }
     }
 }

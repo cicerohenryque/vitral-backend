@@ -132,7 +132,7 @@ class PedidoServiceTest {
 
         assertThatThrownBy(() -> pedidoService.confirmarPedido(account, pagamentoPix()))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("cesta esta vazia");
+                .hasMessageContaining("cesta está vazia");
 
         verify(pedidoRepository, never()).save(any());
     }
@@ -154,7 +154,7 @@ class PedidoServiceTest {
 
         assertThatThrownBy(() -> pedidoService.confirmarPedido(account, pagamentoPix()))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("nao estao mais disponiveis");
+                .hasMessageContaining("não estão mais disponíveis");
 
         verify(pedidoRepository, never()).save(any());
     }
@@ -313,7 +313,7 @@ class PedidoServiceTest {
 
         assertThatThrownBy(() -> pedidoService.confirmarCompra(seboAccount, 1L, StatusPedido.CANCELADO))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("AGUARDANDO_CONFIRMACAO");
+                .hasMessageContaining("aguardando confirmação");
     }
 
     @Test
@@ -331,7 +331,7 @@ class PedidoServiceTest {
 
         assertThatThrownBy(() -> pedidoService.confirmarCompra(seboAccount, 1L, StatusPedido.AGUARDANDO_CONFIRMACAO))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Status invalido");
+                .hasMessageContaining("novo status deve ser CONFIRMADO ou CANCELADO");
     }
 
     @Test
@@ -427,7 +427,7 @@ class PedidoServiceTest {
 
         assertThatThrownBy(() -> pedidoService.cancelarPedidoUsuario(usuario, 1L))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("nao pertence");
+                .hasMessageContaining("não pertence");
     }
 
     @Test
@@ -444,7 +444,7 @@ class PedidoServiceTest {
 
         assertThatThrownBy(() -> pedidoService.cancelarPedidoUsuario(usuario, 1L))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("aguardando confirmacao");
+                .hasMessageContaining("aguardando confirmação");
     }
 
     @Test
@@ -526,7 +526,7 @@ class PedidoServiceTest {
 
         assertThatThrownBy(() -> pedidoService.faturamentoMensal(seboAccount, 1999))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Ano invalido");
+                .hasMessageContaining("ano informado é inválido");
     }
 
     @Test

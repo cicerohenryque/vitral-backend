@@ -20,8 +20,15 @@ public class AdminBootstrapInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         if (blank(properties.email()) || blank(properties.password()) || accountRepository.existsByType(AccountType.ADMIN)) return;
         if (properties.password().length() < 12) throw new IllegalStateException("APP_BOOTSTRAP_ADMIN_PASSWORD deve ter ao menos 12 caracteres");
+        String email = properties.email().trim().toLowerCase();
+        if (accountRepository.existsByEmail(email)) {
+            throw new IllegalStateException("APP_BOOTSTRAP_ADMIN_EMAIL já pertence a outra conta");
+        }
+        String username = accountRepository.existsByUsername("admin")
+                ? "admin-" + Integer.toUnsignedString(email.hashCode(), 36)
+                : "admin";
         accountRepository.save(Account.builder().name(blank(properties.name()) ? "Administrador" : properties.name().trim())
-                .email(properties.email().trim().toLowerCase()).passwordHash(passwordEncoder.encode(properties.password()))
+                .username(username).email(email).passwordHash(passwordEncoder.encode(properties.password()))
                 .type(AccountType.ADMIN).emailVerificado(true).ativo(true).build());
     }
 

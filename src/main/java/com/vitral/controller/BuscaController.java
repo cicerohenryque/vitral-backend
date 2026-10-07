@@ -39,13 +39,14 @@ public class BuscaController {
             @RequestParam(required = false) String uf,
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng,
+            @RequestParam(required = false) Double raioKm,
             Pageable pageable) {
         return ResponseEntity.ok(
-                PageResponse.from(buscaService.buscarSebos(q, cidade, uf, lat, lng, pageable)));
+                PageResponse.from(buscaService.buscarSebos(q, cidade, uf, lat, lng, raioKm, pageable)));
     }
 
     @GetMapping("/produtos")
-    @Operation(summary = "Busca produtos ativos com filtros opcionais: titulo (q), seboId, condicao, precoMin e precoMax")
+    @Operation(summary = "Busca produtos ativos por título ou autor, com filtros opcionais de sebo, condição, preço, categoria e gênero")
     public ResponseEntity<PageResponse<ProdutoResponse>> buscarProdutos(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Long seboId,

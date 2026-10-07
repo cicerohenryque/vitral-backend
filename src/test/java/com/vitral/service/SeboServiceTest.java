@@ -141,7 +141,7 @@ class SeboServiceTest {
     void shouldRejectWhenAccountTypeIsNotSebo() {
         assertThatThrownBy(() -> seboService.criar(contaUsuario, request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("SEBO")
+                .hasMessageContaining("tipo sebo")
                 .satisfies(ex -> assertThat(((BusinessException) ex).getStatus()).isEqualTo(HttpStatus.FORBIDDEN));
 
         verify(seboRepository, never()).save(seboCaptor.capture());
@@ -154,7 +154,7 @@ class SeboServiceTest {
 
         assertThatThrownBy(() -> seboService.criar(contaSebo, request))
                 .isInstanceOf(ConflictException.class)
-                .hasMessage("Sebo ja cadastrado para esta conta");
+                .hasMessage("Esta conta já possui um sebo cadastrado.");
 
         verify(seboRepository, never()).save(seboCaptor.capture());
     }
@@ -189,7 +189,7 @@ class SeboServiceTest {
 
         assertThatThrownBy(() -> seboService.atualizarMeuSebo(contaSebo, request))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessage("Sebo nao encontrado para esta conta");
+                .hasMessage("Nenhum sebo foi encontrado para esta conta.");
     }
 
     @Test
@@ -217,7 +217,7 @@ class SeboServiceTest {
 
         assertThatThrownBy(() -> seboService.buscarPorId(99L))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessage("Sebo nao encontrado");
+                .hasMessage("O sebo informado não foi encontrado.");
     }
 
     @Test
@@ -238,7 +238,7 @@ class SeboServiceTest {
 
         assertThatThrownBy(() -> seboService.buscarEntidadePorAccount(10L))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessage("Sebo nao encontrado para esta conta");
+                .hasMessage("Nenhum sebo foi encontrado para esta conta.");
     }
 
     @Test
@@ -392,7 +392,7 @@ class SeboServiceTest {
         MensagemResponse response = seboService.excluirConta(contaSebo);
 
         verify(anonimizacaoContaService).anonimizarSebo(contaSebo);
-        assertThat(response.mensagem()).isEqualTo("Conta do sebo excluida com sucesso");
+        assertThat(response.mensagem()).isEqualTo("Conta do sebo excluída com sucesso.");
     }
 
     private void setAccountId(Account account, Long id) {

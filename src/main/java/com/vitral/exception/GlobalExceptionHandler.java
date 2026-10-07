@@ -27,14 +27,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiError> handleBusiness(BusinessException exception, WebRequest request) {
         List<ApiError.FieldErrorItem> fields = exception.getFields().stream()
-                .map(field -> new ApiError.FieldErrorItem(field, "Campo ausente ou invalido"))
+                .map(field -> new ApiError.FieldErrorItem(field, "Este campo é obrigatório ou está inválido."))
                 .toList();
         return build(exception.getStatus(), exception.getCode(), exception.getMessage(), request, fields);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiError> handleBadCredentials(BadCredentialsException exception, WebRequest request) {
-        return build(HttpStatus.UNAUTHORIZED, "Credenciais invalidas", request, List.of());
+        return build(HttpStatus.UNAUTHORIZED, "E-mail, usuário ou senha incorretos. Confira os dados e tente novamente.", request, List.of());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -42,29 +42,31 @@ public class GlobalExceptionHandler {
         List<ApiError.FieldErrorItem> fieldErrors = exception.getBindingResult().getFieldErrors().stream()
                 .map(this::toFieldError)
                 .toList();
-        return build(HttpStatus.BAD_REQUEST, "Erro de validacao", request, fieldErrors);
+        return build(HttpStatus.BAD_REQUEST, "Não foi possível validar os dados enviados. Revise os campos indicados.", request, fieldErrors);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiError> handleUnreadableBody(HttpMessageNotReadableException exception, WebRequest request) {
-        String message = causaMenciona(exception, "BookGenre") ? "bookGenre invalido" : "Corpo da requisicao invalido";
+        String message = causaMenciona(exception, "BookGenre")
+                ? "O gênero do livro informado é inválido."
+                : "Não foi possível ler os dados enviados. Verifique o formato da requisição.";
         return build(HttpStatus.BAD_REQUEST, message, request, List.of());
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException exception, WebRequest request) {
-        return build(HttpStatus.FORBIDDEN, "Voce nao tem permissao para realizar esta acao", request, List.of());
+        return build(HttpStatus.FORBIDDEN, "Você não tem permissão para realizar esta ação.", request, List.of());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException exception, WebRequest request) {
         log.warn("Conflito de integridade em {}", path(request));
-        return build(HttpStatus.CONFLICT, "A operacao conflita com dados existentes", request, List.of());
+        return build(HttpStatus.CONFLICT, "Não foi possível concluir a operação porque existem dados vinculados ou duplicados.", request, List.of());
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiError> handleMaxUploadSize(MaxUploadSizeExceededException exception, WebRequest request) {
-        return build(HttpStatus.PAYLOAD_TOO_LARGE, "A imagem deve ter no maximo 5MB", request, List.of());
+        return build(HttpStatus.PAYLOAD_TOO_LARGE, "O arquivo excede o limite de 5 MB. Escolha um arquivo menor.", request, List.of());
     }
 
     @ExceptionHandler(Exception.class)
@@ -72,7 +74,7 @@ public class GlobalExceptionHandler {
         log.error("Erro inesperado em {}", path(request), exception);
         return build(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "Ocorreu um erro interno. Tente novamente mais tarde.",
+                "Não foi possível concluir a solicitação agora. Tente novamente mais tarde.",
                 request,
                 List.of());
     }

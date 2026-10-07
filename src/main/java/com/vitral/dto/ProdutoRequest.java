@@ -14,15 +14,18 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record ProdutoRequest(
-        @NotBlank @Size(max = 255) String titulo,
-        @NotNull(message = "Categoria e obrigatoria") Long categoriaId,
+        @NotBlank(message = "Informe o título do produto.")
+        @Size(max = 255, message = "O título deve ter, no máximo, 255 caracteres.") String titulo,
+        @NotNull(message = "Selecione uma categoria para o produto.") Long categoriaId,
         BookGenre bookGenre,
         @Size(max = 255) String autor,
         @Size(max = 2000) String descricao,
         @Min(0) @Max(2200) Integer ano,
-        @NotNull @DecimalMin(value = "0.0", inclusive = true) @Digits(integer = 10, fraction = 2) BigDecimal preco,
-        @Min(0) Integer estoque,
-        @NotNull CondicaoProduto condicao,
+        @NotNull(message = "Informe o preço do produto.")
+        @DecimalMin(value = "0.0", inclusive = true, message = "O preço não pode ser negativo.")
+        @Digits(integer = 10, fraction = 2, message = "Informe um preço válido com até duas casas decimais.") BigDecimal preco,
+        @Min(value = 0, message = "O estoque não pode ser negativo.") Integer estoque,
+        @NotNull(message = "Selecione a condição do produto.") CondicaoProduto condicao,
         @Size(max = 500) String fotoUrl,
         Boolean classico,
         Boolean lancamento) {

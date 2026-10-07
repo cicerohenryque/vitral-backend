@@ -132,11 +132,23 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.register(request))
                 .isInstanceOf(ConflictException.class)
-                .hasMessage("Email ja cadastrado");
+                .hasMessage("Já existe uma conta cadastrada com este e-mail.");
 
         verify(accountRepository, never()).save(any(Account.class));
         verify(tokenRepository, never()).save(any(TokenVerificacaoEmail.class));
         verify(emailService, never()).enviarConfirmacaoCadastro(any(), any());
+    }
+
+    @Test
+    @DisplayName("Cadastro público não permite criar conta ADMIN")
+    void cadastroPublicoRejeitaAdmin() {
+        RegisterRequest request = new RegisterRequest("Admin", "admin.publico", "admin@vitral.com", "senha1234",
+                AccountType.ADMIN);
+
+        assertThatThrownBy(() -> authService.register(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("não pode ser cadastrado");
+        verify(accountRepository, never()).save(any(Account.class));
     }
 
     @Test
@@ -148,7 +160,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.register(request))
                 .isInstanceOf(ConflictException.class)
-                .hasMessage("Usuario ja cadastrado");
+                .hasMessage("Este nome de usuário já está em uso. Escolha outro.");
 
         verify(accountRepository, never()).save(any(Account.class));
         verify(emailService, never()).enviarConfirmacaoCadastro(any(), any());
@@ -249,7 +261,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.login(request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("E-mail nao confirmado")
+                .hasMessageContaining("Seu e-mail ainda não foi confirmado")
                 .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
                         .isEqualTo(HttpStatus.UNAUTHORIZED));
 
@@ -296,7 +308,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.confirmarEmail("uuid-usado"))
                 .isInstanceOf(BusinessException.class)
-                .hasMessage("Token ja utilizado");
+                .hasMessage("Este link de confirmação já foi utilizado.");
     }
 
     @Test
@@ -312,7 +324,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.confirmarEmail("uuid-expirado"))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Token expirado");
+                .hasMessageContaining("link de confirmação expirou");
     }
 
     @Test
@@ -322,7 +334,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.confirmarEmail("token-inexistente"))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessage("Token de confirmacao invalido");
+                .hasMessage("O link de confirmação é inválido. Solicite um novo link.");
     }
 
     @Test

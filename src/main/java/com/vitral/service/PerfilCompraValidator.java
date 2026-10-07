@@ -27,7 +27,7 @@ public class PerfilCompraValidator {
         validarTexto(account.getCidade(), "cidade", fields);
         if (account.getEstado() == null || !UFS.contains(account.getEstado().toUpperCase())) fields.add("estado");
         if (!fields.isEmpty()) {
-            throw new BusinessException("Complete CPF e endereco antes de finalizar a compra",
+            throw new BusinessException("Complete o CPF e o endereço no seu perfil antes de finalizar a compra.",
                     HttpStatus.UNPROCESSABLE_ENTITY, "PROFILE_INCOMPLETE_FOR_PURCHASE", fields);
         }
     }

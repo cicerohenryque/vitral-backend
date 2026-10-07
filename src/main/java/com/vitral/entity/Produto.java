@@ -15,6 +15,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
+import org.hibernate.annotations.Formula;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -57,6 +58,19 @@ public class Produto extends BaseEntity {
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal preco;
+
+    @Formula("""
+            coalesce(
+                (select min(o.preco_promocional)
+                   from oferta o
+                  where o.produto_id = id
+                    and o.ativa = true
+                    and (o.inicio_em is null or o.inicio_em <= current_timestamp)
+                    and (o.fim_em is null or o.fim_em >= current_timestamp)),
+                preco
+            )
+            """)
+    private BigDecimal precoEfetivo;
 
     @Column(nullable = false)
     @Builder.Default

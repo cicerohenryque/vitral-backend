@@ -33,7 +33,7 @@ public class OfertaService {
     public OfertaResponse criar(Account account, OfertaRequest request) {
         Produto produto = obterProdutoDoSebo(account, request.produtoId());
         if (ofertaRepository.findByProdutoIdAndAtivaTrue(produto.getId()).isPresent()) {
-            throw new ConflictException("Produto ja possui oferta ativa");
+            throw new ConflictException("Este produto já possui uma oferta ativa.");
         }
         validarPeriodo(request.inicioEm(), request.fimEm());
         Oferta oferta = Oferta.builder()
@@ -52,7 +52,7 @@ public class OfertaService {
     @Transactional
     public OfertaResponse atualizar(Account account, Long id, OfertaRequest request) {
         Oferta oferta = ofertaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Oferta nao encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("A oferta informada não foi encontrada."));
         Produto produto = obterProdutoDoSebo(account, request.produtoId());
         validarPeriodo(request.inicioEm(), request.fimEm());
         oferta.setProduto(produto);
@@ -68,9 +68,9 @@ public class OfertaService {
     @Transactional
     public void remover(Account account, Long id) {
         Oferta oferta = ofertaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Oferta nao encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("A oferta informada não foi encontrada."));
         if (!oferta.getProduto().getSebo().getAccount().getId().equals(account.getId())) {
-            throw new BusinessException("Oferta nao pertence ao sebo da conta autenticada", HttpStatus.FORBIDDEN);
+            throw new BusinessException("Esta oferta não pertence ao sebo da conta autenticada.", HttpStatus.FORBIDDEN);
         }
         oferta.setAtiva(Boolean.FALSE);
         seboService.registrarAtividade(oferta.getProduto().getSebo());
@@ -88,19 +88,19 @@ public class OfertaService {
 
     private Produto obterProdutoDoSebo(Account account, Long produtoId) {
         Produto produto = produtoRepository.findById(produtoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O produto informado não foi encontrado."));
         if (!produto.getSebo().getAccount().getId().equals(account.getId())) {
-            throw new BusinessException("Produto nao pertence ao sebo da conta autenticada", HttpStatus.FORBIDDEN);
+            throw new BusinessException("Este produto não pertence ao sebo da conta autenticada.", HttpStatus.FORBIDDEN);
         }
         if (!Boolean.TRUE.equals(produto.getAtivo())) {
-            throw new BusinessException("Produto nao esta disponivel para oferta", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Este produto está inativo ou sem estoque e não pode receber uma oferta.", HttpStatus.BAD_REQUEST);
         }
         return produto;
     }
 
     private void validarPeriodo(OffsetDateTime inicioEm, OffsetDateTime fimEm) {
         if (inicioEm != null && fimEm != null && fimEm.isBefore(inicioEm)) {
-            throw new BusinessException("Data final da oferta deve ser posterior ao inicio", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("A data final da oferta deve ser posterior à data de início.", HttpStatus.BAD_REQUEST);
         }
     }
 

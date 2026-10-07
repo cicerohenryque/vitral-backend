@@ -53,6 +53,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/ofertas/minhas").hasRole("SEBO")
                         .requestMatchers(HttpMethod.GET, "/api/v1/sebos/**", "/api/v1/produtos/**", "/api/v1/busca/**",
                                 "/api/v1/categorias/**", "/api/v1/ofertas/**", "/api/v1/uploads/images/**").permitAll()
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/sebos/me").hasRole("SEBO")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/usuarios/me").hasRole("USUARIO")
                         .requestMatchers(HttpMethod.POST, "/api/v1/ofertas").hasRole("SEBO")

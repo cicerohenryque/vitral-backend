@@ -54,7 +54,7 @@ class UploadServiceTest {
 
         assertThatThrownBy(() -> service.storeImage(file))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
-                        assertThat(exception.getMessage()).contains("Formato de imagem invalido"));
+                        assertThat(exception.getMessage()).contains("formato da imagem é inválido"));
     }
 
     @Test
@@ -67,7 +67,7 @@ class UploadServiceTest {
         assertThatThrownBy(() -> service.storeImage(file))
                 .isInstanceOfSatisfying(BusinessException.class, exception -> {
                     assertThat(exception.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
-                    assertThat(exception.getMessage()).contains("maximo 5MB");
+                    assertThat(exception.getMessage()).contains("limite de 5 MB");
                 });
     }
 
@@ -78,7 +78,7 @@ class UploadServiceTest {
 
         assertThatThrownBy(() -> service.loadImage("inexistente.png"))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("Imagem nao encontrada");
+                .hasMessageContaining("imagem solicitada não foi encontrada");
     }
 
     @Test

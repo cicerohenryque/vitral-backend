@@ -38,7 +38,7 @@ public class CestaService {
     public MensagemResponse adicionarItem(Account account, Long produtoId, Integer quantidade) {
         int quantidadeNormalizada = normalizarQuantidade(quantidade);
         Produto produto = produtoRepository.findByIdAndAtivoTrue(produtoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("O produto informado não foi encontrado."));
         CestaItem item = cestaItemRepository
                 .findByAccountIdAndProdutoId(account.getId(), produtoId)
                 .orElseGet(() -> CestaItem.builder()
@@ -52,7 +52,7 @@ public class CestaService {
         item.setQuantidade(novaQuantidade);
         cestaItemRepository.save(item);
         recomendacaoEventoService.registrarProduto(account, TipoEventoRecomendacao.CESTA_ADICIONADO, produto);
-        return new MensagemResponse("Produto adicionado a cesta");
+        return new MensagemResponse("Produto adicionado à cesta com sucesso.");
     }
 
     @Transactional
@@ -60,10 +60,10 @@ public class CestaService {
         int quantidadeNormalizada = normalizarQuantidade(quantidade);
         CestaItem item = cestaItemRepository
                 .findByAccountIdAndProdutoId(account.getId(), produtoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Item nao encontrado na cesta"));
+                .orElseThrow(() -> new ResourceNotFoundException("Este produto não foi encontrado na sua cesta."));
         validarEstoque(item.getProduto(), quantidadeNormalizada);
         item.setQuantidade(quantidadeNormalizada);
-        return new MensagemResponse("Quantidade atualizada");
+        return new MensagemResponse("Quantidade do produto atualizada com sucesso.");
     }
 
     @Transactional(readOnly = true)
@@ -91,10 +91,10 @@ public class CestaService {
     public MensagemResponse removerItem(Account account, Long produtoId) {
         CestaItem item = cestaItemRepository
                 .findByAccountIdAndProdutoId(account.getId(), produtoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Item nao encontrado na cesta"));
+                .orElseThrow(() -> new ResourceNotFoundException("Este produto não foi encontrado na sua cesta."));
         cestaItemRepository.delete(item);
         recomendacaoEventoService.registrarProduto(account, TipoEventoRecomendacao.CESTA_REMOVIDO, item.getProduto());
-        return new MensagemResponse("Produto removido da cesta");
+        return new MensagemResponse("Produto removido da cesta com sucesso.");
     }
 
     private int normalizarQuantidade(Integer quantidade) {
@@ -102,14 +102,14 @@ public class CestaService {
             return 1;
         }
         if (quantidade < 1) {
-            throw new BusinessException("Quantidade deve ser maior que zero", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("A quantidade deve ser maior que zero.", HttpStatus.BAD_REQUEST);
         }
         return quantidade;
     }
 
     private void validarEstoque(Produto produto, int quantidade) {
         if (produto.getEstoque() < quantidade) {
-            throw new BusinessException("Quantidade solicitada maior que o estoque disponivel", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("A quantidade solicitada é maior que o estoque disponível.", HttpStatus.BAD_REQUEST);
         }
     }
 }

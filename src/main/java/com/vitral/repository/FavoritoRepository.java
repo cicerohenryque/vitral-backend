@@ -21,4 +21,7 @@ public interface FavoritoRepository extends JpaRepository<Favorito, Long> {
 
     @Query("select distinct f.produto.categoria.id from Favorito f where f.account.id = :accountId and f.produto.categoria is not null")
     List<Long> findCategoriaIdsByAccountId(@Param("accountId") Long accountId);
+
+    @Query("select f.produto.id from Favorito f where f.account.id = :accountId")
+    List<Long> findProdutoIdsByAccountId(@Param("accountId") Long accountId);
 }
