@@ -12,6 +12,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.OffsetDateTime;
 import com.vitral.enumerations.StatusVerificacaoSebo;
 import com.vitral.enumerations.StatusConsultaCnpj;
+import com.vitral.enumerations.TipoCatalogo;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import lombok.AllArgsConstructor;
@@ -28,6 +29,11 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Sebo extends BaseEntity {
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_catalogo", nullable = false, length = 30)
+    @Builder.Default
+    private TipoCatalogo tipoCatalogo = TipoCatalogo.SEBO;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "account_id", nullable = false, unique = true)

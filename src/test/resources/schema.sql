@@ -49,6 +49,7 @@ CREATE TABLE sebo (
     descricao              VARCHAR(2000),
     telefone               VARCHAR(20),
     cnpj                   VARCHAR(14),
+    tipo_catalogo          VARCHAR(30) NOT NULL DEFAULT 'SEBO',
     status_verificacao     VARCHAR(20) NOT NULL DEFAULT 'VERIFICADO',
     verificado_em          TIMESTAMP,
     motivo_rejeicao        VARCHAR(500),

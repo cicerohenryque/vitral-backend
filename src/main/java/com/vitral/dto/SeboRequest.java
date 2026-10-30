@@ -3,21 +3,30 @@ package com.vitral.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import com.vitral.enumerations.TipoCatalogo;
 
 public record SeboRequest(
         @Size(max = 2000) String descricao,
         @Size(max = 20) String telefone,
-        @NotBlank(message = "Informe o CNPJ do sebo.") @Size(max = 20) String cnpj,
+        @Size(max = 20) String cnpj,
         @Size(max = 500) String fotoUrl,
         @NotBlank(message = "Informe o CEP do sebo.") @Size(max = 20) String cep,
         @NotBlank(message = "Informe o logradouro do sebo.") @Size(max = 255) String logradouro,
         @NotBlank(message = "Informe a cidade do sebo.") @Size(max = 120) String cidade,
         @NotBlank(message = "Informe a UF do sebo.")
         @Pattern(regexp = "^[A-Za-z]{2}$", message = "A UF deve ter duas letras.") String uf,
-        @Size(max = 255) String horarioFuncionamento) {
+        @Size(max = 255) String horarioFuncionamento,
+        TipoCatalogo tipoCatalogo,
+        @Size(max = 14) String cpf) {
 
     public SeboRequest(String descricao, String telefone, String cnpj, String fotoUrl,
             String cep, String logradouro, String cidade, String uf) {
-        this(descricao, telefone, cnpj, fotoUrl, cep, logradouro, cidade, uf, null);
+        this(descricao, telefone, cnpj, fotoUrl, cep, logradouro, cidade, uf, null, TipoCatalogo.SEBO, null);
+    }
+
+    public SeboRequest(String descricao, String telefone, String cnpj, String fotoUrl,
+            String cep, String logradouro, String cidade, String uf, String horarioFuncionamento) {
+        this(descricao, telefone, cnpj, fotoUrl, cep, logradouro, cidade, uf, horarioFuncionamento,
+                TipoCatalogo.SEBO, null);
     }
 }

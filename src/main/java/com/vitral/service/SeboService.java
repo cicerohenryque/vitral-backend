@@ -15,6 +15,7 @@ import com.vitral.entity.Account;
 import com.vitral.entity.Sebo;
 import com.vitral.enumerations.AccountType;
 import com.vitral.enumerations.StatusVerificacaoSebo;
+import com.vitral.enumerations.TipoCatalogo;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import com.vitral.exception.BusinessException;
@@ -22,6 +23,7 @@ import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.SeboMapper;
 import com.vitral.repository.SeboRepository;
+import com.vitral.repository.AccountRepository;
 
 import lombok.RequiredArgsConstructor;
 import com.vitral.util.DocumentoFiscalUtils;
@@ -39,6 +41,7 @@ public class SeboService {
     private final AnonimizacaoContaService anonimizacaoContaService;
     private final CnpjConsultaService cnpjConsultaService;
     private final SeboGeocodingService seboGeocodingService;
+    private final AccountRepository accountRepository;
 
     @Value("${app.sebo-verificacao.mock-auto-aprovar:false}")
     private boolean mockAutoAprovarVerificacao;
@@ -51,15 +54,14 @@ public class SeboService {
         if (seboRepository.existsByAccountId(account.getId())) {
             throw new ConflictException("Esta conta já possui um sebo cadastrado.");
         }
-        String cnpj = validarCnpj(request.cnpj());
-        if (seboRepository.existsByCnpj(cnpj)) {
-            throw new ConflictException("Já existe um sebo cadastrado com este CNPJ.");
-        }
+        TipoCatalogo tipoCatalogo = tipoCatalogo(request);
+        String cnpj = validarDocumentoCatalogo(account, tipoCatalogo, request.cnpj(), request.cpf(), null);
         // Fluxo real: novo cadastro comeca PENDENTE ate um ADMIN revisar
         // (ver VerificacaoSeboService.revisar). Isso ja e o default da entidade Sebo.
         // .statusVerificacao(StatusVerificacaoSebo.PENDENTE)
         Sebo sebo = Sebo.builder()
                 .account(account)
+                .tipoCatalogo(tipoCatalogo)
                 .descricao(request.descricao())
                 .telefone(request.telefone())
                 .cnpj(cnpj)
@@ -72,7 +74,9 @@ public class SeboService {
         sebo.setDataCriacao(agora);
         sebo.setUltimaAtividade(agora);
         Sebo salvo = seboRepository.save(sebo);
-        cnpjConsultaService.consultar(salvo);
+        if (tipoCatalogo == TipoCatalogo.SEBO) {
+            cnpjConsultaService.consultar(salvo);
+        }
         return seboMapper.toResponse(salvo);
     }
 
@@ -82,18 +86,30 @@ public class SeboService {
                 .orElseThrow(() -> new ResourceNotFoundException("Nenhum sebo foi encontrado para esta conta."));
         sebo.setDescricao(request.descricao());
         sebo.setTelefone(request.telefone());
-        String cnpj = validarCnpj(request.cnpj());
-        if (!java.util.Objects.equals(sebo.getCnpj(), cnpj)) {
-            if (seboRepository.existsByCnpjAndIdNot(cnpj, sebo.getId())) {
-                throw new ConflictException("Já existe um sebo cadastrado com este CNPJ.");
-            }
+        TipoCatalogo tipoAnterior = sebo.getTipoCatalogo();
+        TipoCatalogo tipoCatalogo = tipoCatalogo(request);
+        String cpfAnterior = account.getCpf();
+        String cnpj = validarDocumentoCatalogo(account, tipoCatalogo, request.cnpj(), request.cpf(), sebo.getId());
+        sebo.setTipoCatalogo(tipoCatalogo);
+        if (!java.util.Objects.equals(sebo.getCnpj(), cnpj)
+                || (tipoCatalogo == TipoCatalogo.VENDEDOR_INDEPENDENTE
+                    && !java.util.Objects.equals(cpfAnterior, account.getCpf()))) {
             sebo.setCnpj(cnpj);
             // Fluxo real: alterar o CNPJ reabre a verificacao (volta pra PENDENTE ate um ADMIN revisar).
             sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
             sebo.setVerificadoEm(null);
             sebo.setConfirmado(false);
             aplicarAprovacaoAutomaticaConfigurada(sebo);
-            cnpjConsultaService.consultar(sebo);
+            if (tipoCatalogo == TipoCatalogo.SEBO) {
+                cnpjConsultaService.consultar(sebo);
+            } else {
+                limparConsultaCnpj(sebo);
+            }
+        } else if (tipoAnterior != tipoCatalogo) {
+            sebo.setStatusVerificacao(StatusVerificacaoSebo.PENDENTE);
+            sebo.setVerificadoEm(null);
+            sebo.setConfirmado(false);
+            if (tipoCatalogo == TipoCatalogo.VENDEDOR_INDEPENDENTE) limparConsultaCnpj(sebo);
         }
         sebo.setFotoUrl(request.fotoUrl());
         String cepAntigo = sebo.getCep();
@@ -186,6 +202,37 @@ public class SeboService {
             throw new BusinessException("O CNPJ informado é inválido. Confira os 14 números.", HttpStatus.BAD_REQUEST);
         }
         return cnpj;
+    }
+
+    private TipoCatalogo tipoCatalogo(SeboRequest request) {
+        return request.tipoCatalogo() == null ? TipoCatalogo.SEBO : request.tipoCatalogo();
+    }
+
+    private String validarDocumentoCatalogo(Account account, TipoCatalogo tipo, String cnpjInformado,
+            String cpfInformado, Long seboIdAtual) {
+        if (tipo == TipoCatalogo.VENDEDOR_INDEPENDENTE) {
+            String cpf = DocumentoFiscalUtils.somenteDigitos(cpfInformado);
+            if (!DocumentoFiscalUtils.cpfValido(cpf)) {
+                throw new BusinessException("O CPF informado é inválido. Confira os 11 números.", HttpStatus.BAD_REQUEST);
+            }
+            if (accountRepository.existsByCpfAndIdNot(cpf, account.getId())) {
+                throw new ConflictException("Já existe uma conta cadastrada com este CPF.");
+            }
+            account.setCpf(cpf);
+            return null;
+        }
+        String cnpj = validarCnpj(cnpjInformado);
+        boolean duplicado = seboIdAtual == null ? seboRepository.existsByCnpj(cnpj)
+                : seboRepository.existsByCnpjAndIdNot(cnpj, seboIdAtual);
+        if (duplicado) throw new ConflictException("Já existe um sebo cadastrado com este CNPJ.");
+        return cnpj;
+    }
+
+    private void limparConsultaCnpj(Sebo sebo) {
+        sebo.setRazaoSocialReceita(null);
+        sebo.setStatusConsultaCnpj(com.vitral.enumerations.StatusConsultaCnpj.NAO_CONSULTADO);
+        sebo.setCnpjConsultadoEm(null);
+        sebo.setMensagemConsultaCnpj(null);
     }
 
     private void aplicarAprovacaoAutomaticaConfigurada(Sebo sebo) {

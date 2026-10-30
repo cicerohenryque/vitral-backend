@@ -3,6 +3,7 @@ package com.vitral.dto;
 import com.vitral.enumerations.StatusVerificacaoSebo;
 import com.vitral.enumerations.StatusConsultaCnpj;
 import java.time.OffsetDateTime;
+import com.vitral.enumerations.TipoCatalogo;
 
 public record SeboResponse(
         Long id,
@@ -27,7 +28,20 @@ public record SeboResponse(
         OffsetDateTime dataCriacao,
         OffsetDateTime ultimaAtividade,
         Boolean confirmado,
-        Double distanciaKm) {
+        Double distanciaKm,
+        TipoCatalogo tipoCatalogo) {
+
+    public SeboResponse(
+            Long id, Long accountId, String nome, String email, String descricao, String telefone, String cnpj,
+            StatusVerificacaoSebo statusVerificacao, String motivoRejeicao, String razaoSocialReceita,
+            StatusConsultaCnpj statusConsultaCnpj, OffsetDateTime cnpjConsultadoEm, String mensagemConsultaCnpj,
+            String fotoUrl, String cep, String logradouro, String cidade, String uf, String horarioFuncionamento,
+            OffsetDateTime dataCriacao, OffsetDateTime ultimaAtividade, Boolean confirmado, Double distanciaKm) {
+        this(id, accountId, nome, email, descricao, telefone, cnpj, statusVerificacao, motivoRejeicao,
+                razaoSocialReceita, statusConsultaCnpj, cnpjConsultadoEm, mensagemConsultaCnpj, fotoUrl, cep,
+                logradouro, cidade, uf, horarioFuncionamento, dataCriacao, ultimaAtividade, confirmado,
+                distanciaKm, TipoCatalogo.SEBO);
+    }
 
     public SeboResponse(
             Long id,

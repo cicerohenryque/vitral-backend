@@ -33,12 +33,17 @@ import com.vitral.exception.ConflictException;
 import com.vitral.exception.ResourceNotFoundException;
 import com.vitral.mapper.SeboMapper;
 import com.vitral.repository.SeboRepository;
+import com.vitral.repository.AccountRepository;
+import com.vitral.enumerations.TipoCatalogo;
 
 @ExtendWith(MockitoExtension.class)
 class SeboServiceTest {
 
     @Mock
     private SeboRepository seboRepository;
+
+    @Mock
+    private AccountRepository accountRepository;
 
     @Mock
     private SeboMapper seboMapper;
@@ -113,6 +118,40 @@ class SeboServiceTest {
         assertThat(persistido.getDataCriacao()).isNotNull();
         assertThat(persistido.getUltimaAtividade()).isNotNull();
         assertThat(persistido.getStatusVerificacao()).isEqualTo(StatusVerificacaoSebo.PENDENTE);
+    }
+
+    @Test
+    void criaVendedorIndependenteComCpfSemConsultarCnpj() {
+        SeboRequest independente = new SeboRequest("Acervo pessoal", "83999990000", null,
+                "https://cdn/foto.jpg", "58000000", "Rua das Letras", "Joao Pessoa", "PB", null,
+                TipoCatalogo.VENDEDOR_INDEPENDENTE, "52998224725");
+        SeboResponse response = new SeboResponse(2L, 10L, "Sebo do Joao", "sebo@vitral.com",
+                independente.descricao(), independente.telefone(), null, StatusVerificacaoSebo.PENDENTE,
+                null, null, null, null, null, independente.fotoUrl());
+        when(seboRepository.existsByAccountId(10L)).thenReturn(false);
+        when(accountRepository.existsByCpfAndIdNot("52998224725", 10L)).thenReturn(false);
+        when(seboRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(seboMapper.toResponse(any())).thenReturn(response);
+
+        SeboResponse resultado = seboService.criar(contaSebo, independente);
+
+        assertThat(resultado).isSameAs(response);
+        assertThat(contaSebo.getCpf()).isEqualTo("52998224725");
+        verify(seboRepository).save(seboCaptor.capture());
+        assertThat(seboCaptor.getValue().getTipoCatalogo()).isEqualTo(TipoCatalogo.VENDEDOR_INDEPENDENTE);
+        assertThat(seboCaptor.getValue().getCnpj()).isNull();
+        verify(cnpjConsultaService, never()).consultar(any(Sebo.class));
+    }
+
+    @Test
+    void vendedorIndependenteExigeCpfValido() {
+        SeboRequest independente = new SeboRequest("Acervo pessoal", null, null, null, "58000000",
+                "Rua das Letras", "Joao Pessoa", "PB", null, TipoCatalogo.VENDEDOR_INDEPENDENTE, "11111111111");
+
+        assertThatThrownBy(() -> seboService.criar(contaSebo, independente))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("CPF informado é inválido");
+        verify(seboRepository, never()).save(any());
     }
 
     @Test

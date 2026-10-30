@@ -7,6 +7,9 @@ import com.vitral.dto.ConsultaCnpjResponse;
 import com.vitral.entity.Account;
 import com.vitral.entity.Sebo;
 import com.vitral.exception.ResourceNotFoundException;
+import com.vitral.exception.BusinessException;
+import com.vitral.enumerations.TipoCatalogo;
+import org.springframework.http.HttpStatus;
 import com.vitral.repository.SeboRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -25,6 +28,9 @@ public class CnpjConsultaService {
 
     @Transactional
     public ConsultaCnpjResponse consultar(Sebo sebo) {
+        if (sebo.getTipoCatalogo() == TipoCatalogo.VENDEDOR_INDEPENDENTE) {
+            throw new BusinessException("A consulta de CNPJ não se aplica a vendedores independentes.", HttpStatus.BAD_REQUEST);
+        }
         var resultado = client.consultar(sebo.getCnpj());
         OffsetDateTime agora = OffsetDateTime.now();
         sebo.setRazaoSocialReceita(resultado.razaoSocial());
